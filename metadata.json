@@ -1,0 +1,5 @@
+{
+  "name": "Python 编程在线模拟考试系统",
+  "description": "一个基于 Python 模拟卷的在线考试系统，支持单选、多选和编程题，提供实时评分和结果分析。",
+  "requestFramePermissions": []
+}
