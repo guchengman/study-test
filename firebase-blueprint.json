@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Stores user-specific settings and metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "question": {
+      "title": "Question",
+      "description": "A single exam question",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["single", "multiple", "boolean"] },
+        "content": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "answer": { "type": "string" },
+        "explanation": { "type": "string" }
+      },
+      "required": ["id", "type", "content", "answer"]
+    },
+    "wrongQuestion": {
+      "title": "Wrong Question",
+      "description": "A question that the user answered incorrectly",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "wrongAnswer": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["questionId", "timestamp"]
+    },
+    "favoriteQuestion": {
+      "title": "Favorite Question",
+      "description": "A question that the user has favorited",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["questionId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "userProfile",
+      "description": "User profile document"
+    },
+    "/users/{userId}/customQuestions/{questionId}": {
+      "schema": "question",
+      "description": "User's imported custom questions"
+    },
+    "/users/{userId}/wrongQuestions/{questionId}": {
+      "schema": "wrongQuestion",
+      "description": "User's collection of wrong answers"
+    },
+    "/users/{userId}/favorites/{questionId}": {
+      "schema": "favoriteQuestion",
+      "description": "User's collection of favorite questions"
+    }
+  }
+}
