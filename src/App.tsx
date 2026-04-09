@@ -21,8 +21,25 @@ import {
   Home,
   Database,
   CopyCheck,
-  Filter
+  Filter,
+  LogOut,
+  LogIn,
+  User,
+  Star
 } from 'lucide-react';
+import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  onSnapshot, 
+  query, 
+  deleteDoc, 
+  writeBatch,
+  serverTimestamp 
+} from 'firebase/firestore';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
 import { Question, ExamResult } from './types';
 import { ImportModal } from './components/ImportModal';
@@ -34,20 +51,14 @@ interface MistakeRecord {
 }
 
 export default function App() {
-  const [status, setStatus] = useState<'welcome' | 'exam' | 'result' | 'mistakes'>('welcome');
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [status, setStatus] = useState<'welcome' | 'exam' | 'result' | 'mistakes' | 'login'>('welcome');
   const [activeBank, setActiveBank] = useState<Question[]>([]);
-  const [removedIds, setRemovedIds] = useState<number[]>(() => {
-    const saved = localStorage.getItem('removed_questions');
-    const parsed = saved ? JSON.parse(saved) : [];
-    return Array.from(new Set(parsed));
-  });
-  const [mistakeRecords, setMistakeRecords] = useState<MistakeRecord[]>(() => {
-    const saved = localStorage.getItem('mistake_records');
-    const parsed: MistakeRecord[] = saved ? JSON.parse(saved) : [];
-    // Deduplicate on load
-    const unique = Array.from(new Map(parsed.map(r => [r.questionId, r])).values());
-    return unique;
-  });
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
+  const [mistakeRecords, setMistakeRecords] = useState<MistakeRecord[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
+  const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
 
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -62,10 +73,109 @@ export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
-  const [customQuestions, setCustomQuestions] = useState<Question[]>(() => {
-    const saved = localStorage.getItem('custom_questions');
-    return saved ? JSON.parse(saved) : [];
-  });
+
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      setAuthLoading(false);
+      if (firebaseUser) {
+        setStatus('welcome');
+        // Initialize user profile in Firestore
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        try {
+          const userDoc = await getDoc(userRef);
+          if (!userDoc.exists()) {
+            await setDoc(userRef, {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              createdAt: serverTimestamp(),
+              removedIds: []
+            });
+          } else {
+            // Load removedIds from profile
+            const data = userDoc.data();
+            if (data.removedIds) setRemovedIds(data.removedIds);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+        }
+      } else {
+        setStatus('welcome');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Data with Firestore
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen to custom questions
+    const cqRef = collection(db, 'users', user.uid, 'customQuestions');
+    const unsubscribeCQ = onSnapshot(cqRef, (snapshot) => {
+      const questions = snapshot.docs.map(doc => doc.data() as Question);
+      setCustomQuestions(questions);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, cqRef.path));
+
+    // Listen to mistake records
+    const mqRef = collection(db, 'users', user.uid, 'wrongQuestions');
+    const unsubscribeMQ = onSnapshot(mqRef, (snapshot) => {
+      const records = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          questionId: parseInt(doc.id),
+          consecutiveCorrect: data.consecutiveCorrect || 0
+        } as MistakeRecord;
+      });
+      setMistakeRecords(records);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, mqRef.path));
+
+    // Listen to favorites
+    const favRef = collection(db, 'users', user.uid, 'favorites');
+    const unsubscribeFav = onSnapshot(favRef, (snapshot) => {
+      const ids = snapshot.docs.map(doc => parseInt(doc.id));
+      setFavoriteIds(ids);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, favRef.path));
+
+    return () => {
+      unsubscribeCQ();
+      unsubscribeMQ();
+      unsubscribeFav();
+    };
+  }, [user]);
+
+  // Sync removedIds to Firestore
+  useEffect(() => {
+    if (!user || removedIds.length === 0) return;
+    const userRef = doc(db, 'users', user.uid);
+    setDoc(userRef, { removedIds }, { merge: true }).catch(err => 
+      handleFirestoreError(err, OperationType.UPDATE, userRef.path)
+    );
+  }, [user, removedIds]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setShowToast('登录失败，请重试');
+      console.error(error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setRemovedIds([]);
+      setMistakeRecords([]);
+      setFavoriteIds([]);
+      setCustomQuestions([]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const deduplicateBank = () => {
     const seen = new Set();
@@ -164,19 +274,25 @@ export default function App() {
     return () => clearInterval(interval);
   }, [status, startTime]);
 
-  const startExam = (mode: 'normal' | 'mistakes' | 'full' = 'normal') => {
+  const startExam = (mode: 'normal' | 'mistakes' | 'full' | 'favorites' = 'normal') => {
     let source = currentBank;
     setIsMistakeMode(mode === 'mistakes');
     setIsFullMode(mode === 'full');
+    const isFavoritesMode = mode === 'favorites';
 
     if (mode === 'mistakes') {
       const mistakeIds = mistakeRecords.map(r => r.questionId);
-      // Ensure unique IDs and filter
       const uniqueMistakeIds = Array.from(new Set(mistakeIds));
       source = currentBank.filter(q => uniqueMistakeIds.includes(q.id));
       
       if (source.length === 0) {
         setShowToast('错题本目前是空的哦！');
+        return;
+      }
+    } else if (isFavoritesMode) {
+      source = currentBank.filter(q => favoriteIds.includes(q.id));
+      if (source.length === 0) {
+        setShowToast('收藏夹目前是空的哦！');
         return;
       }
     }
@@ -199,10 +315,19 @@ export default function App() {
     setShowFeedback(false);
   };
 
-  const removeQuestion = (id: number) => {
-    setRemovedIds(prev => [...new Set([...prev, id])]);
-    // Also remove from mistake records if present
-    setMistakeRecords(prev => prev.filter(r => r.questionId !== id));
+  const removeQuestion = async (id: number) => {
+    const newRemovedIds = [...new Set([...removedIds, id])];
+    setRemovedIds(newRemovedIds);
+    
+    if (user) {
+      // Remove from Firestore mistake records
+      const mistakeRef = doc(db, 'users', user.uid, 'wrongQuestions', id.toString());
+      try {
+        await deleteDoc(mistakeRef);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, mistakeRef.path);
+      }
+    }
     
     setShowToast('该题目已从题库及错题本中剔除');
     setConfirmingDelete(false);
@@ -221,6 +346,27 @@ export default function App() {
     }
   };
 
+  const toggleFavorite = async (id: number) => {
+    if (!user) {
+      setShowToast('请登录以使用收藏功能');
+      return;
+    }
+    const isFav = favoriteIds.includes(id);
+    const favRef = doc(db, 'users', user.uid, 'favorites', id.toString());
+    
+    try {
+      if (isFav) {
+        await deleteDoc(favRef);
+        setShowToast('已取消收藏');
+      } else {
+        await setDoc(favRef, { questionId: id.toString(), timestamp: serverTimestamp() });
+        setShowToast('已加入收藏夹');
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, favRef.path);
+    }
+  };
+
   const handleAnswerChange = (questionId: number, answer: string | string[]) => {
     if (showFeedback && (isMistakeMode || isFullMode)) return;
     setUserAnswers(prev => ({ ...prev, [questionId]: answer }));
@@ -229,7 +375,10 @@ export default function App() {
     const q = examQuestions.find(q => q.id === questionId);
     if ((isMistakeMode || isFullMode) && q?.type === 'single') {
       setShowFeedback(true);
-      updateMistakeRecord(q.id, answer === q.answer);
+      const isCorrect = typeof answer === 'string' && typeof q.answer === 'string' 
+        ? answer.trim() === q.answer.trim() 
+        : answer === q.answer;
+      updateMistakeRecord(q.id, isCorrect);
     }
   };
 
@@ -253,27 +402,28 @@ export default function App() {
     }
   };
 
-  const updateMistakeRecord = (questionId: number, isCorrect: boolean) => {
-    setMistakeRecords(prev => {
-      const newRecords = [...prev];
-      const recordIdx = newRecords.findIndex(r => r.questionId === questionId);
-      
+  const updateMistakeRecord = async (questionId: number, isCorrect: boolean) => {
+    if (!user) return;
+    
+    const recordRef = doc(db, 'users', user.uid, 'wrongQuestions', questionId.toString());
+    const currentRecord = mistakeRecords.find(r => r.questionId === questionId);
+    
+    try {
       if (isCorrect) {
-        if (recordIdx !== -1) {
-          newRecords[recordIdx].consecutiveCorrect += 1;
-          if (newRecords[recordIdx].consecutiveCorrect >= 3) {
-            newRecords.splice(recordIdx, 1);
+        if (currentRecord) {
+          const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
+          if (nextCorrect >= 3) {
+            await deleteDoc(recordRef);
+          } else {
+            await setDoc(recordRef, { consecutiveCorrect: nextCorrect, timestamp: serverTimestamp() }, { merge: true });
           }
         }
       } else {
-        if (recordIdx === -1) {
-          newRecords.push({ questionId, consecutiveCorrect: 0 });
-        } else {
-          newRecords[recordIdx].consecutiveCorrect = 0;
-        }
+        await setDoc(recordRef, { consecutiveCorrect: 0, timestamp: serverTimestamp() }, { merge: true });
       }
-      return newRecords;
-    });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, recordRef.path);
+    }
   };
 
   const checkMultipleAnswer = () => {
@@ -287,51 +437,61 @@ export default function App() {
     updateMistakeRecord(q.id, isCorrect);
   };
 
-  const calculateResult = () => {
+  const calculateResult = async () => {
     let score = 0;
     const correctness: Record<number, boolean> = {};
-    const newMistakeRecords = [...mistakeRecords];
+    
+    const batch = user ? writeBatch(db) : null;
 
-    examQuestions.forEach(q => {
+    for (const q of examQuestions) {
       const userAns = userAnswers[q.id];
       let isCorrect = false;
       
       if (q.type === 'single') {
-        isCorrect = userAns === q.answer;
+        isCorrect = typeof userAns === 'string' && typeof q.answer === 'string'
+          ? userAns.trim() === q.answer.trim()
+          : userAns === q.answer;
       } else if (q.type === 'multiple') {
-        const sortedUser = Array.isArray(userAns) ? [...userAns].sort() : [];
-        const sortedAns = Array.isArray(q.answer) ? [...q.answer].sort() : [];
+        const sortedUser = Array.isArray(userAns) ? [...userAns].map(s => s.trim()).sort() : [];
+        const sortedAns = Array.isArray(q.answer) ? [...q.answer].map(s => s.trim()).sort() : [];
         isCorrect = sortedUser.length > 0 && JSON.stringify(sortedUser) === JSON.stringify(sortedAns);
       } else if (q.type === 'programming') {
-        // Simple normalization for basic code comparison
         const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
         isCorrect = normalize(userAns as string) === normalize(q.answer as string);
       }
 
       correctness[q.id] = isCorrect;
+      
       if (isCorrect) {
-        score += (100 / examQuestions.length); // Dynamic scoring based on count
+        score += (100 / examQuestions.length);
+      }
 
-        // Update mistake records for correct answer
-        const recordIdx = newMistakeRecords.findIndex(r => r.questionId === q.id);
-        if (recordIdx !== -1) {
-          newMistakeRecords[recordIdx].consecutiveCorrect += 1;
-          if (newMistakeRecords[recordIdx].consecutiveCorrect >= 3) {
-            newMistakeRecords.splice(recordIdx, 1); // Remove if 3 times correct
+      if (user && batch) {
+        const recordRef = doc(db, 'users', user.uid, 'wrongQuestions', q.id.toString());
+        if (isCorrect) {
+          const currentRecord = mistakeRecords.find(r => r.questionId === q.id);
+          if (currentRecord) {
+            const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
+            if (nextCorrect >= 3) {
+              batch.delete(recordRef);
+            } else {
+              batch.set(recordRef, { consecutiveCorrect: nextCorrect, timestamp: serverTimestamp() }, { merge: true });
+            }
           }
-        }
-      } else {
-        // Update mistake records for wrong answer
-        const recordIdx = newMistakeRecords.findIndex(r => r.questionId === q.id);
-        if (recordIdx === -1) {
-          newMistakeRecords.push({ questionId: q.id, consecutiveCorrect: 0 });
         } else {
-          newMistakeRecords[recordIdx].consecutiveCorrect = 0; // Reset counter on wrong
+          batch.set(recordRef, { consecutiveCorrect: 0, timestamp: serverTimestamp() }, { merge: true });
         }
       }
-    });
+    }
 
-    setMistakeRecords(newMistakeRecords);
+    if (user && batch) {
+      try {
+        await batch.commit();
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, 'batch-update-wrong-questions');
+      }
+    }
+
     setFinalResult({
       score: Math.round(score),
       totalPoints: 100,
@@ -347,17 +507,24 @@ export default function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleImport = (newQuestions: Question[]) => {
-    setCustomQuestions(prev => {
-      // Ensure IDs don't collide by finding the max ID
-      const maxId = Math.max(0, ...fullBank.map(q => q.id), 1000);
-      const processed = newQuestions.map((q, i) => ({
-        ...q,
-        id: maxId + i + 1
-      }));
-      return [...prev, ...processed];
+  const handleImport = async (newQuestions: Question[]) => {
+    if (!user) return;
+    
+    const maxId = Math.max(0, ...fullBank.map(q => q.id), 1000);
+    const batch = writeBatch(db);
+    
+    newQuestions.forEach((q, i) => {
+      const id = maxId + i + 1;
+      const qRef = doc(db, 'users', user.uid, 'customQuestions', id.toString());
+      batch.set(qRef, { ...q, id });
     });
-    setShowToast(`成功导入 ${newQuestions.length} 道题目！`);
+
+    try {
+      await batch.commit();
+      setShowToast(`成功导入 ${newQuestions.length} 道题目！`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'batch-import-questions');
+    }
   };
 
   const currentQuestion = examQuestions[currentIndex];
@@ -374,8 +541,39 @@ export default function App() {
             <h1 className="font-bold text-lg tracking-tight hidden sm:block">Python 模拟考试</h1>
           </div>
           
-          {status === 'exam' && (
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
+            {!user && (
+              <button 
+                onClick={() => setStatus('login')}
+                className="flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-blue-600 font-bold text-sm transition-colors"
+              >
+                <LogIn size={18} />
+                <span>登录</span>
+              </button>
+            )}
+            {user && (
+              <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
+                <button 
+                  onClick={() => startExam('favorites')}
+                  className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all relative"
+                  title="我的收藏"
+                >
+                  <Star size={20} fill={favoriteIds.length > 0 ? "currentColor" : "none"} className={favoriteIds.length > 0 ? "text-amber-500" : ""} />
+                  {favoriteIds.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {favoriteIds.length}
+                    </span>
+                  )}
+                </button>
+                <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-slate-200" />
+                <div className="hidden sm:block">
+                  <div className="text-xs font-bold text-slate-900 leading-none">{user.displayName}</div>
+                  <button onClick={handleLogout} className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-tighter">退出登录</button>
+                </div>
+              </div>
+            )}
+            {status === 'exam' && (
+              <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-full text-slate-600 font-medium text-sm">
                 <Timer size={16} />
                 <span>{formatTime(elapsedTime)}</span>
@@ -395,12 +593,42 @@ export default function App() {
               <span>返回首页</span>
             </button>
           )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
-          {status === 'welcome' && (
+          {authLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : status === 'login' ? (
+            <motion.div 
+              key="login"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="max-w-md mx-auto bg-white rounded-3xl p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
+            >
+              <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mx-auto mb-8">
+                <User size={48} />
+              </div>
+              <h2 className="text-3xl font-bold mb-4">欢迎回来</h2>
+              <p className="text-slate-500 mb-10 leading-relaxed">
+                请登录以同步您的题库、错题本和学习进度。
+              </p>
+              <button 
+                onClick={handleLogin}
+                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 hover:border-blue-600 hover:text-blue-600 transition-all shadow-sm group"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-6 h-6" />
+                <span>使用 Google 账号登录</span>
+              </button>
+              <p className="mt-8 text-xs text-slate-400">
+                登录即代表您同意我们的服务条款和隐私政策
+              </p>
+            </motion.div>
+          ) : status === 'welcome' && (
             <motion.div 
               key="welcome"
               initial={{ opacity: 0, y: 20 }}
@@ -486,6 +714,20 @@ export default function App() {
                 </button>
 
                 <button 
+                  onClick={() => startExam('favorites')}
+                  className="p-6 bg-amber-50 rounded-2xl border-2 border-amber-100 hover:border-amber-300 transition-all text-left group"
+                >
+                  <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Star size={24} fill="currentColor" />
+                  </div>
+                  <div className="font-bold text-lg text-amber-900">我的收藏题库</div>
+                  <div className="text-sm text-amber-600/70">复习您标记的重点题目</div>
+                  <div className="mt-2 inline-block px-2 py-0.5 bg-amber-200 text-amber-700 text-xs font-bold rounded-full">
+                    收藏总数: {favoriteIds.length}
+                  </div>
+                </button>
+
+                <button 
                   onClick={() => setIsImportModalOpen(true)}
                   className="p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 transition-all text-left group"
                 >
@@ -540,6 +782,11 @@ export default function App() {
                         错题强化
                       </span>
                     )}
+                    {examQuestions.length === favoriteIds.filter(id => examQuestions.some(eq => eq.id === id)).length && examQuestions.every(eq => favoriteIds.includes(eq.id)) && (
+                      <span className="px-3 py-1 bg-amber-50 text-amber-600 text-xs font-bold rounded-full">
+                        收藏复习
+                      </span>
+                    )}
                     {isFullMode && (
                       <div className="flex items-center gap-2">
                         <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">
@@ -580,12 +827,21 @@ export default function App() {
                         </button>
                       </div>
                     ) : (
-                      <button 
-                        onClick={() => setConfirmingDelete(true)}
-                        className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors text-xs font-bold uppercase"
-                      >
-                        <Trash2 size={14} /> 剔除此题
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => toggleFavorite(currentQuestion.id)}
+                          className={`flex items-center gap-1.5 transition-colors text-xs font-bold uppercase ${favoriteIds.includes(currentQuestion.id) ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                        >
+                          <Star size={14} fill={favoriteIds.includes(currentQuestion.id) ? "currentColor" : "none"} />
+                          {favoriteIds.includes(currentQuestion.id) ? '已收藏' : '收藏'}
+                        </button>
+                        <button 
+                          onClick={() => setConfirmingDelete(true)}
+                          className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors text-xs font-bold uppercase"
+                        >
+                          <Trash2 size={14} /> 剔除此题
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -613,13 +869,16 @@ export default function App() {
                     </div>
                   ) : (
                     currentQuestion.options?.map((option, i) => {
+                      const userAns = userAnswers[currentQuestion.id];
+                      const qAns = currentQuestion.answer;
+                      
                       const isSelected = currentQuestion.type === 'single' 
-                        ? userAnswers[currentQuestion.id] === option
-                        : (userAnswers[currentQuestion.id] as string[] || []).includes(option);
+                        ? (typeof userAns === 'string' && typeof option === 'string' ? userAns.trim() === option.trim() : userAns === option)
+                        : (Array.isArray(userAns) ? userAns.map(s => s.trim()).includes(option.trim()) : false);
                       
                       const isCorrect = currentQuestion.type === 'single'
-                        ? currentQuestion.answer === option
-                        : (currentQuestion.answer as string[]).includes(option);
+                        ? (typeof qAns === 'string' && typeof option === 'string' ? qAns.trim() === option.trim() : qAns === option)
+                        : (Array.isArray(qAns) ? qAns.map(s => s.trim()).includes(option.trim()) : false);
 
                       let borderClass = 'border-slate-100 hover:border-slate-200 hover:bg-slate-50';
                       let bgClass = '';
