@@ -80,6 +80,8 @@ export default function App() {
   const [isFavoritesMode, setIsFavoritesMode] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingDeduplicate, setConfirmingDeduplicate] = useState(false);
+  const [confirmingFilter, setConfirmingFilter] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
@@ -267,11 +269,12 @@ export default function App() {
     );
     setCustomQuestions(newCustom);
     setShowToast('题库去重完成');
+    setConfirmingDeduplicate(false);
   };
 
   const filterObjectiveOnly = () => {
-    // Objective types are 'single', 'multiple', 'true/false'
-    const objectiveTypes = ['single', 'multiple', 'true/false'];
+    // Objective types are 'single', 'multiple'
+    const objectiveTypes = ['single', 'multiple'];
     
     // For INITIAL_BANK, we add non-objective to removedIds
     const toRemove = INITIAL_BANK
@@ -284,6 +287,7 @@ export default function App() {
     setCustomQuestions(prev => prev.filter(q => objectiveTypes.includes(q.type)));
     
     setShowToast('已去除非选择/判断题');
+    setConfirmingFilter(false);
   };
 
   // Sync state to localStorage
@@ -354,12 +358,17 @@ export default function App() {
         setShowToast('错题本目前是空的哦！');
         return;
       }
-    } else if (isFavoritesMode) {
+    } else if (mode === 'favorites') {
       source = currentBank.filter(q => favoriteIds.includes(q.id));
       if (source.length === 0) {
         setShowToast('收藏夹目前是空的哦！');
         return;
       }
+    }
+
+    if (source.length === 0) {
+      setShowToast('当前题库中没有符合条件的题目');
+      return;
     }
 
     const shuffled = [...source].sort(() => 0.5 - Math.random());
@@ -648,13 +657,19 @@ export default function App() {
           )}
           
           {(status === 'result' || status === 'mistakes') && (
-            <button 
-              onClick={() => setStatus('welcome')}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-colors"
-            >
-              <ChevronLeft size={18} />
-              <span>返回上一级</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setStatus('welcome')}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-all"
+              >
+                <ChevronLeft size={18} />
+                <span>返回上一级</span>
+              </button>
+              <div className="h-4 w-[1px] bg-slate-200" />
+              <span className="text-slate-400 font-bold text-sm">
+                {currentSubject.name}
+              </span>
+            </div>
           )}
           </div>
         </div>
@@ -889,13 +904,19 @@ export default function App() {
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setStatus('welcome')}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all mr-1"
-                      title="返回上一级"
-                    >
-                      <ChevronLeft size={18} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setStatus('welcome')}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="返回上一级"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <div className="h-4 w-[1px] bg-slate-200" />
+                      <span className="text-slate-400 font-bold text-sm">
+                        {currentSubject.name}
+                      </span>
+                    </div>
                     <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase tracking-wider">
                       {currentQuestion.type === 'single' ? '单选题' : currentQuestion.type === 'multiple' ? '多选题' : '编程题'}
                     </span>
@@ -964,20 +985,38 @@ export default function App() {
                             </button>
                           )}
                         </div>
-                        <button 
-                          onClick={deduplicateBank}
-                          className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
-                          title="一键去重"
-                        >
-                          <CopyCheck size={12} /> 去重
-                        </button>
-                        <button 
-                          onClick={filterObjectiveOnly}
-                          className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
-                          title="仅保留选择/判断"
-                        >
-                          <Filter size={12} /> 仅客观题
-                        </button>
+                        
+                        {confirmingDeduplicate ? (
+                          <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
+                            <span className="text-[10px] font-bold text-amber-700">确认去重？</span>
+                            <button onClick={deduplicateBank} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
+                            <button onClick={() => setConfirmingDeduplicate(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmingDeduplicate(true)}
+                            className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
+                            title="一键去重"
+                          >
+                            <CopyCheck size={12} /> 去重
+                          </button>
+                        )}
+
+                        {confirmingFilter ? (
+                          <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
+                            <span className="text-[10px] font-bold text-amber-700">确认仅客观题？</span>
+                            <button onClick={filterObjectiveOnly} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
+                            <button onClick={() => setConfirmingFilter(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmingFilter(true)}
+                            className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
+                            title="仅保留选择/判断"
+                          >
+                            <Filter size={12} /> 仅客观题
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1261,12 +1300,19 @@ export default function App() {
                      "别灰心，错题本会帮你记录薄弱点，多练几次！"}
                   </p>
                   
-                  <button 
-                    onClick={() => setStatus('welcome')}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                  >
-                    返回上一级
-                  </button>
+                  <div className="flex flex-col items-center gap-6">
+                    <button 
+                      onClick={() => setStatus('welcome')}
+                      className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
+                    >
+                      <ChevronLeft size={20} /> 返回上一级
+                    </button>
+                    <div className="text-slate-400 font-bold text-sm flex items-center gap-2">
+                      <div className="h-px w-8 bg-slate-200" />
+                      {currentSubject.name}
+                      <div className="h-px w-8 bg-slate-200" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
