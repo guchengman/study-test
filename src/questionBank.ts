@@ -1,7 +1,9 @@
 import { Question } from './types';
+import { PYTHON_LEVEL4_QUESTIONS } from './pythonLevel4';
 
 export const QUESTION_BANK: Question[] = [
-  // --- Python 题库 ---
+  ...PYTHON_LEVEL4_QUESTIONS,
+  // --- Python 基础题库 ---
   { id: 1, subject: 'python', type: 'single', title: 'Python 中用于输出的函数是？', options: ['print()', 'input()', 'len()', 'type()'], answer: 'print()', points: 5, explanation: 'print() 是 Python 的标准输出函数。' },
   { id: 2, subject: 'python', type: 'single', title: 'Python 中用于接收输入的函数是？', options: ['print()', 'input()', 'len()', 'type()'], answer: 'input()', points: 5, explanation: 'input() 用于从键盘获取用户输入。' },
   { id: 3, subject: 'python', type: 'single', title: '下列哪个符号用于表示 Python 的单行注释？', options: ['#', '//', '/*', '--'], answer: '#', points: 5, explanation: '# 符号用于单行注释。' },
