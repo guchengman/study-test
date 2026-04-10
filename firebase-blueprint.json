@@ -47,6 +47,16 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["questionId", "timestamp"]
+    },
+    "globalStats": {
+      "title": "Global Stats",
+      "description": "Stores global application statistics like visitor counts",
+      "type": "object",
+      "properties": {
+        "visitorCount": { "type": "number" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["visitorCount"]
     }
   },
   "firestore": {
@@ -65,6 +75,10 @@
     "/users/{userId}/favorites/{questionId}": {
       "schema": "favoriteQuestion",
       "description": "User's collection of favorite questions"
+    },
+    "/stats/{statId}": {
+      "schema": "globalStats",
+      "description": "Global statistics documents"
     }
   }
 }

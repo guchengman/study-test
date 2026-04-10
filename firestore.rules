@@ -28,6 +28,12 @@
 //   - wrongAnswer: string
 //   - timestamp: timestamp
 //
+// Collection: stats
+// Document ID: {statId}
+// Fields:
+//   - visitorCount: number
+//   - lastUpdated: timestamp
+//
 // ===============================================================
 
 rules_version = '2';
@@ -69,6 +75,19 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow write: if isOwner(userId);
       }
+    }
+
+    // User Settings
+    match /user_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Global Stats Rules
+    match /stats/{statId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['visitorCount']) &&
+                      request.resource.data.visitorCount == 1;
+      allow update: if request.resource.data.visitorCount == resource.data.visitorCount + 1;
     }
   }
 }

@@ -1,9 +1,49 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings } from 'lucide-react';
 import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt } from '../services/fileService';
 import { parseQuestionsWithAI } from '../services/geminiService';
 import { Question } from '../types';
+import { SettingsModal } from './SettingsModal';
+
+const MODELS = [
+  { 
+    id: 'gemini-3-flash-preview', 
+    name: 'Gemini 3 Flash', 
+    desc: '速度极快，结构化输出能力强。',
+    req: '适合清晰的题目文本，解析效率最高。'
+  },
+  { 
+    id: 'gemini-1.5-pro', 
+    name: 'Gemini 1.5 Pro', 
+    desc: '推理能力最强，适合复杂、模糊或超长文本。',
+    req: '适合手写识别、复杂排版或需要深度理解的题目。'
+  },
+  { 
+    id: 'deepseek-chat', 
+    name: 'DeepSeek Chat', 
+    desc: '国产之光，极高性价比，逻辑能力强。',
+    req: '适合各种中文题目，需配置 API Key。'
+  },
+  { 
+    id: 'qwen-max', 
+    name: '通义千问 Max', 
+    desc: '阿里最强模型，中文理解能力顶尖。',
+    req: '适合复杂中文语境，需配置 API Key。'
+  },
+  { 
+    id: 'zhipu-chatglm-4', 
+    name: '智谱 GLM-4', 
+    desc: '清华系大模型，中文处理非常出色。',
+    req: '适合学术或专业题目，需配置 API Key。'
+  },
+  { 
+    id: 'custom', 
+    name: '自定义接口', 
+    desc: '使用您自己的 OpenAI 兼容接口。',
+    req: '需在设置中配置 Endpoint 和 Key。'
+  }
+];
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -13,9 +53,11 @@ interface ImportModalProps {
 
 export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport }) => {
   const [text, setText] = useState('');
+  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Question[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,7 +90,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
     setIsProcessing(true);
     setError(null);
     try {
-      const parsed = await parseQuestionsWithAI(text);
+      const parsed = await parseQuestionsWithAI(text, selectedModel);
       setPreview(parsed);
     } catch (err: any) {
       setError(err.message || 'AI 解析失败');
@@ -82,9 +124,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
             </h2>
             <p className="text-sm text-slate-500 mt-1">支持 Word、PDF、TXT 或直接粘贴文本</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-            <X size={20} className="text-slate-400" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-blue-600"
+              title="API 设置"
+            >
+              <Settings size={20} />
+            </button>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+              <X size={20} className="text-slate-400" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -103,6 +154,45 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   <Clipboard className="text-slate-300 mb-2" size={32} />
                   <span className="text-sm font-medium text-slate-600">直接在下方粘贴</span>
                   <span className="text-xs text-slate-400 mt-1">支持各种非规范格式</span>
+                </div>
+              </div>
+
+              {/* Model Selection */}
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-slate-700 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Cpu size={16} className="text-blue-600" /> 选择 AI 解析模型
+                  </div>
+                  {!localStorage.getItem('ai_settings') && selectedModel !== 'gemini-3-flash-preview' && (
+                    <span className="text-[10px] text-rose-500 font-bold animate-pulse">
+                      需配置 API Key
+                    </span>
+                  )}
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {MODELS.map(model => (
+                    <button
+                      key={model.id}
+                      onClick={() => setSelectedModel(model.id)}
+                      className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
+                        selectedModel === model.id 
+                          ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-50' 
+                          : 'border-slate-100 hover:border-slate-200 bg-white'
+                      }`}
+                    >
+                      <div className="font-bold text-[11px] text-slate-800 truncate">{model.name}</div>
+                      <div className="text-[9px] text-slate-500 mt-1 leading-tight line-clamp-2">{model.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Model Requirements */}
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                  <Info size={14} className="text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-[11px] text-amber-700 leading-relaxed">
+                    <span className="font-bold">模型要求：</span>
+                    {MODELS.find(m => m.id === selectedModel)?.req}
+                  </div>
                 </div>
               </div>
 
@@ -130,7 +220,13 @@ A. print B. input
                   <CheckCircle2 className="text-emerald-500" size={20} />
                   解析成功！预览题目 ({preview.length} 题)
                 </h3>
-                <button onClick={() => setPreview([])} className="text-sm text-blue-600 hover:underline">
+                <button 
+                  onClick={() => {
+                    setPreview([]);
+                    setText(''); // 清空待解析文本内容
+                  }} 
+                  className="text-sm text-blue-600 hover:underline"
+                >
                   重新编辑文本
                 </button>
               </div>
@@ -196,6 +292,7 @@ A. print B. input
           )}
         </div>
       </motion.div>
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };
