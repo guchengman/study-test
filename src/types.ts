@@ -1,4 +1,4 @@
-export type QuestionType = 'single' | 'multiple' | 'programming';
+export type QuestionType = 'single' | 'multiple' | 'programming' | 'true/false';
 
 export type SubjectId = 'python' | 'english' | 'chinese' | 'math';
 

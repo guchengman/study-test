@@ -505,12 +505,53 @@ export default function App() {
     }
   };
 
+  const isAnswerCorrect = (q: Question, userAns: any) => {
+    if (!userAns) return false;
+
+    if (q.type === 'single' || q.type === 'true/false') {
+      const uAns = typeof userAns === 'string' ? userAns.trim() : String(userAns);
+      const qAns = typeof q.answer === 'string' ? q.answer.trim() : String(q.answer);
+
+      // 1. Direct match
+      if (uAns === qAns) return true;
+
+      // 2. Label match (e.g., answer is "A", user selected the text of option A)
+      if (q.options && /^[A-Z]$/.test(qAns.toUpperCase())) {
+        const labelIndex = qAns.toUpperCase().charCodeAt(0) - 65;
+        if (q.options[labelIndex]?.trim() === uAns) return true;
+      }
+
+      return false;
+    }
+
+    if (q.type === 'multiple') {
+      const sortedUser = Array.isArray(userAns) ? [...userAns].map(s => s.trim()).sort() : [];
+      const qAns = q.answer;
+      
+      // If answer is labels like ["A", "B"]
+      let targetAns = Array.isArray(qAns) ? [...qAns].map(s => s.trim()).sort() : [];
+      if (q.options && targetAns.every(a => /^[A-Z]$/.test(a.toUpperCase()))) {
+        targetAns = targetAns.map(label => {
+          const idx = label.toUpperCase().charCodeAt(0) - 65;
+          return q.options![idx]?.trim() || label;
+        }).sort();
+      }
+
+      return sortedUser.length > 0 && JSON.stringify(sortedUser) === JSON.stringify(targetAns);
+    }
+
+    if (q.type === 'programming') {
+      const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
+      return normalize(userAns as string) === normalize(q.answer as string);
+    }
+
+    return false;
+  };
+
   const checkMultipleAnswer = () => {
     const q = examQuestions[currentIndex];
     const userAns = userAnswers[q.id] || [];
-    const sortedUser = Array.isArray(userAns) ? [...userAns].sort() : [];
-    const sortedAns = Array.isArray(q.answer) ? [...q.answer].sort() : [];
-    const isCorrect = sortedUser.length > 0 && JSON.stringify(sortedUser) === JSON.stringify(sortedAns);
+    const isCorrect = isAnswerCorrect(q, userAns);
     
     setShowFeedback(true);
     updateMistakeRecord(q.id, isCorrect);
@@ -524,21 +565,8 @@ export default function App() {
 
     for (const q of examQuestions) {
       const userAns = userAnswers[q.id];
-      let isCorrect = false;
+      const isCorrect = isAnswerCorrect(q, userAns);
       
-      if (q.type === 'single') {
-        isCorrect = typeof userAns === 'string' && typeof q.answer === 'string'
-          ? userAns.trim() === q.answer.trim()
-          : userAns === q.answer;
-      } else if (q.type === 'multiple') {
-        const sortedUser = Array.isArray(userAns) ? [...userAns].map(s => s.trim()).sort() : [];
-        const sortedAns = Array.isArray(q.answer) ? [...q.answer].map(s => s.trim()).sort() : [];
-        isCorrect = sortedUser.length > 0 && JSON.stringify(sortedUser) === JSON.stringify(sortedAns);
-      } else if (q.type === 'programming') {
-        const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
-        isCorrect = normalize(userAns as string) === normalize(q.answer as string);
-      }
-
       correctness[q.id] = isCorrect;
       
       if (isCorrect) {
@@ -665,10 +693,6 @@ export default function App() {
                 <ChevronLeft size={18} />
                 <span>返回上一级</span>
               </button>
-              <div className="h-4 w-[1px] bg-slate-200" />
-              <span className="text-slate-400 font-bold text-sm">
-                {currentSubject.name}
-              </span>
             </div>
           )}
           </div>
@@ -740,13 +764,13 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-left">
                 <button 
                   onClick={() => startExam('random')}
-                  className="p-6 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
+                  className="p-6 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
                 >
-                  <div className="w-12 h-12 bg-purple-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <RefreshCcw size={24} />
                   </div>
-                  <div className="font-bold text-lg text-purple-900">随机练习模式</div>
-                  <div className="text-sm text-purple-600/70">即时反馈，自定义题数</div>
+                  <div className="font-bold text-lg text-emerald-900">随机练习模式</div>
+                  <div className="text-sm text-emerald-600/70">即时反馈，自定义题数</div>
                   <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="relative group/input">
                       <input 
@@ -768,10 +792,10 @@ export default function App() {
                             setShowToast(`题数已重置为默认值 (1-${currentBank.length} 之间)`);
                           }
                         }}
-                        className="w-20 px-3 py-1.5 bg-white/80 border-2 border-purple-200 rounded-xl text-sm font-bold text-purple-600 outline-none focus:border-purple-500 focus:bg-white transition-all text-center"
+                        className="w-20 px-3 py-1.5 bg-white/80 border-2 border-emerald-200 rounded-xl text-sm font-bold text-emerald-600 outline-none focus:border-emerald-500 focus:bg-white transition-all text-center"
                       />
                     </div>
-                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-tighter">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-tighter">
                       范围: 1-{currentBank.length}
                     </span>
                   </div>
@@ -821,13 +845,13 @@ export default function App() {
 
                 <button 
                   onClick={() => startExam('full')}
-                  className="p-6 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
+                  className="p-6 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
                 >
-                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-purple-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Database size={24} />
                   </div>
-                  <div className="font-bold text-lg text-emerald-900">题库全量测试</div>
-                  <div className="text-sm text-emerald-600/70">包含题库所有题目，深度练习</div>
+                  <div className="font-bold text-lg text-purple-900">题库全量测试</div>
+                  <div className="text-sm text-purple-600/70">包含题库所有题目，深度练习</div>
                 </button>
 
                 <button 
@@ -912,16 +936,12 @@ export default function App() {
                       >
                         <ChevronLeft size={18} />
                       </button>
-                      <div className="h-4 w-[1px] bg-slate-200" />
-                      <span className="text-slate-400 font-bold text-sm">
-                        {currentSubject.name}
-                      </span>
                     </div>
                     <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase tracking-wider">
                       {currentQuestion.type === 'single' ? '单选题' : currentQuestion.type === 'multiple' ? '多选题' : '编程题'}
                     </span>
                     {isRandomMode && (
-                      <span className="px-3 py-1 bg-purple-50 text-purple-600 text-xs font-bold rounded-full">
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">
                         随机练习
                       </span>
                     )}
@@ -952,7 +972,7 @@ export default function App() {
                     )}
                     {isFullMode && (
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">
+                        <span className="px-3 py-1 bg-purple-50 text-purple-600 text-xs font-bold rounded-full">
                           全量练习
                         </span>
                         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 ml-2">
@@ -1107,7 +1127,7 @@ export default function App() {
                       {!showFeedback && isRandomMode && (
                         <button 
                           onClick={checkProgrammingAnswer}
-                          className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
+                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
                         >
                           提交并查看解析
                         </button>
@@ -1123,9 +1143,32 @@ export default function App() {
                           ? (typeof userAns === 'string' && typeof option === 'string' ? userAns.trim() === option.trim() : userAns === option)
                           : (Array.isArray(userAns) ? userAns.map(s => s.trim()).includes(option.trim()) : false);
                         
-                        const isCorrect = currentQuestion.type === 'single'
-                          ? (typeof qAns === 'string' && typeof option === 'string' ? qAns.trim() === option.trim() : qAns === option)
-                          : (Array.isArray(qAns) ? qAns.map(s => s.trim()).includes(option.trim()) : false);
+                        // Check if this specific option is correct
+                        let isCorrect = false;
+                        if (currentQuestion.type === 'single' || currentQuestion.type === 'true/false') {
+                          const optTrim = option.trim();
+                          const ansTrim = typeof qAns === 'string' ? qAns.trim() : String(qAns);
+                          
+                          if (optTrim === ansTrim) {
+                            isCorrect = true;
+                          } else if (/^[A-Z]$/.test(ansTrim.toUpperCase())) {
+                            const labelIndex = ansTrim.toUpperCase().charCodeAt(0) - 65;
+                            if (labelIndex === i) isCorrect = true;
+                          }
+                        } else if (currentQuestion.type === 'multiple') {
+                          const optTrim = option.trim();
+                          const targetAns = Array.isArray(qAns) ? qAns.map(s => s.trim()) : [String(qAns).trim()];
+                          
+                          if (targetAns.includes(optTrim)) {
+                            isCorrect = true;
+                          } else {
+                            // Check if targetAns contains labels like ["A", "B"]
+                            const labelIndices = targetAns
+                              .filter(a => /^[A-Z]$/.test(a.toUpperCase()))
+                              .map(a => a.toUpperCase().charCodeAt(0) - 65);
+                            if (labelIndices.includes(i)) isCorrect = true;
+                          }
+                        }
 
                         let borderClass = 'border-slate-100 hover:border-slate-200 hover:bg-slate-50';
                         let dotClass = 'bg-slate-100 text-slate-400 group-hover:bg-slate-200';
@@ -1174,7 +1217,7 @@ export default function App() {
                       {currentQuestion.type === 'multiple' && !showFeedback && isRandomMode && (
                         <button 
                           onClick={() => setShowFeedback(true)}
-                          className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all mt-4"
+                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all mt-4"
                         >
                           确认选择并查看解析
                         </button>
@@ -1307,11 +1350,6 @@ export default function App() {
                     >
                       <ChevronLeft size={20} /> 返回上一级
                     </button>
-                    <div className="text-slate-400 font-bold text-sm flex items-center gap-2">
-                      <div className="h-px w-8 bg-slate-200" />
-                      {currentSubject.name}
-                      <div className="h-px w-8 bg-slate-200" />
-                    </div>
                   </div>
                 </div>
               </div>
