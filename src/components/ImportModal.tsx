@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
 import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Zap } from 'lucide-react';
 import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc } from '../services/fileService';
-import { parseQuestionsWithAI, generateQuestionsFromPrompt } from '../services/geminiService';
+import { parseQuestionsWithAI, generateQuestionsFromPrompt, parseQuestionsWithFile } from '../services/geminiService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
 import { authApi, type AuthUser } from '../services/api';
 import { SettingsModal } from './SettingsModal';
@@ -168,9 +168,22 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       }
       
       if (directAIExtract) {
-        // AI直连提取模式：将文件内容填充到"待解析文本"区域，方便用户查看和编辑
-        console.log('AI直连提取模式：文件内容已填充到待解析文本');
-        setText(extractedText);
+        // AI直连提取模式：直接以附件方式上传文件给AI解析
+        console.log('AI直连提取模式：直接上传文件到AI...');
+        
+        // 显示提示信息
+        setError(null);
+        
+        try {
+          // 直接调用AI解析（以附件方式上传文件）
+          const parsed = await parseQuestionsWithFile(file, selectedModel, serverSettings || undefined);
+          setPreview(parsed);
+        } catch (err: any) {
+          // 如果附件上传失败，回退到文本提取方式
+          console.warn('附件上传失败，回退到文本提取方式:', err.message);
+          setError(`AI直连提取失败 (${err.message})，已回退到文本提取模式`);
+          setText(extractedText);
+        }
       } else {
         // 普通模式：将文件内容填充到 AI 生成题目的提示词输入框
         setPromptInput(extractedText);

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "学习题库助手",
+  "version": "1.0.0",
+  "description": "随时随地练习题库，支持随机答题和错题复习",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.xiaoyue.shop/*",
+    "https://47.88.52.213/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学习题库助手</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 380px;
+      min-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+    }
+    
+    /* 登录/注册页面 */
+    .auth-container {
+      padding: 20px;
+    }
+    
+    .logo {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo h1 {
+      font-size: 18px;
+      color: #1e293b;
+    }
+    
+    .logo p {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    
+    .form-group {
+      margin-bottom: 12px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+    
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      margin-top: 8px;
+    }
+    
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    
+    .error {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 8px;
+      text-align: center;
+    }
+    
+    .switch-auth {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    
+    .switch-auth a {
+      color: #3b82f6;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .switch-auth a:hover {
+      text-decoration: underline;
+    }
+    
+    /* 主页面 */
+    .main-container {
+      display: none;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      padding: 16px;
+    }
+    
+    .header h2 {
+      font-size: 16px;
+    }
+    
+    .header .user-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    .header .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .header .logout-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    /* 科目列表 */
+    .subjects-section {
+      padding: 16px;
+    }
+    
+    .section-title {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .subject-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .subject-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .subject-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .subject-item .icon {
+      font-size: 24px;
+      margin-right: 12px;
+    }
+    
+    .subject-item .info {
+      flex: 1;
+    }
+    
+    .subject-item .name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    
+    .subject-item .count {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    
+    .subject-item .arrow {
+      color: #cbd5e1;
+    }
+    
+    /* 题目练习 */
+    .practice-container {
+      display: none;
+      padding: 16px;
+    }
+    
+    .practice-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .practice-header .back-btn {
+      background: #f1f5f9;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #475569;
+    }
+    
+    .practice-header .back-btn:hover {
+      background: #e2e8f0;
+    }
+    
+    .practice-header h3 {
+      font-size: 15px;
+      color: #1e293b;
+    }
+    
+    .progress-bar {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    
+    .progress-bar .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      transition: width 0.3s;
+    }
+    
+    .progress-text {
+      text-align: right;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+    
+    .question-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .question-type {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    
+    .question-type.single {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    
+    .question-type.multiple {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    
+    .question-type.programming {
+      background: #d1fae5;
+      color: #047857;
+    }
+    
+    .question-title {
+      font-size: 15px;
+      color: #1e293b;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .option-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .option-item:hover {
+      border-color: #3b82f6;
+      background: #f8fafc;
+    }
+    
+    .option-item.selected {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    
+    .option-item.correct {
+      border-color: #22c55e;
+      background: #f0fdf4;
+    }
+    
+    .option-item.wrong {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    
+    .option-item .key {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      flex-shrink: 0;
+    }
+    
+    .option-item .text {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.2s;
+    }
+    
+    .submit-btn:hover {
+      background: #2563eb;
+    }
+    
+    .submit-btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    
+    /* 结果页面 */
+    .result-container {
+      display: none;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .result-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    
+    .result-title {
+      font-size: 20px;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .result-score {
+      font-size: 36px;
+      font-weight: 700;
+      color: #3b82f6;
+      margin-bottom: 8px;
+    }
+    
+    .result-detail {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+    
+    .result-actions {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .result-actions .btn {
+      flex: 1;
+    }
+    
+    /* 加载状态 */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+    
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* 错误提示 */
+    .error-message {
+      padding: 16px;
+      background: #fef2f2;
+      color: #dc2626;
+      text-align: center;
+      border-radius: 8px;
+      margin: 16px;
+    }
+    
+    .empty-state {
+      padding: 40px 20px;
+      text-align: center;
+      color: #64748b;
+    }
+    
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 登录/注册页面 -->
+  <div id="authPage" class="auth-container">
+    <div class="logo">
+      <h1>📚 学习题库助手</h1>
+      <p>随时随地练习，提高学习效率</p>
+    </div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="username" placeholder="请输入用户名" required>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码" required>
+      </div>
+      <button type="submit" class="btn btn-primary">登录</button>
+      <p id="loginError" class="error"></p>
+    </form>
+    
+    <p class="switch-auth">
+      还没有账号？<a id="showRegister">立即注册</a>
+    </p>
+    
+    <form id="registerForm" style="display: none;">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="regUsername" placeholder="请输入用户名" required>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="regPassword" placeholder="请输入密码" required>
+      </div>
+      <div class="form-group">
+        <label>角色</label>
+        <select id="regRole" style="width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+          <option value="student">学生</option>
+          <option value="teacher">老师</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">注册</button>
+      <button type="button" class="btn btn-secondary" id="showLogin">返回登录</button>
+      <p id="regError" class="error"></p>
+    </form>
+  </div>
+  
+  <!-- 主页面 -->
+  <div id="mainPage" class="main-container">
+    <div class="header">
+      <h2>📚 学习题库助手</h2>
+      <div class="user-info">
+        <span id="currentUser">未登录</span>
+        <button class="logout-btn" id="logoutBtn">退出</button>
+      </div>
+    </div>
+    
+    <div class="subjects-section" id="subjectsSection">
+      <div class="section-title">📖 选择科目开始练习</div>
+      <div class="subject-list" id="subjectList">
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>加载中...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="practice-container" id="practiceContainer">
+      <div class="practice-header">
+        <button class="back-btn" id="backToSubjects">← 返回</button>
+        <h3 id="practiceTitle">练习中</h3>
+      </div>
+      <div class="progress-bar">
+        <div class="fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progressText">0 / 0</div>
+      
+      <div class="question-card" id="questionCard">
+        <!-- 题目内容 -->
+      </div>
+      
+      <button class="submit-btn" id="submitAnswer" disabled>提交答案</button>
+    </div>
+    
+    <div class="result-container" id="resultContainer">
+      <div class="result-icon" id="resultIcon">🎉</div>
+      <h2 class="result-title" id="resultTitle">练习完成！</h2>
+      <div class="result-score" id="resultScore">0%</div>
+      <p class="result-detail" id="resultDetail">答对 0 题，共 0 题</p>
+      <div class="result-actions">
+        <button class="btn btn-primary" id="retryBtn">再做一次</button>
+        <button class="btn btn-secondary" id="backHomeBtn">返回主页</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
