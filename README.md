@@ -1,7 +1,16 @@
-# 学习题库系统 (Study-Test)
+# 学习题库系统
 
 <div align="center">
-  <img width="800" height="300" alt="Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+
+```
+██████╗ ███████╗██╗   ██╗     █████╗ ██████╗  ██████╗██╗  ██╗██╗   ██╗██████╗ 
+██╔══██╗██╔════╝██║   ██║    ██╔══██╗██╔══██╗██╔════╝██║  ██║██║   ██║██╔══██╗
+██████╔╝█████╗  ██║   ██║    ███████║██████╔╝██║     ███████║██║   ██║██████╔╝
+██╔══██╗██╔══╝  ╚██╗ ██╔╝    ██╔══██║██╔══██╗██║     ██╔══██║██║   ██║██╔═══╝ 
+██████╔╝███████╗ ╚████╔╝     ██║  ██║██████╔╝╚██████╗██║  ██║╚██████╔╝██║     
+╚═════╝ ╚══════╝  ╚═══╝      ╚═╝  ╚═╝╚═════╝  ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     
+```
+
 </div>
 
 在线访问：**[www.xiaoyue.shop](https://www.xiaoyue.shop)** 🧪
@@ -13,7 +22,7 @@
 | 功能 | 说明 |
 |------|------|
 | 📚 题库管理 | 创建、编辑、删除科目和题目 |
-| 🤖 AI 生成 | 基于 Gemini AI 智能生成题目 |
+| 🤖 AI 生成 | 智能生成各类考试题目 |
 | 📝 在线答题 | 支持多种题型：单选、多选、判断、简答 |
 | 📤 文件导入 | 支持上传 Word/Excel 文档导入题目 |
 | 👥 学员管理 | 邀请码注册、成绩统计、错题本 |
@@ -28,7 +37,6 @@
 | 前端 | React + TypeScript + Vite |
 | 后端 | Node.js + Express + MySQL |
 | 认证 | JWT + bcrypt |
-| AI | Google Gemini API |
 | 部署 | 阿里云服务器 |
 
 ---
@@ -51,7 +59,7 @@ npm install
 
 # 3. 配置环境变量
 cp .env.example .env
-# 编辑 .env 填入数据库和 API 密钥
+# 编辑 .env 填入数据库信息
 
 # 4. 初始化数据库
 # 导入 server/migrations/ 下的 SQL 文件
@@ -71,9 +79,6 @@ DB_NAME=study_test
 
 # JWT 密钥
 JWT_SECRET=your_jwt_secret
-
-# Gemini AI (可选，用于 AI 生成题目)
-GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ---
@@ -97,14 +102,14 @@ study-test/
 ├── src/                    # React 前端源码
 │   ├── components/         # 组件
 │   ├── pages/              # 页面
-│   ├── services/           # API 服务
+│   ├── services/            # API 服务
 │   └── ...
-├── server/                 # Express 后端源码
-│   ├── src/routes/         # API 路由
-│   ├── src/db.js           # 数据库连接
-│   └── migrations/         # 数据库迁移
-├── chrome-extension/        # Chrome 扩展
-├── public/                 # 静态资源
+├── server/                  # Express 后端源码
+│   ├── src/routes/          # API 路由
+│   ├── src/db.js            # 数据库连接
+│   └── migrations/          # 数据库迁移
+├── chrome-extension/         # Chrome 扩展
+├── public/                  # 静态资源
 └── package.json
 ```
 
