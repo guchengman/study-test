@@ -1,8 +1,58 @@
+# 依赖
 node_modules/
-build/
+
+# 构建产物
 dist/
-coverage/
-.DS_Store
-*.log
-.env*
+build/
+release/
+
+# Electron
+dist-electron/
+electron/out/
+
+# Android
+android/
+*.apk
+*.aab
+
+# 环境变量和密钥
+.env
+.env.*
+.env.local
 !.env.example
+
+# 日志
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 测试
+coverage/
+
+# 临时文件
+*.tmp
+*.bak
+*.backup
+*.cjs
+*.ps1
+*.sh
+*.sql
+*.mjs
+!.env.example
+
+# 配置文件
+ecosystem.config.cjs
+docker-compose.yml
+
+# CodeBuddy
+.codebuddy/
+

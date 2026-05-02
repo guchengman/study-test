@@ -1,0 +1,93 @@
+/* 浏览器兼容性回退样式 */
+
+/* backdrop-blur 回退：不支持的浏览器使用半透明背景 */
+@supports not (backdrop-filter: blur(1px)) {
+  .backdrop-blur-sm {
+    background-color: rgba(15, 23, 42, 0.85) !important;
+  }
+  .backdrop-blur {
+    background-color: rgba(15, 23, 42, 0.9) !important;
+  }
+}
+
+/* Safari < 14 不支持 gap 在 flex 容器中 */
+@supports not (gap: 1px) {
+  .flex {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+  }
+  .flex-col {
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+  .flex-wrap {
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
+  .grid {
+    display: -webkit-box;
+    display: -webkit-grid;
+    display: grid;
+  }
+}
+
+/* 百度浏览器/老旧浏览器兼容性 */
+@supports not (backdrop-filter: blur(1px)) {
+  /* 模态框背景回退 */
+  .bg-slate-900\/60 {
+    background-color: rgba(15, 23, 42, 0.9) !important;
+  }
+  .bg-black\/50 {
+    background-color: rgba(0, 0, 0, 0.7) !important;
+  }
+}
+
+/* 修复 border-radius 在老旧浏览器 */
+@supports not (border-radius: 8px) {
+  .rounded-xl {
+    border-radius: 8px !important;
+  }
+  .rounded-lg {
+    border-radius: 6px !important;
+  }
+  .rounded-full {
+    border-radius: 9999px !important;
+  }
+  .rounded-3xl {
+    border-radius: 16px !important;
+  }
+}
+
+/* 动画降级 - 禁用不支持环境下的动画 */
+@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+  /* IE/老旧 Edge */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* 百度浏览器兼容 - 使用 -webkit- 前缀 */
+@supports not (-webkit-backdrop-filter: blur(1px)) and not (backdrop-filter: blur(1px)) {
+  .fixed {
+    position: fixed;
+  }
+  .sticky {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* 移动端平滑滚动 */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 输入框兼容 */
+input, textarea, select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BookOpen, 
@@ -21,53 +21,74 @@ import {
   Database,
   CopyCheck,
   Filter,
-  LogOut,
-  LogIn,
-  User,
   Star,
-  Users,
   Search,
-  X
+  X,
+  Check,
+  PlusCircle,
+  Settings,
+  Edit3,
+  Layers,
+  AlertTriangle,
+  Users,
+  Key,
+  Shield,
+  Share2,
+  Copy,
+  Phone,
+  Mail,
+  GraduationCap,
+  ChevronDown,
+  Clock,
+  HelpCircle
 } from 'lucide-react';
-import { auth, db, signInWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  collection, 
-  onSnapshot, 
-  query, 
-  deleteDoc, 
-  writeBatch,
-  serverTimestamp,
-  increment
-} from 'firebase/firestore';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
-import { Question, ExamResult, SubjectId, SUBJECTS } from './types';
+import { Question, ExamResult, SubjectId, Subject, DEFAULT_SUBJECTS, SUBJECT_ICONS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, MAX_SHARED_SUBJECTS, suggestSubject } from './types';
 import { ImportModal } from './components/ImportModal';
-import { SettingsModal } from './components/SettingsModal';
-import { PlusCircle, Settings as SettingsIcon } from 'lucide-react';
+import { LoginModal } from './components/LoginModal';
+import { ConfirmModal } from './components/ConfirmModal';
+import { JoinSubjectModal } from './components/JoinSubjectModal';
+import { StudentManagementModal } from './components/StudentManagementModal';
+import { RoleSwitchModal } from './components/RoleSwitchModal';
+import { HelpModal } from './components/HelpModal';
+import { VisitCounter } from './components/VisitCounter';
+import { SubjectShareCode } from './components/SubjectShareCode';
+import { StudentSelectorModal } from './components/StudentSelectorModal';
+import { useAuth } from './hooks/useAuth';
+import { STORAGE_KEYS } from './constants/storage';
+import { questionApi, subjectApi, practiceApi, syncApi, inviteCodeApi, authApi, getToken, type AuthUser } from './services/api';
 
 interface MistakeRecord {
   questionId: number;
   consecutiveCorrect: number;
 }
 
+
+
+
+
 export default function App() {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [status, setStatus] = useState<'welcome' | 'exam' | 'result' | 'mistakes' | 'login'>('welcome');
+  // 用户认证
+  const { currentUser, isAdmin, isTeacher, login, logout, isModalOpen, setIsModalOpen, register, changePassword, sendVerificationCode, verifyCode, resetPassword, checkUsername, getUserList, clearUserPassword, deleteUser, setupPassword, authUser, convertRole, bindTeacher, refreshUser } = useAuth();
+
+  // 退出登录确认弹窗
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showRoleSwitch, setShowRoleSwitch] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountResult, setDeleteAccountResult] = useState<'success' | 'error' | null>(null);
+  const [deleteAccountError, setDeleteAccountError] = useState('');
+
+  const [status, setStatus] = useState<'welcome' | 'exam' | 'result' | 'mistakes'>('welcome');
   const [isRandomMode, setIsRandomMode] = useState(false);
-  const [activeBank, setActiveBank] = useState<Question[]>([]);
   const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [mistakeRecords, setMistakeRecords] = useState<MistakeRecord[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
 
   const [masteredIds, setMasteredIds] = useState<number[]>([]);
-
-  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -77,197 +98,238 @@ export default function App() {
   const [finalResult, setFinalResult] = useState<ExamResult | null>(null);
   const [isMistakeMode, setIsMistakeMode] = useState(false);
   const [isFullMode, setIsFullMode] = useState(false);
-  const [isFavoritesMode, setIsFavoritesMode] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingDeduplicate, setConfirmingDeduplicate] = useState(false);
   const [confirmingFilter, setConfirmingFilter] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isJoinSubjectOpen, setIsJoinSubjectOpen] = useState(false);
+  const [isStudentManagementOpen, setIsStudentManagementOpen] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [currentSubjectId, setCurrentSubjectId] = useState<SubjectId>(() => {
-    const saved = localStorage.getItem('current_subject_id');
-    return (saved as SubjectId) || 'python';
+    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_SUBJECT_ID);
+    return (saved as SubjectId) || DEFAULT_SUBJECTS[0]?.id || 'chinese';
   });
 
+  // 初始化模态框状态
+  const [showInitModal, setShowInitModal] = useState(false);
+  const [selectedInitSubjects, setSelectedInitSubjects] = useState<SubjectId[]>([]);
+
+  // 统一科目管理（所有科目均可编辑/删除，但至少保留1个）
+  const [customSubjects, setCustomSubjects] = useState<Subject[]>(DEFAULT_SUBJECTS);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [isAddingNewSubject, setIsAddingNewSubject] = useState(false);
+  const [isSubjectPendingCreation, setIsSubjectPendingCreation] = useState(false);
+
+  // 用户管理
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [userList, setUserList] = useState<{ username: string; email: string; role: string; phone: string; teacherName: string; studentCount: number; passwordReset: boolean; createdAt: number; id?: number }[]>([]);
+  const [userActionConfirm, setUserActionConfirm] = useState<{ type: 'delete' | 'clearPassword'; username: string; onConfirm: () => void } | null>(null);
+  const [expandedTeacher, setExpandedTeacher] = useState<number | null>(null);
+  const [teacherStudents, setTeacherStudents] = useState<{ id: number; username: string; email: string; phone: string; status: string; created_at: string }[]>([]);
+  const [expandedShareSubject, setExpandedShareSubject] = useState<string | null>(null);
+  const [studentSelectorSubject, setStudentSelectorSubject] = useState<{ id: string; name: string } | null>(null);
+
+  // 计算所有科目（统一管理）
+  const allSubjects = useMemo(() => {
+    return customSubjects;
+  }, [customSubjects]);
+
+  // 计算自有科目和共享科目数量
+  const ownSubjectCount = useMemo(() => 
+    allSubjects.filter(s => s.isOwner !== false && s.isShared !== 1).length
+  , [allSubjects]);
+
+  const sharedSubjectCount = useMemo(() => 
+    allSubjects.filter(s => s.isOwner === false || s.isShared === 1).length
+  , [allSubjects]);
+
   const currentSubject = useMemo(() => 
-    SUBJECTS.find(s => s.id === currentSubjectId) || SUBJECTS[0]
-  , [currentSubjectId]);
+    allSubjects.find(s => s.id === currentSubjectId) || allSubjects[0] || DEFAULT_SUBJECTS[0]
+  , [allSubjects, currentSubjectId]);
 
   useEffect(() => {
-    localStorage.setItem('current_subject_id', currentSubjectId);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_SUBJECT_ID, currentSubjectId);
   }, [currentSubjectId]);
 
-  // Auth Listener
-  useEffect(() => {
-    const statsRef = doc(db, 'stats', 'visitor_stats');
-    
-    // Listen for visitor count updates
-    const unsubscribe = onSnapshot(statsRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setVisitorCount(docSnap.data().visitorCount);
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'stats/visitor_stats');
-    });
+  // 数据加载：优先 API，降级 localStorage
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-    // Increment count if not already counted in this session
-    const hasVisited = sessionStorage.getItem('has_visited');
-    if (!hasVisited) {
-      const incrementCount = async () => {
-        try {
-          const docSnap = await getDoc(statsRef);
-          if (!docSnap.exists()) {
-            await setDoc(statsRef, { visitorCount: 1, lastUpdated: serverTimestamp() });
-          } else {
-            await setDoc(statsRef, { 
-              visitorCount: increment(1), 
-              lastUpdated: serverTimestamp() 
-            }, { merge: true });
-          }
-          sessionStorage.setItem('has_visited', 'true');
-        } catch (error) {
-          // Silently fail or log to console for stats
-          console.error('Error incrementing visitor count:', error);
+  useEffect(() => {
+    if (!currentUser) {
+      // 未登录：从 localStorage 加载
+      try {
+        const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+        if (rawCQ) { const p = JSON.parse(rawCQ); if (Array.isArray(p) && p.length > 0) setCustomQuestions(p); }
+        const rawMQ = localStorage.getItem(STORAGE_KEYS.MISTAKE_RECORDS);
+        if (rawMQ) { const p = JSON.parse(rawMQ); if (Array.isArray(p)) setMistakeRecords(p); }
+        const rawFav = localStorage.getItem(STORAGE_KEYS.FAVORITE_IDS);
+        if (rawFav) { const p = JSON.parse(rawFav); if (Array.isArray(p)) setFavoriteIds(p); }
+        const rawRemoved = localStorage.getItem(STORAGE_KEYS.REMOVED_IDS);
+        if (rawRemoved) { const p = JSON.parse(rawRemoved); if (Array.isArray(p)) setRemovedIds(p); }
+        const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
+        if (rawSubjects) { const p = JSON.parse(rawSubjects); if (Array.isArray(p) && p.length > 0) setCustomSubjects(p); else setCustomSubjects(DEFAULT_SUBJECTS); }
+        else setCustomSubjects(DEFAULT_SUBJECTS);
+      } catch (e) { console.error('加载本地数据失败:', e); setCustomSubjects(DEFAULT_SUBJECTS); }
+      setDataLoaded(true);
+      return;
+    }
+
+    // 已登录：从 API 加载
+    (async () => {
+      try {
+        // 并行加载所有数据
+        const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
+          questionApi.list({ limit: 5000 }),
+          practiceApi.getMistakes(),
+          practiceApi.getFavorites(),
+          subjectApi.list(),
+        ]);
+
+        // 题目
+        if (questionsRes.status === 'fulfilled') {
+          const qs = questionsRes.value.questions.map((q: any) => ({
+            id: q.id, subject: q.subject, type: q.type, title: q.title,
+            code: q.code, options: q.options, answer: q.answer,
+            explanation: q.explanation, points: q.points, input: q.input,
+          }));
+          setCustomQuestions(qs);
+          localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(qs));
         }
-      };
-      incrementCount();
-    }
 
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      setAuthLoading(false);
-      if (firebaseUser) {
-        setStatus('welcome');
-        // Initialize user profile in Firestore
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        try {
-          const userDoc = await getDoc(userRef);
-          if (!userDoc.exists()) {
-            await setDoc(userRef, {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              createdAt: serverTimestamp(),
-              removedIds: []
-            });
-          } else {
-            // Load removedIds from profile
-            const data = userDoc.data();
-            if (data.removedIds) setRemovedIds(data.removedIds);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+        // 错题
+        if (mistakesRes.status === 'fulfilled') {
+          const ms = mistakesRes.value.mistakes.map((m: any) => ({
+            questionId: m.questionId, consecutiveCorrect: m.consecutiveCorrect,
+          }));
+          setMistakeRecords(ms);
+          localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(ms));
         }
-      } else {
-        setStatus('welcome');
+
+        // 收藏
+        if (favoritesRes.status === 'fulfilled') {
+          const fs = favoritesRes.value.favorites.map((f: any) => f.questionId);
+          setFavoriteIds(fs);
+          localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(fs));
+        }
+
+        // 科目
+        if (subjectsRes.status === 'fulfilled' && subjectsRes.value.subjects.length > 0) {
+          // 清除旧缓存：以 API 数据为准
+          const subs = subjectsRes.value.subjects.map((s: any) => ({
+            id: s.id, name: s.name, icon: s.icon,
+            welcomeTitle: s.welcome_title || s.welcomeTitle || '', welcomeDesc: s.welcome_desc || s.welcomeDesc || '',
+            isCustom: true, isEditable: !!s.is_owner,
+            isShared: !!s.is_shared, shareScope: s.share_scope || 'none', isOwner: !!s.is_owner, isSubscribed: !!s.is_subscribed,
+            subscriberCount: s.subscriber_count || 0, creatorName: s.creator_name || '',
+            subscriptionStatus: s.subscription_status || undefined,
+          }));
+          setCustomSubjects(subs);
+          localStorage.setItem(STORAGE_KEYS.CUSTOM_SUBJECTS, JSON.stringify(subs));
+          // 如果当前科目ID不在新列表中，重置为第一个
+          if (!subs.find((s: Subject) => s.id === currentSubjectId)) {
+            setCurrentSubjectId(subs[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
+          }
+        } else {
+          // API 无科目 → 尝试迁移本地科目到云端
+          const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
+          if (rawSubjects) {
+            try {
+              const localSubjects = JSON.parse(rawSubjects);
+              if (Array.isArray(localSubjects) && localSubjects.length > 0) {
+                setCustomSubjects(localSubjects);
+                // 迁移到云端
+                const userId = authUser?.id || '';
+                for (const s of localSubjects) {
+                  const cloudId = s.id.includes('_') ? s.id : `${s.id}_${userId}`;
+                  subjectApi.create({ id: cloudId, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }).catch(() => {});
+                }
+              }
+            } catch {}
+          } else {
+            // 为新用户自动创建默认科目
+            const userId = authUser?.id || '';
+            const userDefaults = DEFAULT_SUBJECTS.map(s => ({
+              ...s,
+              id: `${s.id}_${userId}`,
+              isCustom: true, isEditable: true, isOwner: true,
+            }));
+            setCustomSubjects(userDefaults);
+            for (const s of userDefaults) {
+              subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }).catch(() => {});
+            }
+          }
+        }
+
+        // 首次登录迁移：如果 localStorage 有数据但 API 没有，做一次全量迁移
+        const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+        if (rawCQ && questionsRes.status === 'fulfilled' && questionsRes.value.questions.length === 0) {
+          try {
+            const localQs = JSON.parse(rawCQ);
+            if (Array.isArray(localQs) && localQs.length > 0) {
+              syncApi.migrate({ questions: localQs }).catch(e => console.warn('迁移题目失败:', e));
+            }
+          } catch {}
+        }
+      } catch (e) {
+        console.error('从 API 加载数据失败，降级到 localStorage:', e);
+        // 降级到 localStorage
+        try {
+          const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+          if (rawCQ) { const p = JSON.parse(rawCQ); if (Array.isArray(p) && p.length > 0) setCustomQuestions(p); }
+          const rawMQ = localStorage.getItem(STORAGE_KEYS.MISTAKE_RECORDS);
+          if (rawMQ) { const p = JSON.parse(rawMQ); if (Array.isArray(p)) setMistakeRecords(p); }
+          const rawFav = localStorage.getItem(STORAGE_KEYS.FAVORITE_IDS);
+          if (rawFav) { const p = JSON.parse(rawFav); if (Array.isArray(p)) setFavoriteIds(p); }
+          const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
+          if (rawSubjects) { const p = JSON.parse(rawSubjects); if (Array.isArray(p) && p.length > 0) setCustomSubjects(p); }
+        } catch {}
       }
-    });
-    return () => unsubscribe();
-  }, []);
+      setDataLoaded(true);
+    })();
+  }, [currentUser]);
 
-  // Sync Data with Firestore
-  useEffect(() => {
-    if (!user) return;
 
-    // Listen to custom questions
-    const cqRef = collection(db, 'users', user.uid, 'customQuestions');
-    const unsubscribeCQ = onSnapshot(cqRef, (snapshot) => {
-      const questions = snapshot.docs.map(doc => doc.data() as Question);
-      setCustomQuestions(questions);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, cqRef.path));
-
-    // Listen to mistake records
-    const mqRef = collection(db, 'users', user.uid, 'wrongQuestions');
-    const unsubscribeMQ = onSnapshot(mqRef, (snapshot) => {
-      const records = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          questionId: parseInt(doc.id),
-          consecutiveCorrect: data.consecutiveCorrect || 0
-        } as MistakeRecord;
-      });
-      setMistakeRecords(records);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, mqRef.path));
-
-    // Listen to favorites
-    const favRef = collection(db, 'users', user.uid, 'favorites');
-    const unsubscribeFav = onSnapshot(favRef, (snapshot) => {
-      const ids = snapshot.docs.map(doc => parseInt(doc.id));
-      setFavoriteIds(ids);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, favRef.path));
-
-    return () => {
-      unsubscribeCQ();
-      unsubscribeMQ();
-      unsubscribeFav();
-    };
-  }, [user]);
-
-  // Sync removedIds to Firestore
-  useEffect(() => {
-    if (!user || removedIds.length === 0) return;
-    const userRef = doc(db, 'users', user.uid);
-    setDoc(userRef, { removedIds }, { merge: true }).catch(err => 
-      handleFirestoreError(err, OperationType.UPDATE, userRef.path)
-    );
-  }, [user, removedIds]);
-
-  const handleLogin = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      setShowToast('登录失败，请重试');
-      console.error(error);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      setRemovedIds([]);
-      setMistakeRecords([]);
-      setFavoriteIds([]);
-      setCustomQuestions([]);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  // 无需登录，统一为本地模式
 
   const deduplicateBank = () => {
-    const seen = new Set();
-    const uniqueQuestions: Question[] = [];
+    const seen = new Map<string, { question: Question; source: 'initial' | 'custom' }>();
     
-    // We check both title and options/answer to determine duplicates
+    // 遍历完整题库，按指纹去重
     fullBank.forEach(q => {
       const fingerprint = `${q.title.trim()}_${q.type}_${JSON.stringify(q.options)}_${JSON.stringify(q.answer)}`;
+      const isFromInitial = INITIAL_BANK.some(iq => iq.id === q.id);
+      const source = isFromInitial ? 'initial' : 'custom';
+      
       if (!seen.has(fingerprint)) {
-        seen.add(fingerprint);
-        // If it's a custom question, we keep it in our list
-        if (customQuestions.some(cq => cq.id === q.id)) {
-          uniqueQuestions.push(q);
-        }
+        // 首次遇到，保存
+        seen.set(fingerprint, { question: q, source });
       } else {
-        // If it's a duplicate and it was in our custom list, it will be filtered out
-        // If it was in INITIAL_BANK, we add it to removedIds to "hide" it
-        if (INITIAL_BANK.some(iq => iq.id === q.id)) {
+        // 重复项：如果是自定义题目加入removedIds，如果是初始题库则忽略
+        if (source === 'custom') {
           setRemovedIds(prev => [...new Set([...prev, q.id])]);
+        }
+        // 如果已保存的是自定义题，而当前是初始题库，替换它
+        const existing = seen.get(fingerprint)!;
+        if (existing.source === 'custom' && source === 'initial') {
+          // 将旧的自定义题目标记为移除
+          setRemovedIds(prev => [...new Set([...prev, existing.question.id])]);
+          seen.set(fingerprint, { question: q, source: 'initial' });
         }
       }
     });
 
-    // Update custom questions to only include unique ones
-    const newCustom = customQuestions.filter(cq => 
-      uniqueQuestions.some(uq => uq.id === cq.id)
-    );
-    setCustomQuestions(newCustom);
+    // 从 seen 中提取保留的题目ID集合
+    const keptIds = new Set([...seen.values()].map(entry => entry.question.id));
+    
+    // 更新 customQuestions，移除被去重掉的题目
+    setCustomQuestions(prev => prev.filter(cq => keptIds.has(cq.id)));
+    
     setShowToast('题库去重完成');
     setConfirmingDeduplicate(false);
   };
@@ -299,18 +361,29 @@ export default function App() {
   }, [showToast]);
 
   useEffect(() => {
-    localStorage.setItem('removed_questions', JSON.stringify(removedIds));
+    localStorage.setItem(STORAGE_KEYS.REMOVED_IDS, JSON.stringify(removedIds));
   }, [removedIds]);
 
   useEffect(() => {
-    // Deduplicate mistake records just in case
     const uniqueRecords = Array.from(new Map(mistakeRecords.map(r => [r.questionId, r])).values());
-    localStorage.setItem('mistake_records', JSON.stringify(uniqueRecords));
-  }, [mistakeRecords]);
+    localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(uniqueRecords));
+    // 异步同步到 API
+    if (currentUser) {
+      // 增量同步：本地 state 已经是最新，API 同步在具体操作处处理
+    }
+  }, [mistakeRecords, currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('custom_questions', JSON.stringify(customQuestions));
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(customQuestions));
   }, [customQuestions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_SUBJECTS, JSON.stringify(customSubjects));
+  }, [customSubjects]);
 
   // Combined bank (memoized for performance and stability)
   const fullBank = useMemo(() => 
@@ -347,7 +420,6 @@ export default function App() {
     setIsMistakeMode(mode === 'mistakes');
     setIsFullMode(mode === 'full');
     setIsRandomMode(mode === 'random');
-    setIsFavoritesMode(mode === 'favorites');
 
     if (mode === 'mistakes') {
       const mistakeIds = mistakeRecords.map(r => r.questionId);
@@ -396,16 +468,11 @@ export default function App() {
     const newRemovedIds = [...new Set([...removedIds, id])];
     setRemovedIds(newRemovedIds);
     
-    if (user) {
-      // Remove from Firestore mistake records
-      const mistakeRef = doc(db, 'users', user.uid, 'wrongQuestions', id.toString());
-      try {
-        await deleteDoc(mistakeRef);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, mistakeRef.path);
-      }
+    // 同步到 API
+    if (currentUser) {
+      questionApi.delete(id).catch(e => console.warn('API删除题目失败:', e));
     }
-    
+
     setShowToast('该题目已从题库及错题本中剔除');
     setConfirmingDelete(false);
 
@@ -415,7 +482,6 @@ export default function App() {
         setStatus('welcome');
       } else {
         setExamQuestions(nextQuestions);
-        // If we removed the last question in the list, go to previous
         if (currentIndex >= nextQuestions.length) {
           setCurrentIndex(Math.max(0, nextQuestions.length - 1));
         }
@@ -424,23 +490,23 @@ export default function App() {
   };
 
   const toggleFavorite = async (id: number) => {
-    if (!user) {
-      setShowToast('请登录以使用收藏功能');
-      return;
-    }
     const isFav = favoriteIds.includes(id);
-    const favRef = doc(db, 'users', user.uid, 'favorites', id.toString());
     
     try {
       if (isFav) {
-        await deleteDoc(favRef);
+        setFavoriteIds(prev => prev.filter(fid => fid !== id));
+        if (currentUser) practiceApi.removeFavorite(id).catch(() => {});
         setShowToast('已取消收藏');
       } else {
-        await setDoc(favRef, { questionId: id.toString(), timestamp: serverTimestamp() });
+        setFavoriteIds(prev => [...prev, id]);
+        if (currentUser) {
+          const q = [...INITIAL_BANK, ...customQuestions].find(q => q.id === id);
+          if (q) practiceApi.addFavorite(id, q.subject).catch(() => {});
+        }
         setShowToast('已加入收藏夹');
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, favRef.path);
+      console.error('toggleFavorite error:', error);
     }
   };
 
@@ -480,35 +546,44 @@ export default function App() {
   };
 
   const updateMistakeRecord = async (questionId: number, isCorrect: boolean) => {
-    if (!user) return;
-    
-    const recordRef = doc(db, 'users', user.uid, 'wrongQuestions', questionId.toString());
     const currentRecord = mistakeRecords.find(r => r.questionId === questionId);
     
-    try {
-      if (isCorrect) {
-        if (currentRecord) {
-          const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
-          if (nextCorrect >= 3) {
-            await deleteDoc(recordRef);
-            setMasteredIds(prev => [...new Set([...prev, questionId])]);
-            setShowToast('太棒了！这道题你已经掌握，已从错题本移除 ✨');
-          } else {
-            await setDoc(recordRef, { consecutiveCorrect: nextCorrect, timestamp: serverTimestamp() }, { merge: true });
-          }
+    if (isCorrect) {
+      // 答对时：如果在错题本中，增加连续正确次数，达到3次则移除
+      if (currentRecord) {
+        const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
+        if (nextCorrect >= 3) {
+          setMistakeRecords(prev => prev.filter(r => r.questionId !== questionId));
+          setMasteredIds(prev => [...new Set([...prev, questionId])]);
+          if (currentUser) practiceApi.deleteMistake(questionId).catch(() => {});
+          setShowToast('太棒了！这道题你已经掌握，已从错题本移除 ✨');
+        } else {
+          setMistakeRecords(prev =>
+            prev.map(r => r.questionId === questionId ? { ...r, consecutiveCorrect: nextCorrect } : r)
+          );
+        }
+      }
+    } else {
+      // 答错时：如果不在错题本中则添加，已存在则重置计数
+      if (!currentRecord) {
+        setMistakeRecords(prev => [...prev, { questionId, consecutiveCorrect: 0 }]);
+        if (currentUser) {
+          const q = [...INITIAL_BANK, ...customQuestions].find(q => q.id === questionId);
+          if (q) practiceApi.addMistake(questionId, q.subject).catch(() => {});
         }
       } else {
-        await setDoc(recordRef, { consecutiveCorrect: 0, timestamp: serverTimestamp() }, { merge: true });
+        setMistakeRecords(prev =>
+          prev.map(r => r.questionId === questionId ? { ...r, consecutiveCorrect: 0 } : r)
+        );
+        if (currentUser) practiceApi.updateMistake(questionId, 0).catch(() => {});
       }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, recordRef.path);
     }
   };
 
   const isAnswerCorrect = (q: Question, userAns: any) => {
     if (!userAns) return false;
 
-    if (q.type === 'single' || q.type === 'true/false') {
+    if (q.type === 'single') {
       const uAns = typeof userAns === 'string' ? userAns.trim() : String(userAns);
       const qAns = typeof q.answer === 'string' ? q.answer.trim() : String(q.answer);
 
@@ -560,8 +635,6 @@ export default function App() {
   const calculateResult = async () => {
     let score = 0;
     const correctness: Record<number, boolean> = {};
-    
-    const batch = user ? writeBatch(db) : null;
 
     for (const q of examQuestions) {
       const userAns = userAnswers[q.id];
@@ -573,31 +646,30 @@ export default function App() {
         score += (100 / examQuestions.length);
       }
 
-      if (user && batch) {
-        const recordRef = doc(db, 'users', user.uid, 'wrongQuestions', q.id.toString());
-        if (isCorrect) {
-          const currentRecord = mistakeRecords.find(r => r.questionId === q.id);
-          if (currentRecord) {
-            const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
-            if (nextCorrect >= 3) {
-              batch.delete(recordRef);
-              setMasteredIds(prev => [...new Set([...prev, q.id])]);
-              // We can't easily show toast for each in batch, but we can show a general one later
-            } else {
-              batch.set(recordRef, { consecutiveCorrect: nextCorrect, timestamp: serverTimestamp() }, { merge: true });
-            }
+      // 更新本地错题记录
+      const currentRecord = mistakeRecords.find(r => r.questionId === q.id);
+      if (isCorrect) {
+        if (currentRecord) {
+          const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
+          if (nextCorrect >= 3) {
+            // 连续答对3次，从错题本移除
+            const updated = mistakeRecords.filter(r => r.questionId !== q.id);
+            setMistakeRecords(updated);
+            setMasteredIds(prev => [...new Set([...prev, q.id])]);
+          } else {
+            setMistakeRecords(prev =>
+              prev.map(r => r.questionId === q.id ? { ...r, consecutiveCorrect: nextCorrect } : r)
+            );
           }
-        } else {
-          batch.set(recordRef, { consecutiveCorrect: 0, timestamp: serverTimestamp() }, { merge: true });
         }
-      }
-    }
-
-    if (user && batch) {
-      try {
-        await batch.commit();
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'batch-update-wrong-questions');
+      } else {
+        if (!currentRecord) {
+          setMistakeRecords(prev => [...prev, { questionId: q.id, consecutiveCorrect: 0 }]);
+        } else {
+          setMistakeRecords(prev =>
+            prev.map(r => r.questionId === q.id ? { ...r, consecutiveCorrect: 0 } : r)
+          );
+        }
       }
     }
 
@@ -616,24 +688,27 @@ export default function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleImport = async (newQuestions: Question[]) => {
-    if (!user) return;
-    
-    const maxId = Math.max(0, ...[...INITIAL_BANK, ...customQuestions].map(q => q.id), 1000);
-    const batch = writeBatch(db);
-    
-    newQuestions.forEach((q, i) => {
-      const id = maxId + i + 1;
-      const qRef = doc(db, 'users', user.uid, 'customQuestions', id.toString());
-      batch.set(qRef, { ...q, id, subject: currentSubjectId });
-    });
+  const handleImport = async (newQuestions: Question[], targetSubjectId: SubjectId = currentSubjectId) => {
+    // 使用时间戳+随机数生成唯一ID，避免ID冲突
+    const generateUniqueId = () => Date.now() + Math.floor(Math.random() * 1000);
+    const enriched = newQuestions.map((q) => ({ 
+      ...q, 
+      id: generateUniqueId(), 
+      subject: targetSubjectId 
+    }));
 
-    try {
-      await batch.commit();
-      setShowToast(`成功导入 ${newQuestions.length} 道题目！`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'batch-import-questions');
+    setCustomQuestions(prev => [...prev, ...enriched]);
+
+    // 批量同步到 API
+    if (currentUser) {
+      questionApi.batchImport(enriched.map(q => ({
+        subject: q.subject, type: q.type, title: q.title,
+        code: q.code, options: q.options, answer: q.answer,
+        explanation: q.explanation, points: q.points, input: q.input,
+      }))).catch(e => console.warn('API批量导入失败:', e));
     }
+
+    setShowToast(`成功导入 ${newQuestions.length} 道题目！`);
   };
 
   const currentQuestion = examQuestions[currentIndex];
@@ -643,35 +718,142 @@ export default function App() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setStatus('welcome')}>
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                <span className="text-xl">{currentSubject.icon}</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setStatus('welcome')}>
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+                  <span className="text-xl">{currentSubject.icon}</span>
+                </div>
+                <h1 className="font-bold text-lg tracking-tight hidden sm:block">{currentSubject.name}</h1>
               </div>
-              <h1 className="font-bold text-lg tracking-tight hidden sm:block">{currentSubject.name}</h1>
+              
+              {/* 初始化按钮 - 登录用户可用 */}
+              <button
+                onClick={(e) => {
+                  if (!currentUser) return;
+                  e.stopPropagation();
+                  setShowInitModal(true);
+                }}
+                className={`ml-2 sm:ml-4 px-2 sm:px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition-all flex items-center gap-1 ${
+                  currentUser
+                    ? 'bg-slate-300 text-slate-700 hover:bg-slate-400 cursor-pointer'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                }`}
+                title={currentUser ? '初始化考试科目和题库' : '登录后可使用'}
+                disabled={!currentUser}
+              >
+                <RefreshCcw size={12} className="sm:size-3.5" />
+                <span className="hidden xs:inline">重置</span>
+              </button>
             </div>
           
-          <div className="flex items-center gap-4">
-            {user && (
-              <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
-                <button 
-                  onClick={() => startExam('favorites')}
-                  className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-all relative"
-                  title="我的收藏"
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* 帮助按钮 - 始终可见 */}
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center gap-1.5"
+              title="帮助手册"
+            >
+              <HelpCircle size={15} />
+              <span className="hidden sm:inline">帮助</span>
+            </button>
+            {/* 老师学生管理入口 */}
+            {isTeacher && (
+              <button
+                onClick={() => setIsStudentManagementOpen(true)}
+                className="px-2 sm:px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-indigo-100 transition-all flex items-center gap-1"
+                title="学生管理"
+              >
+                <Users size={14} />
+                <span className="hidden sm:inline">学生管理</span>
+              </button>
+            )}
+            {/* 加入共享科目入口 */}
+            {currentUser && (
+              <button
+                onClick={() => setIsJoinSubjectOpen(true)}
+                className="px-2 sm:px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-100 transition-all flex items-center gap-1"
+                title="加入共享科目"
+              >
+                <Key size={14} />
+                <span className="hidden sm:inline">加入科目</span>
+              </button>
+            )}
+            {/* 登录/登出按钮 */}
+            {currentUser ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg font-medium text-sm hover:bg-amber-100 transition-all flex items-center gap-2"
+                  title="用户菜单"
                 >
-                  <Star size={20} fill={favoriteIds.length > 0 ? "currentColor" : "none"} className={favoriteIds.length > 0 ? "text-amber-500" : ""} />
-                  {favoriteIds.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {favoriteIds.length}
+                  <CheckCircle2 size={16} />
+                  <span>{currentUser}</span>
+                  {isAdmin && (
+                    <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
+                      管理员
                     </span>
                   )}
+                  {isTeacher && !isAdmin && (
+                    <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold">
+                      老师
+                    </span>
+                  )}
+                  {!isAdmin && !isTeacher && authUser?.role === 'independent' && (
+                    <span className="text-xs bg-slate-400 text-white px-2 py-0.5 rounded-full font-bold">
+                      独立
+                    </span>
+                  )}
+                  {!isAdmin && !isTeacher && authUser?.role === 'student' && (
+                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">
+                      学生
+                    </span>
+                  )}
+                  <ChevronDown size={14} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
                 </button>
-                <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-slate-200" />
-                <div className="hidden sm:block">
-                  <div className="text-xs font-bold text-slate-900 leading-none">{user.displayName}</div>
-                  <button onClick={handleLogout} className="text-[10px] font-bold text-rose-500 hover:text-rose-600 uppercase tracking-tighter">退出登录</button>
-                </div>
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-50 min-w-[160px]">
+                      {!isAdmin && (
+                        <button
+                          onClick={() => { setShowUserMenu(false); setShowRoleSwitch(true); }}
+                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
+                        >
+                          <Users size={15} className="text-indigo-500" />
+                          切换身份
+                        </button>
+                      )}
+                      {!isAdmin && (
+                        <button
+                          onClick={() => { setShowUserMenu(false); setShowDeleteAccountConfirm(true); }}
+                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-red-50 flex items-center gap-2.5 text-red-600 border-t border-slate-50 mt-1 pt-1.5"
+                        >
+                          <Trash2 size={15} />
+                          注销账号
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }}
+                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-red-600"
+                      >
+                        <XCircle size={15} />
+                        退出登录
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
+            ) : (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-sm hover:bg-blue-100 transition-all flex items-center gap-2"
+                title="登录"
+              >
+                <Settings size={16} />
+                <span>登录</span>
+              </button>
             )}
+
             {status === 'exam' && (
               <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-full text-slate-600 font-medium text-sm">
@@ -690,7 +872,7 @@ export default function App() {
                 onClick={() => setStatus('welcome')}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-all"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={22} />
                 <span>返回上一级</span>
               </button>
             </div>
@@ -699,72 +881,102 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
         <AnimatePresence mode="wait">
-          {authLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          ) : status === 'login' ? (
-            <motion.div 
-              key="login"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="max-w-md mx-auto bg-white rounded-3xl p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
-            >
-              <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mx-auto mb-8">
-                <User size={48} />
-              </div>
-              <h2 className="text-3xl font-bold mb-4">欢迎回来</h2>
-              <p className="text-slate-500 mb-10 leading-relaxed">
-                请登录以同步您的题库、错题本和学习进度。
-              </p>
-              <button 
-                onClick={handleLogin}
-                className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-700 hover:border-blue-600 hover:text-blue-600 transition-all shadow-sm group"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-6 h-6" />
-                <span>使用 Google 账号登录</span>
-              </button>
-              <p className="mt-8 text-xs text-slate-400">
-                登录即代表您同意我们的服务条款和隐私政策
-              </p>
-            </motion.div>
-          ) : status === 'welcome' && (
+          {status === 'welcome' && (
             <motion.div 
               key="welcome"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
+              className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
             >
               {/* Subject Selection */}
-              <div className="flex flex-wrap justify-center gap-3 mb-8">
-                {SUBJECTS.map((subject) => (
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-5 sm:mb-6 relative">
+                {allSubjects.map((subject) => {
+                  const isPending = subject.subscriptionStatus === 'pending';
+                  const isApprovedShared = subject.isSubscribed && !subject.isOwner && !isPending;
+                  return (
+                  <div key={subject.id} className="relative group">
+                    <button
+                      onClick={() => !isPending && setCurrentSubjectId(subject.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
+                        isPending
+                          ? 'bg-amber-50 text-amber-500 cursor-not-allowed opacity-70 border-2 border-amber-200 border-dashed'
+                          : currentSubjectId === subject.id
+                            ? isApprovedShared
+                              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105'
+                              : 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
+                            : isApprovedShared
+                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-2 border-emerald-300 border-dashed'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span>{subject.icon}</span>
+                      <span>{subject.name}</span>
+                      {isPending && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 bg-amber-200 text-amber-700">
+                          <Clock size={9} />待审核
+                        </span>
+                      )}
+                      {isApprovedShared && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${
+                          currentSubjectId === subject.id
+                            ? 'bg-emerald-400/30 text-white'
+                            : 'bg-emerald-200 text-emerald-800'
+                        }`}>
+                          <Share2 size={9} />
+                          共享{subject.creatorName ? `·${subject.creatorName}` : ''}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  );
+                })}
+                {/* 科目管理入口 - 登录用户可用 */}
+                <button
+                  onClick={() => {
+                    if (!currentUser) return;
+                    setEditingSubject(null);
+                    setIsAddingNewSubject(false);
+                    setShowSubjectModal(true);
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-all text-sm ${
+                    currentUser
+                      ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer'
+                      : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                  }`}
+                  title={currentUser ? '管理科目' : '登录后可使用'}
+                  disabled={!currentUser}
+                >
+                  <Layers size={14} />
+                  <span>管理</span>
+                </button>
+                {/* 用户管理入口 - 仅管理员可见 */}
+                {isAdmin && (
                   <button
-                    key={subject.id}
-                    onClick={() => setCurrentSubjectId(subject.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
-                      currentSubjectId === subject.id
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    onClick={() => {
+                      setShowUserManagement(true);
+                      getUserList().then(list => setUserList(list));
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-all text-sm bg-purple-100 text-purple-600 hover:bg-purple-200 cursor-pointer"
+                    title="用户管理"
                   >
-                    <span>{subject.icon}</span>
-                    <span>{subject.name}</span>
+                    <Users size={14} />
+                    <span>用户</span>
                   </button>
-                ))}
+                )}
               </div>
 
-              <h2 className="text-3xl font-bold mb-4">{currentSubject.welcomeTitle}</h2>
-              <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-3">{currentSubject.welcomeTitle}</h2>
+              <p className="text-slate-500 mb-5 sm:mb-6 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
                 {currentSubject.welcomeDesc} (题库共 {currentBank.length} 题)
               </p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 text-left">
                 <button 
                   onClick={() => startExam('random')}
-                  className="p-6 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
+                  className="p-4 sm:p-5 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
                 >
                   <div className="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <RefreshCcw size={24} />
@@ -803,7 +1015,7 @@ export default function App() {
 
                 <button 
                   onClick={() => startExam('normal')}
-                  className="p-6 bg-blue-50 rounded-2xl border-2 border-blue-100 hover:border-blue-300 transition-all text-left group"
+                  className="p-4 sm:p-5 bg-blue-50 rounded-2xl border-2 border-blue-100 hover:border-blue-300 transition-all text-left group"
                 >
                   <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <BookOpen size={24} />
@@ -845,7 +1057,7 @@ export default function App() {
 
                 <button 
                   onClick={() => startExam('full')}
-                  className="p-6 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
+                  className="p-4 sm:p-5 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
                 >
                   <div className="w-12 h-12 bg-purple-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Database size={24} />
@@ -856,7 +1068,7 @@ export default function App() {
 
                 <button 
                   onClick={() => startExam('mistakes')}
-                  className="p-6 bg-rose-50 rounded-2xl border-2 border-rose-100 hover:border-rose-300 transition-all text-left group"
+                  className="p-4 sm:p-5 bg-rose-50 rounded-2xl border-2 border-rose-100 hover:border-rose-300 transition-all text-left group"
                 >
                   <div className="w-12 h-12 bg-rose-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <History size={24} />
@@ -870,40 +1082,68 @@ export default function App() {
 
                 <button 
                   onClick={() => startExam('favorites')}
-                  className="p-6 bg-amber-50 rounded-2xl border-2 border-amber-100 hover:border-amber-300 transition-all text-left group"
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
+                    favoriteIds.length === 0 
+                      ? 'bg-slate-50 border-slate-200 opacity-60' 
+                      : 'bg-amber-50 border-amber-100 hover:border-amber-300'
+                  }`}
                 >
-                  <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Star size={24} fill="currentColor" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
+                    favoriteIds.length === 0 ? 'bg-slate-400 text-white' : 'bg-amber-500 text-white'
+                  }`}>
+                    <Star size={24} fill={favoriteIds.length > 0 ? "currentColor" : "none"} />
                   </div>
-                  <div className="font-bold text-lg text-amber-900">我的收藏题库</div>
+                  <div className={`font-bold text-lg ${favoriteIds.length === 0 ? 'text-slate-500' : 'text-amber-900'}`}>
+                    {favoriteIds.length === 0 ? '暂无收藏题目' : '我的收藏题库'}
+                  </div>
                   <div className="text-sm text-amber-600/70">复习您标记的重点题目</div>
                   <div className="mt-2 inline-block px-2 py-0.5 bg-amber-200 text-amber-700 text-xs font-bold rounded-full">
                     收藏总数: {favoriteIds.length}
                   </div>
+                  {favoriteIds.length === 0 && (
+                    <div className="mt-2 text-xs text-slate-400">练习时点击⭐收藏题目</div>
+                  )}
                 </button>
 
                 <button 
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-100 hover:border-indigo-300 transition-all text-left group"
+                  onClick={() => {
+                    setIsImportModalOpen(true);
+                  }}
+                  disabled={!currentUser}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
+                    currentUser
+                      ? 'bg-indigo-50 border-indigo-100 hover:border-indigo-300'
+                      : 'bg-slate-50 border-slate-100 cursor-not-allowed'
+                  }`}
                 >
-                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
+                    currentUser ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-500'
+                  }`}>
                     <PlusCircle size={24} />
                   </div>
-                  <div className="font-bold text-lg text-indigo-900">导入新增题目</div>
-                  <div className="text-sm text-indigo-600/70">支持 Word/PDF/粘贴，AI 智能解析</div>
+                  <div className={`font-bold text-lg ${currentUser ? 'text-indigo-900' : 'text-slate-400'}`}>导入新增题目</div>
+                  <div className={`text-sm ${currentUser ? 'text-indigo-600/70' : 'text-slate-400'}`}>
+                    {currentUser ? '支持 Word/PDF/粘贴，AI 智能解析' : '登录后可使用'}
+                  </div>
                 </button>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-6 text-slate-400 text-sm">
+              {/* 空状态引导 */}
+              {(mistakeRecords.length === 0 && favoriteIds.length === 0) && (
+                <div className="mt-4 p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
+                  <p className="text-sm text-blue-600">
+                    💡 开始练习后，做错的题目会自动进入错题本
+                  </p>
+                  <p className="text-xs text-blue-400 mt-1">
+                    点击⭐收藏题目，可随时复习重点内容
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-slate-400 text-xs sm:text-sm mt-4">
                 <div className="flex items-center gap-1"><CircleDot size={16} /> 单选题</div>
                 <div className="flex items-center gap-1"><ListChecks size={16} /> 多选题</div>
                 <div className="flex items-center gap-1"><Trash2 size={16} /> 题库剔除功能</div>
-                {visitorCount !== null && (
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-slate-500 font-bold animate-in fade-in zoom-in duration-500">
-                    <Users size={14} className="text-blue-500" />
-                    <span>累计访问: {visitorCount.toLocaleString()}</span>
-                  </div>
-                )}
               </div>
             </motion.div>
           )}
@@ -914,10 +1154,10 @@ export default function App() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="space-y-4 sm:space-y-5"
             >
               {/* Progress Bar */}
-              <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-200 h-1.5 sm:h-2 rounded-full overflow-hidden">
                 <motion.div 
                   className="h-full bg-blue-600"
                   initial={{ width: 0 }}
@@ -925,7 +1165,7 @@ export default function App() {
                 />
               </div>
 
-              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100">
+              <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-3">
@@ -934,11 +1174,11 @@ export default function App() {
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         title="返回上一级"
                       >
-                        <ChevronLeft size={18} />
+                        <ChevronLeft size={22} />
                       </button>
                     </div>
                     <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase tracking-wider">
-                      {currentQuestion.type === 'single' ? '单选题' : currentQuestion.type === 'multiple' ? '多选题' : '编程题'}
+                      {currentQuestion.type === 'single' && currentQuestion.options?.length === 2 && ['正确','错误'].every(o => currentQuestion.options!.includes(o)) ? '判断题' : currentQuestion.type === 'single' ? '单选题' : currentQuestion.type === 'multiple' ? '多选题' : '编程题'}
                     </span>
                     {isRandomMode && (
                       <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">
@@ -965,7 +1205,7 @@ export default function App() {
                         </div>
                       </div>
                     )}
-                    {examQuestions.length === favoriteIds.filter(id => examQuestions.some(eq => eq.id === id)).length && examQuestions.every(eq => favoriteIds.includes(eq.id)) && (
+                    {examQuestions.length > 0 && examQuestions.every(eq => favoriteIds.includes(eq.id)) && (
                       <span className="px-3 py-1 bg-amber-50 text-amber-600 text-xs font-bold rounded-full">
                         收藏复习
                       </span>
@@ -1042,21 +1282,29 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     {confirmingDelete ? (
-                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                        <span className="text-[10px] font-black text-rose-500 uppercase">确认剔除？</span>
-                        <button 
-                          onClick={() => removeQuestion(currentQuestion.id)}
-                          className="px-2 py-1 bg-rose-600 text-white text-[10px] font-bold rounded-md hover:bg-rose-700 transition-colors"
-                        >
-                          确定
-                        </button>
-                        <button 
-                          onClick={() => setConfirmingDelete(false)}
-                          className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
-                        >
-                          取消
-                        </button>
-                      </div>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 rounded-2xl shadow-lg shadow-rose-100/50">
+                        <div className="flex items-center justify-center w-8 h-8 bg-rose-100 rounded-full">
+                          <AlertTriangle size={16} className="text-rose-600" />
+                        </div>
+                        <span className="text-xs font-bold text-rose-700">确认剔除此题？</span>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => removeQuestion(currentQuestion.id)}
+                            className="px-3 py-1.5 bg-gradient-to-b from-rose-500 to-rose-600 text-white text-[11px] font-bold rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all shadow-md shadow-rose-200 active:scale-95"
+                          >
+                            确定剔除
+                          </button>
+                          <button 
+                            onClick={() => setConfirmingDelete(false)}
+                            className="px-3 py-1.5 bg-white text-slate-600 text-[11px] font-bold rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </motion.div>
                     ) : (
                       <div className="flex items-center gap-3">
                         <button 
@@ -1145,7 +1393,7 @@ export default function App() {
                         
                         // Check if this specific option is correct
                         let isCorrect = false;
-                        if (currentQuestion.type === 'single' || currentQuestion.type === 'true/false') {
+                        if (currentQuestion.type === 'single') {
                           const optTrim = option.trim();
                           const ansTrim = typeof qAns === 'string' ? qAns.trim() : String(qAns);
                           
@@ -1304,9 +1552,9 @@ export default function App() {
               key="result"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="space-y-8"
+              className="space-y-5 sm:space-y-6"
             >
-              <div className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
+              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
                 
                 <div className="relative z-10">
@@ -1337,25 +1585,25 @@ export default function App() {
                     </div>
                   </div>
 
-                  <p className="text-slate-500 max-w-sm mx-auto mb-8">
+                  <p className="text-slate-500 max-w-sm mx-auto mb-5 sm:mb-6 text-sm">
                     {finalResult.score >= 90 ? "太棒了！错题已更新，继续保持。" : 
                      finalResult.score >= 60 ? "表现不错！错题已加入错题本，记得复习。" : 
                      "别灰心，错题本会帮你记录薄弱点，多练几次！"}
                   </p>
                   
-                  <div className="flex flex-col items-center gap-6">
+                  <div className="flex flex-col items-center gap-4 sm:gap-5">
                     <button 
                       onClick={() => setStatus('welcome')}
                       className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
                     >
-                      <ChevronLeft size={20} /> 返回上一级
+                      <ChevronLeft size={22} /> 返回上一级
                     </button>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold px-2">题目解析</h3>
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-lg sm:text-xl font-bold px-2">题目解析</h3>
                 {examQuestions.map((q, idx) => {
                   const isCorrect = finalResult.correctness[q.id];
                   const mistakeRecord = mistakeRecords.find(r => r.questionId === q.id);
@@ -1363,11 +1611,11 @@ export default function App() {
                   return (
                     <div 
                       key={q.id}
-                      className={`bg-white rounded-2xl p-6 border-l-4 shadow-sm ${
+                      className={`bg-white rounded-2xl p-4 sm:p-5 border-l-4 shadow-sm ${
                         isCorrect ? 'border-emerald-500' : 'border-rose-500'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-bold text-slate-400">题目 {idx + 1}</span>
@@ -1410,8 +1658,8 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="space-y-3 text-sm">
-                        <div className="p-3 bg-slate-50 rounded-xl">
+                      <div className="space-y-2 sm:space-y-3 text-sm">
+                        <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl text-sm">
                           <span className="text-slate-400 font-bold mr-2">你的回答:</span>
                           <span className={isCorrect ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>
                             {Array.isArray(finalResult.answers[q.id]) 
@@ -1420,7 +1668,7 @@ export default function App() {
                           </span>
                         </div>
                         {!isCorrect && (
-                          <div className="p-3 bg-blue-50 rounded-xl">
+                          <div className="p-2.5 sm:p-3 bg-blue-50 rounded-xl text-sm">
                             <span className="text-blue-400 font-bold mr-2">正确答案:</span>
                             <span className="text-blue-700 font-medium">
                               {Array.isArray(q.answer) ? q.answer.join(', ') : q.answer}
@@ -1437,8 +1685,9 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <footer className="py-12 text-center text-slate-400 text-sm">
-        <p>© 2026 Python 编程在线模拟考试系统 | 海龙制作</p>
+      <footer className="py-6 sm:py-8 text-center text-slate-400 text-xs sm:text-sm">
+        <p className="text-slate-400">© 2026 海龙在线学习平台 - 海龙制作</p>
+        <VisitCounter />
       </footer>
 
       {/* Toast Notification */}
@@ -1459,8 +1708,1170 @@ export default function App() {
       <ImportModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        onImport={handleImport} 
+        onImport={handleImport}
+        allSubjects={allSubjects}
+        currentSubjectId={currentSubjectId}
+        authUser={authUser}
       />
+
+      <LoginModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onLogin={login}
+        onRegister={register}
+        onChangePassword={changePassword}
+        onSendCode={sendVerificationCode}
+        onVerifyCode={verifyCode}
+        onResetPassword={resetPassword}
+        onCheckUsername={checkUsername}
+        onSetupPassword={setupPassword}
+        isAdmin={isAdmin}
+        currentUser={currentUser}
+      />
+
+      <JoinSubjectModal
+        isOpen={isJoinSubjectOpen}
+        onClose={() => setIsJoinSubjectOpen(false)}
+        onJoined={() => window.location.reload()}
+      />
+
+      <StudentManagementModal
+        isOpen={isStudentManagementOpen}
+        onClose={() => setIsStudentManagementOpen(false)}
+      />
+
+      <StudentSelectorModal
+        subjectId={studentSelectorSubject?.id || ''}
+        subjectName={studentSelectorSubject?.name || ''}
+        isOpen={!!studentSelectorSubject}
+        onClose={() => setStudentSelectorSubject(null)}
+        onStudentIdsChange={async (studentIds) => {
+          if (studentSelectorSubject && currentUser) {
+            await subjectApi.update(studentSelectorSubject.id, { shareScope: 'students', studentIds });
+          }
+        }}
+      />
+
+      {/* 用户管理模态框 */}
+      {showUserManagement && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl border border-slate-200 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Users size={20} className="text-purple-600" />
+                用户管理
+              </h3>
+              <button 
+                onClick={() => setShowUserManagement(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            
+            {/* 用户列表 */}
+            <div className="flex-1 overflow-y-auto mb-4">
+              <div className="space-y-3">
+                {userList.map((user) => (
+                  <div key={user.username} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-800">{user.username}</span>
+                          {user.role === 'admin' && (
+                            <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-medium">管理员</span>
+                          )}
+                          {user.role === 'teacher' && (
+                            <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full font-medium">老师</span>
+                          )}
+                          {user.role === 'student' && (
+                            <span className="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-medium">学生</span>
+                          )}
+                          {user.role === 'independent' && (
+                            <span className="text-xs bg-slate-400 text-white px-2 py-0.5 rounded-full font-medium">独立用户</span>
+                          )}
+                          {user.passwordReset && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">需重置密码</span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+                          {user.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone size={12} className="text-slate-400" />
+                              {user.phone}
+                            </span>
+                          )}
+                          {user.email && (
+                            <span className="flex items-center gap-1">
+                              <Mail size={12} className="text-slate-400" />
+                              {user.email}
+                            </span>
+                          )}
+                          {user.role === 'teacher' && (
+                            <button
+                              onClick={async () => {
+                                if (expandedTeacher === user.id) {
+                                  setExpandedTeacher(null);
+                                  setTeacherStudents([]);
+                                } else {
+                                  setExpandedTeacher(user.id!);
+                                  try {
+                                    const res = await authApi.getTeacherStudents(user.id!);
+                                    setTeacherStudents(res.students);
+                                  } catch {
+                                    setTeacherStudents([]);
+                                  }
+                                }
+                              }}
+                              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              <Users size={12} />
+                              {user.studentCount} 名学生
+                              <ChevronDown size={12} className={`transition-transform ${expandedTeacher === user.id ? 'rotate-180' : ''}`} />
+                            </button>
+                          )}
+                          {user.role === 'student' && user.teacherName && (
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <GraduationCap size={12} />
+                              老师：{user.teacherName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                        {user.username !== 'admin' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setUserActionConfirm({
+                                  type: 'clearPassword',
+                                  username: user.username,
+                                  onConfirm: async () => {
+                                    const result = await clearUserPassword(user.username);
+                                    if (result.success) {
+                                      setUserActionConfirm(null);
+                                      getUserList().then(list => setUserList(list));
+                                    } else {
+                                      alert(result.error);
+                                    }
+                                  }
+                                });
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-orange-100 text-orange-600 rounded-lg text-sm hover:bg-orange-200 transition-colors"
+                              title="清除密码"
+                            >
+                              <Key size={14} />
+                              <span>清空密码</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setUserActionConfirm({
+                                  type: 'delete',
+                                  username: user.username,
+                                  onConfirm: async () => {
+                                    const result = await deleteUser(user.username);
+                                    if (result.success) {
+                                      setUserActionConfirm(null);
+                                      getUserList().then(list => setUserList(list));
+                                    } else {
+                                      alert(result.error);
+                                    }
+                                  }
+                                });
+                              }}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-colors"
+                              title="删除用户"
+                            >
+                              <Trash2 size={14} />
+                              <span>删除</span>
+                            </button>
+                          </>
+                        )}
+                        {user.username === 'admin' && (
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <Shield size={12} />
+                            受保护账号
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* 老师的学生列表展开区域 */}
+                    {expandedTeacher === user.id && user.role === 'teacher' && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        {teacherStudents.length === 0 ? (
+                          <p className="text-sm text-slate-400 pl-2">暂无学生</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {teacherStudents.map((s) => (
+                              <div key={s.id} className="flex items-center gap-3 px-3 py-2 bg-white rounded-lg border border-slate-100">
+                                <span className="text-xs bg-emerald-500 text-white px-1.5 py-0.5 rounded-full">学生</span>
+                                <span className="font-medium text-slate-700 text-sm">{s.username}</span>
+                                {s.phone && (
+                                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                                    <Phone size={10} />{s.phone}
+                                  </span>
+                                )}
+                                {s.email && (
+                                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                                    <Mail size={10} />{s.email}
+                                  </span>
+                                )}
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${s.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                                  {s.status === 'active' ? '活跃' : '待审核'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 关闭按钮 */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowUserManagement(false)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 用户操作确认弹窗 */}
+      <ConfirmModal
+        isOpen={!!userActionConfirm}
+        title={userActionConfirm?.type === 'delete' ? '删除用户' : '清除密码'}
+        message={
+          userActionConfirm?.type === 'delete'
+            ? `确定要删除用户 "${userActionConfirm?.username}" 吗？此操作不可恢复。`
+            : `确定要清除用户 "${userActionConfirm?.username}" 的密码吗？该用户下次登录时需要设置新密码。`
+        }
+        confirmText={userActionConfirm?.type === 'delete' ? '确认删除' : '确认清除'}
+        cancelText="取消"
+        type="warning"
+        onConfirm={() => userActionConfirm?.onConfirm()}
+        onCancel={() => setUserActionConfirm(null)}
+      />
+
+      {/* 退出登录确认弹窗 */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="退出登录"
+        message={`确定要退出 ${currentUser} 登录吗？退出后将无法使用题库管理和科目管理功能。`}
+        confirmText="确定退出"
+        cancelText="取消"
+        type="warning"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          logout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+
+      {/* 注销账号确认弹窗 */}
+      <ConfirmModal
+        isOpen={showDeleteAccountConfirm}
+        title="确认注销账号"
+        message={`确定要注销 ${currentUser} 吗？此操作将永久删除您的账号及所有关联数据（题库、科目、错题记录等），不可恢复。`}
+        confirmText={isDeletingAccount ? '注销中...' : '确认注销'}
+        cancelText="取消"
+        type="danger"
+        onConfirm={async () => {
+          setIsDeletingAccount(true);
+          try {
+            await authApi.deleteAccount();
+            setShowDeleteAccountConfirm(false);
+            logout();
+            setDeleteAccountResult('success');
+          } catch (err: any) {
+            setDeleteAccountError(err.message || '注销失败，请稍后重试');
+            setDeleteAccountResult('error');
+          } finally {
+            setIsDeletingAccount(false);
+          }
+        }}
+        onCancel={() => setShowDeleteAccountConfirm(false)}
+      />
+
+      {/* 注销结果弹窗 */}
+      {deleteAccountResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center"
+          >
+            {deleteAccountResult === 'success' ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 size={32} className="text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">账号已成功注销</h3>
+                <p className="text-sm text-slate-500 mb-6">感谢您的使用，欢迎随时回来注册新账号。</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                  <XCircle size={32} className="text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">注销失败</h3>
+                <p className="text-sm text-red-500 mb-6">{deleteAccountError}</p>
+              </>
+            )}
+            <button
+              onClick={() => setDeleteAccountResult(null)}
+              className={`px-6 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                deleteAccountResult === 'success'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              知道了
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 帮助手册弹窗 */}
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
+
+      {/* 角色切换弹窗 */}
+      <RoleSwitchModal
+        isOpen={showRoleSwitch}
+        onClose={() => setShowRoleSwitch(false)}
+        currentRole={authUser?.role || 'independent'}
+        onConvertRole={convertRole}
+        onBindTeacher={bindTeacher}
+      />
+
+      {/* 初始化模态框 */}
+      {showInitModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <RefreshCcw size={20} className="text-blue-600" />
+                系统初始化
+              </h3>
+              <button 
+                onClick={() => setShowInitModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+                选择要初始化的科目。初始化后将：<br/>
+                • 清空所选科目的所有题目（包括默认题库）<br/>
+                • 清空错题记录、收藏夹和自定义题目<br/>
+                • 系统变为真正的空题库状态
+              </p>
+              
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer group" onClick={() => {
+                  if (selectedInitSubjects.length === allSubjects.length) {
+                    setSelectedInitSubjects([]);
+                  } else {
+                    setSelectedInitSubjects(allSubjects.map(s => s.id));
+                  }
+                }}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${selectedInitSubjects.length === allSubjects.length ? 'bg-blue-600 border-blue-600' : 'border-slate-300 group-hover:border-slate-400'}`}>
+                    {selectedInitSubjects.length === allSubjects.length && <Check size={12} className="text-white" />}
+                  </div>
+                  <span className="font-medium text-slate-700">全选所有科目</span>
+                </label>
+                
+                <div className="pl-6 space-y-2">
+                  {allSubjects.map(subject => (
+                    <label key={subject.id} className="flex items-center gap-2 cursor-pointer group select-none" onClick={() => {
+                      if (selectedInitSubjects.includes(subject.id)) {
+                        setSelectedInitSubjects(prev => prev.filter(id => id !== subject.id));
+                      } else {
+                        setSelectedInitSubjects(prev => [...prev, subject.id]);
+                      }
+                    }}>
+                      <div 
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${selectedInitSubjects.includes(subject.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300 group-hover:border-slate-400'}`}
+                      >
+                        {selectedInitSubjects.includes(subject.id) && <Check size={12} className="text-white" />}
+                      </div>
+                      <span className="text-slate-600 group-hover:text-slate-800 flex items-center gap-1">
+                        <span>{subject.icon}</span>
+                        {subject.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowInitModal(false)}
+                className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 rounded-xl font-medium hover:bg-slate-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedInitSubjects.length === 0) {
+                    alert('请至少选择一个科目进行初始化！');
+                    return;
+                  }
+                  
+                  // 获取要隐藏的题目ID（根据科目筛选）
+                  const initialBankIdsToHide = INITIAL_BANK
+                    .filter(q => selectedInitSubjects.includes(q.subject))
+                    .map(q => q.id);
+                  
+                  // 计算自定义题目中属于选中科目的题目ID
+                  const customQuestionIdsToRemove = customQuestions
+                    .filter(q => selectedInitSubjects.includes(q.subject))
+                    .map(q => q.id);
+                  
+                  // 合并新的removedIds（追加，而不是替换）
+                  const newRemovedIds = [...new Set([...removedIds, ...initialBankIdsToHide, ...customQuestionIdsToRemove])];
+                  
+                  // 过滤掉选中科目的自定义题目
+                  const remainingCustomQuestions = customQuestions.filter(
+                    q => !selectedInitSubjects.includes(q.subject)
+                  );
+                  
+                  // 过滤掉选中科目的错题记录（通过关联的题目ID）
+                  const allRemovedIdsSet = new Set(newRemovedIds);
+                  const remainingMistakeRecords = mistakeRecords.filter(
+                    r => !allRemovedIdsSet.has(r.questionId)
+                  );
+                  
+                  // 过滤掉选中科目的收藏（通过关联的题目ID）
+                  const remainingFavoriteIds = favoriteIds.filter(
+                    id => !allRemovedIdsSet.has(id)
+                  );
+                  
+                  // 更新 localStorage
+                  localStorage.setItem(STORAGE_KEYS.REMOVED_IDS, JSON.stringify(newRemovedIds));
+                  localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(remainingCustomQuestions));
+                  localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(remainingMistakeRecords));
+                  localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(remainingFavoriteIds));
+                  
+                  // 同步删除到 API
+                  if (currentUser) {
+                    for (const sid of selectedInitSubjects) {
+                      subjectApi.delete(sid).catch(() => {});
+                    }
+                    for (const q of customQuestions.filter(q => selectedInitSubjects.includes(q.subject))) {
+                      questionApi.delete(q.id).catch(() => {});
+                    }
+                  }
+                  
+                  // 如果包含当前科目，重置为第一个可用科目
+                  if (selectedInitSubjects.includes(currentSubjectId)) {
+                    const remainingSubjects = allSubjects.filter(s => !selectedInitSubjects.includes(s.id));
+                    setCurrentSubjectId(remainingSubjects[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
+                  }
+                  
+                  // 重置所有状态
+                  setCustomQuestions(remainingCustomQuestions);
+                  setMistakeRecords(remainingMistakeRecords);
+                  setFavoriteIds(remainingFavoriteIds);
+                  setRemovedIds(newRemovedIds);
+                  
+                  // 关闭模态框并显示提示
+                  setShowInitModal(false);
+                  
+                  if (selectedInitSubjects.length === allSubjects.length) {
+                    setShowToast('✅ 系统已完全初始化！现在是真正的空题库状态。');
+                  } else {
+                    setShowToast(`✅ 已初始化科目: ${selectedInitSubjects.map(id => allSubjects.find(s => s.id === id)?.name || id).join(', ')}！`);
+                  }
+                }}
+                disabled={selectedInitSubjects.length === 0}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <RefreshCcw size={16} />
+                确认初始化
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 科目管理模态框 */}
+      {showSubjectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Settings size={20} className="text-blue-600" />
+                科目管理
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowSubjectModal(false);
+                  setEditingSubject(null);
+                  setIsAddingNewSubject(false);
+                }}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            
+            {/* 科目列表模式 */}
+            {!editingSubject && (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500 mb-4">
+                  管理科目列表（所有科目均可编辑，至少保留1个科目）
+                </p>
+                
+                {/* 统一科目列表 */}
+                {allSubjects.length > 0 && (
+                  <div className="space-y-2">
+                    {allSubjects.map(subject => (
+                      <div key={subject.id}>
+                        <div className={`flex items-center justify-between p-3 rounded-xl border ${
+                          subject.isSubscribed && !subject.isOwner
+                            ? 'bg-emerald-50/70 border-emerald-200'
+                            : 'bg-slate-50 border-slate-100'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{subject.icon}</span>
+                            <div>
+                              <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                                {subject.name}
+                                {subject.isSubscribed && !subject.isOwner ? (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                    <Share2 size={8} />共享{subject.creatorName ? ` · ${subject.creatorName}` : ''}
+                                  </span>
+                                ) : subject.isShared && subject.isOwner ? (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                    subject.shareScope === 'students' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                                  }`}>
+                                    {subject.shareScope === 'students' ? '学生共享' : '已共享'}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">自有</span>
+                                )}
+
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {customQuestions.filter(q => q.subject === subject.id).length} 道题目
+                                {subject.isShared && subject.isOwner && subject.subscriberCount ? ` · ${subject.subscriberCount}人订阅` : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* 共享按钮 - 管理员或科目拥有者可用 */}
+                            {(isAdmin || subject.isOwner) && !subject.isSubscribed && (
+                              <button
+                                onClick={() => {
+                                  if (expandedShareSubject === subject.id) {
+                                    setExpandedShareSubject(null);
+                                  } else {
+                                    setExpandedShareSubject(subject.id);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1 ${
+                                  subject.shareScope === 'students'
+                                    ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                    : subject.shareScope === 'all'
+                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                    : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
+                                }`}
+                                title="共享设置"
+                              >
+                                <Share2 size={12} />
+                                <span className="hidden sm:inline">
+                                  {subject.shareScope === 'students' ? '学生共享' : subject.shareScope === 'all' ? '全员共享' : '共享'}
+                                </span>
+                                <ChevronDown size={10} className={`transition-transform ${expandedShareSubject === subject.id ? 'rotate-180' : ''}`} />
+                              </button>
+                            )}
+                            {/* 非拥有者的共享科目只能退订（管理员除外） */}
+                            {(isAdmin || !subject.isSubscribed || subject.isOwner) && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setEditingSubject(subject);
+                                    setIsAddingNewSubject(false);
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                >
+                                  <Edit3 size={12} />
+                                  <span className="hidden sm:inline">编辑</span>
+                                </button>
+                                <button
+                                  onClick={() => setSubjectToDelete(subject)}
+                                  disabled={allSubjects.length <= 1}
+                                  className="px-3 py-1.5 bg-rose-500 text-white text-sm rounded-lg hover:bg-rose-600 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Trash2 size={12} />
+                                  <span className="hidden sm:inline">删除</span>
+                                </button>
+                              </>
+                            )}
+                            {subject.isSubscribed && !subject.isOwner && (
+                              <button
+                                onClick={async () => {
+                                  if (confirm(`确定要退订科目「${subject.name}」吗？退订后该科目将不再显示。`)) {
+                                    try {
+                                      await subjectApi.leave(subject.id);
+                                      window.location.reload();
+                                    } catch (e: any) {
+                                      setShowToast(e.message || '退订失败');
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-300 transition-colors"
+                              >
+                                退订
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {/* 共享设置展开区域 */}
+                        {expandedShareSubject === subject.id && (isAdmin || subject.isOwner) && !subject.isSubscribed && (
+                          <div className="mt-1 p-4 bg-slate-50 rounded-xl border border-slate-200 ml-2">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Share2 size={14} className="text-blue-600" />
+                              <span className="text-sm font-bold text-slate-700">共享设置</span>
+                            </div>
+                            {/* 三个选项 */}
+                            <div className="space-y-2 mb-3">
+                              <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                                (subject.shareScope || 'none') === 'none' ? 'bg-slate-200 ring-2 ring-slate-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                              }`}>
+                                <input
+                                  type="radio"
+                                  name={`share-${subject.id}`}
+                                  checked={(subject.shareScope || 'none') === 'none'}
+                                  onChange={async () => {
+                                    const updated = customSubjects.map(s =>
+                                      s.id === subject.id ? { ...s, isShared: false, shareScope: 'none' as const } : s
+                                    );
+                                    setCustomSubjects(updated);
+                                    if (currentUser) {
+                                      subjectApi.update(subject.id, { shareScope: 'none' }).catch(() => {});
+                                    }
+                                    setShowToast(`已关闭「${subject.name}」共享`);
+                                  }}
+                                  className="accent-slate-600"
+                                />
+                                <div>
+                                  <div className="text-sm font-medium text-slate-700">不共享</div>
+                                  <div className="text-xs text-slate-400">仅自己可见</div>
+                                </div>
+                              </label>
+                              <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                                subject.shareScope === 'students' ? 'bg-indigo-50 ring-2 ring-indigo-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                              }`}>
+                                <input
+                                  type="radio"
+                                  name={`share-${subject.id}`}
+                                  checked={subject.shareScope === 'students'}
+                                  onChange={async () => {
+                                    const updated = customSubjects.map(s =>
+                                      s.id === subject.id ? { ...s, isShared: true, shareScope: 'students' as const } : s
+                                    );
+                                    setCustomSubjects(updated);
+                                    if (currentUser) {
+                                      try {
+                                        await subjectApi.update(subject.id, { shareScope: 'students', studentIds: [] });
+                                      } catch (e: any) {
+                                        alert('保存失败: ' + (e.message || '未知错误'));
+                                        return;
+                                      }
+                                    }
+                                    setShowToast(`已开启「${subject.name}」学生共享`);
+                                    setExpandedShareSubject(null);
+                                    setShowSubjectModal(false);
+                                    setStudentSelectorSubject({ id: subject.id, name: subject.name });
+                                  }}
+                                  className="accent-indigo-600"
+                                />
+                                <div>
+                                  <div className="text-sm font-medium text-indigo-700">仅共享给学生</div>
+                                  <div className="text-xs text-slate-400">你的学生可直接访问，也可生成邀请码</div>
+                                </div>
+                              </label>
+                              <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                                subject.shareScope === 'all' ? 'bg-emerald-50 ring-2 ring-emerald-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                              }`}>
+                                <input
+                                  type="radio"
+                                  name={`share-${subject.id}`}
+                                  checked={subject.shareScope === 'all'}
+                                  onChange={async () => {
+                                    const updated = customSubjects.map(s =>
+                                      s.id === subject.id ? { ...s, isShared: true, shareScope: 'all' as const } : s
+                                    );
+                                    setCustomSubjects(updated);
+                                    if (currentUser) {
+                                      try {
+                                        await subjectApi.update(subject.id, { shareScope: 'all' });
+                                      } catch (e: any) {
+                                        alert('保存失败: ' + (e.message || '未知错误'));
+                                        return;
+                                      }
+                                    }
+                                    setShowToast(`已开启「${subject.name}」全员共享`);
+                                  }}
+                                  className="accent-emerald-600"
+                                />
+                                <div>
+                                  <div className="text-sm font-medium text-emerald-700">全员共享</div>
+                                  <div className="text-xs text-slate-400">任何用户可通过邀请码加入</div>
+                                </div>
+                              </label>
+                            </div>
+                            {/* 学生选择按钮（仅 students 模式） */}
+                            {subject.shareScope === 'students' && (
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => {
+                                    setExpandedShareSubject(null);
+                                    setShowSubjectModal(false);
+                                    setStudentSelectorSubject({ id: subject.id, name: subject.name });
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2 bg-white rounded-lg border border-indigo-200 hover:border-indigo-300 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <GraduationCap size={14} className="text-indigo-500" />
+                                    <span className="text-sm text-indigo-700">选择共享学生</span>
+                                  </div>
+                                  <ChevronRight size={14} className="text-indigo-400" />
+                                </button>
+                              </div>
+                            )}
+                            {/* 邀请码区域（students 和 all 模式都显示） */}
+                            {(subject.shareScope === 'students' || subject.shareScope === 'all') && (
+                              <div className="mt-3 pt-3 border-t border-slate-200">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Key size={14} className={subject.shareScope === 'students' ? 'text-indigo-600' : 'text-emerald-600'} />
+                                  <span className="text-sm font-medium text-slate-700">邀请码</span>
+                                  {subject.shareScope === 'students' && (
+                                    <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">仅限学生使用</span>
+                                  )}
+                                </div>
+                                <SubjectShareCode subjectId={subject.id} subjectName={subject.name} scope={subject.shareScope} />
+                                {subject.subscriberCount ? (
+                                  <p className="text-xs text-emerald-600 mt-2">已有 {subject.subscriberCount} 人订阅</p>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* 添加新科目按钮 */}
+                {ownSubjectCount < MAX_OWN_SUBJECTS ? (
+                  <button
+                    onClick={() => {
+                      setEditingSubject({
+                        id: `${CUSTOM_SUBJECT_PREFIX}${Date.now()}`,
+                        name: '',
+                        icon: '📝',
+                        welcomeTitle: '新课程学习',
+                        welcomeDesc: '开始新的学习之旅',
+                      });
+                      setIsAddingNewSubject(true);
+                      setIsSubjectPendingCreation(false);
+                    }}
+                    className="w-full mt-4 px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-medium hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200"
+                  >
+                    <PlusCircle size={18} />
+                    添加新科目（{ownSubjectCount}/{MAX_OWN_SUBJECTS}）
+                  </button>
+                ) : (
+                  <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
+                    <p className="text-sm text-amber-700">
+                      已达到自有科目最大数量（{MAX_OWN_SUBJECTS}个），如需添加请先删除现有科目
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 编辑表单模式 */}
+            {editingSubject && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => {
+                      setEditingSubject(null);
+                      setIsAddingNewSubject(false);
+                    }}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft size={20} className="text-slate-500" />
+                  </button>
+                  <h4 className="font-bold text-slate-700">
+                    {isAddingNewSubject ? '添加新科目' : `编辑「${editingSubject.name}」`}
+                  </h4>
+                </div>
+                
+                {/* 名称 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">科目名称</label>
+                  <input
+                    type="text"
+                    value={editingSubject.name}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      if (isAddingNewSubject) {
+                        const suggestion = suggestSubject(newName);
+                        if (suggestion) {
+                          setEditingSubject({ 
+                            ...editingSubject, 
+                            name: newName,
+                            icon: suggestion.icon,
+                            welcomeTitle: suggestion.welcomeTitle,
+                            welcomeDesc: suggestion.welcomeDesc,
+                          });
+                        } else {
+                          setEditingSubject({ ...editingSubject, name: newName });
+                        }
+                      } else {
+                        const suggestion = suggestSubject(newName);
+                        if (suggestion) {
+                          setEditingSubject({
+                            ...editingSubject,
+                            name: newName,
+                            icon: suggestion.icon,
+                            welcomeTitle: suggestion.welcomeTitle,
+                            welcomeDesc: suggestion.welcomeDesc,
+                          });
+                        } else {
+                          setEditingSubject({ ...editingSubject, name: newName });
+                        }
+                      }
+                    }}
+                    placeholder="例如：物理、化学..."
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-colors"
+                    maxLength={20}
+                  />
+                  {editingSubject.name.trim() && suggestSubject(editingSubject.name) && (
+                    <p className="text-xs text-blue-500 mt-1">已根据科目名称自动推荐图标和描述，可自行修改</p>
+                  )}
+                </div>
+                
+                {/* 图标选择 - 分类显示 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-2">选择图标</label>
+                  <div className="bg-slate-50 rounded-xl p-3 max-h-48 overflow-y-auto">
+                    {Object.entries(SUBJECT_ICONS).map(([category, icons]) => (
+                      <div key={category} className="mb-3 last:mb-0">
+                        <div className="text-xs text-slate-400 font-medium mb-2">{category}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {icons.map((icon) => (
+                            <button
+                              key={icon}
+                              onClick={() => setEditingSubject({ ...editingSubject, icon })}
+                              className={`w-9 h-9 text-lg rounded-lg flex items-center justify-center transition-all ${
+                                editingSubject.icon === icon 
+                                  ? 'bg-blue-600 text-white scale-110 shadow-md ring-2 ring-blue-400' 
+                                  : 'bg-white hover:bg-blue-50 hover:scale-105 shadow-sm'
+                              }`}
+                              title={icon}
+                            >
+                              {icon}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* 当前选中的图标预览 */}
+                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                    <span>当前选择：</span>
+                    <span className="text-2xl bg-blue-50 w-10 h-10 rounded-lg flex items-center justify-center border border-blue-100">
+                      {editingSubject.icon}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* 欢迎标题 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">欢迎标题</label>
+                  <input
+                    type="text"
+                    value={editingSubject.welcomeTitle}
+                    onChange={(e) => setEditingSubject({ ...editingSubject, welcomeTitle: e.target.value })}
+                    placeholder="例如：化学知识小测"
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-colors"
+                    maxLength={30}
+                  />
+                </div>
+                
+                {/* 欢迎描述 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">科目描述</label>
+                  <textarea
+                    value={editingSubject.welcomeDesc}
+                    onChange={(e) => setEditingSubject({ ...editingSubject, welcomeDesc: e.target.value })}
+                    placeholder="简要描述这个科目的内容..."
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-colors resize-none"
+                    rows={2}
+                    maxLength={100}
+                  />
+                </div>
+
+                {/* 共享设置 - 管理员或科目拥有者可设置 */}
+                {(isAdmin || editingSubject.isOwner) && !editingSubject.isSubscribed && (
+                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Share2 size={16} className="text-blue-600" />
+                      <label className="text-sm font-medium text-slate-700">共享设置</label>
+                    </div>
+                    <div className="space-y-2">
+                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                        (editingSubject.shareScope || 'none') === 'none' ? 'bg-slate-200 ring-2 ring-slate-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="edit-share"
+                          checked={(editingSubject.shareScope || 'none') === 'none'}
+                          onChange={() => setEditingSubject({ ...editingSubject, isShared: false, shareScope: 'none' })}
+                          className="accent-slate-600"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-slate-700">不共享</div>
+                          <div className="text-xs text-slate-400">仅自己可见</div>
+                        </div>
+                      </label>
+                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                        editingSubject.shareScope === 'students' ? 'bg-indigo-50 ring-2 ring-indigo-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="edit-share"
+                          checked={editingSubject.shareScope === 'students'}
+                          onChange={() => setEditingSubject({ ...editingSubject, isShared: true, shareScope: 'students' })}
+                          className="accent-indigo-600"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-indigo-700">仅共享给学生</div>
+                          <div className="text-xs text-slate-400">你的学生可直接访问，也可生成邀请码</div>
+                        </div>
+                      </label>
+                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                        editingSubject.shareScope === 'all' ? 'bg-emerald-50 ring-2 ring-emerald-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="edit-share"
+                          checked={editingSubject.shareScope === 'all'}
+                          onChange={() => setEditingSubject({ ...editingSubject, isShared: true, shareScope: 'all' })}
+                          className="accent-emerald-600"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-emerald-700">全员共享</div>
+                          <div className="text-xs text-slate-400">任何用户可通过邀请码加入</div>
+                        </div>
+                      </label>
+                    </div>
+                    {/* 邀请码 */}
+                    {(editingSubject.shareScope === 'students' || editingSubject.shareScope === 'all') && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Key size={14} className={editingSubject.shareScope === 'students' ? 'text-indigo-600' : 'text-emerald-600'} />
+                          <span className="text-sm font-medium text-slate-700">邀请码</span>
+                          {editingSubject.shareScope === 'students' && (
+                            <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">仅限学生使用</span>
+                          )}
+                        </div>
+                        <SubjectShareCode subjectId={editingSubject.id} subjectName={editingSubject.name} scope={editingSubject.shareScope} pending={isSubjectPendingCreation} />
+                        {editingSubject.subscriberCount ? (
+                          <p className="text-xs text-emerald-600 mt-2">已有 {editingSubject.subscriberCount} 人订阅</p>
+                        ) : null}
+                      </div>
+                    )}
+                    {editingSubject.shareScope === 'none' && editingSubject.subscriberCount ? (
+                      <p className="text-xs text-amber-600 mt-2">
+                        关闭共享后，已订阅的 {editingSubject.subscriberCount} 人将无法继续访问
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* 操作按钮 - 仅在编辑模式显示 */}
+            {editingSubject && (
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setEditingSubject(null);
+                    setIsAddingNewSubject(false);
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-600 rounded-xl font-medium hover:bg-slate-50 transition-colors"
+                >
+                  返回列表
+                </button>
+                <button
+                  onClick={() => {
+                    if (!editingSubject.name.trim()) {
+                      setShowToast('请输入科目名称');
+                      return;
+                    }
+                    
+                    if (isAddingNewSubject) {
+                      // 添加新科目
+                      if (ownSubjectCount >= MAX_OWN_SUBJECTS) {
+                        setShowToast(`最多只能添加 ${MAX_OWN_SUBJECTS} 个自有科目`);
+                        return;
+                      }
+                      const newSubject = { ...editingSubject, id: `${CUSTOM_SUBJECT_PREFIX}${Date.now()}` };
+                      setCustomSubjects([...customSubjects, newSubject]);
+                      setCurrentSubjectId(newSubject.id);
+                      setIsSubjectPendingCreation(true);
+                      // 同步到 API
+                      if (currentUser) {
+                        subjectApi.create({ id: newSubject.id, name: newSubject.name, icon: newSubject.icon, welcomeTitle: newSubject.welcomeTitle, welcomeDesc: newSubject.welcomeDesc, shareScope: newSubject.shareScope || 'none' })
+                          .then(() => setIsSubjectPendingCreation(false))
+                          .catch(() => setIsSubjectPendingCreation(false));
+                      } else {
+                        setIsSubjectPendingCreation(false);
+                      }
+                      setShowToast(`已添加科目「${newSubject.name}」`);
+                    } else {
+                      // 更新科目（所有科目统一在customSubjects中管理）
+                      setCustomSubjects(customSubjects.map(s => 
+                        s.id === editingSubject.id ? editingSubject : s
+                      ));
+                      // 同步到 API
+                      if (currentUser) {
+                        subjectApi.update(editingSubject.id, {
+                          name: editingSubject.name,
+                          icon: editingSubject.icon,
+                          welcomeTitle: editingSubject.welcomeTitle,
+                          welcomeDesc: editingSubject.welcomeDesc,
+                          shareScope: editingSubject.shareScope || 'none',
+                        }).catch(() => {});
+                      }
+                      setShowToast(`已更新科目「${editingSubject.name}」`);
+                    }
+                    
+                    setEditingSubject(null);
+                    setIsAddingNewSubject(false);
+                    setIsSubjectPendingCreation(false);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Check size={16} />
+                  {isAddingNewSubject ? '添加' : '保存'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 科目删除确认对话框 */}
+      <AnimatePresence>
+        {subjectToDelete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            onClick={() => setSubjectToDelete(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.5, bounce: 0.4 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 顶部警告图标 */}
+              <div className="bg-gradient-to-br from-rose-500 to-red-600 px-6 py-8 flex flex-col items-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                  <AlertTriangle size={32} className="text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white">确认删除</h3>
+              </div>
+              
+              {/* 内容区域 */}
+              <div className="p-6 text-center">
+                <p className="text-slate-600 mb-2">
+                  确定要删除科目
+                </p>
+                <p className="text-lg font-bold text-slate-800 mb-3">
+                  「{subjectToDelete.name}」
+                </p>
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 mb-4">
+                  <p className="text-sm text-rose-600">
+                    <span className="font-bold">{customQuestions.filter(q => q.subject === subjectToDelete.id).length}</span> 道关联题目也将被删除
+                  </p>
+                </div>
+                <p className="text-xs text-slate-400">
+                  此操作无法撤销
+                </p>
+              </div>
+              
+              {/* 按钮区域 */}
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => setSubjectToDelete(null)}
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    // 至少保留1个科目
+                    if (allSubjects.length <= 1) {
+                      setShowToast('至少保留一个科目');
+                      setSubjectToDelete(null);
+                      return;
+                    }
+                    const newCustomSubjects = customSubjects.filter(s => s.id !== subjectToDelete.id);
+                    setCustomSubjects(newCustomSubjects);
+                    if (currentSubjectId === subjectToDelete.id) {
+                      const fallback = newCustomSubjects[0] || DEFAULT_SUBJECTS[0];
+                      setCurrentSubjectId(fallback?.id || 'chinese');
+                    }
+                    const customQuestionIds = customQuestions
+                      .filter(q => q.subject === subjectToDelete.id)
+                      .map(q => q.id);
+                    const newRemovedIds = [...new Set([...removedIds, ...customQuestionIds])];
+                    setRemovedIds(newRemovedIds);
+                    setCustomQuestions(prev => prev.filter(q => q.subject !== subjectToDelete.id));
+                    // 同步删除到 API
+                    if (currentUser) {
+                      subjectApi.delete(subjectToDelete.id).catch(() => {});
+                      for (const qid of customQuestionIds) {
+                        questionApi.delete(qid).catch(() => {});
+                      }
+                    }
+                    setShowToast(`已删除科目「${subjectToDelete.name}」及相关题目`);
+                    setSubjectToDelete(null);
+                  }}
+                  className="flex-1 px-4 py-3 bg-gradient-to-br from-rose-500 to-red-600 text-white font-semibold rounded-xl hover:from-rose-600 hover:to-red-700 transition-all shadow-lg shadow-rose-200"
+                >
+                  确认删除
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
