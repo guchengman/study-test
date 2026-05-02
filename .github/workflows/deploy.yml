@@ -48,13 +48,13 @@ jobs:
           # 添加主机密钥
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
           # 配置SSH使用私钥
-          cat > ~/.ssh/config << 'EOF'
+          cat > ~/.ssh/config << 'SSHCONF'
           Host server
             HostName ${{ env.SERVER_HOST }}
             User ${{ env.SERVER_USER }}
             IdentityFile ~/.ssh/private_key
             StrictHostKeyChecking accept-new
-          EOF
+          SSHCONF
           # 写入私钥
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/private_key
           chmod 600 ~/.ssh/private_key
