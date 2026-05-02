@@ -1,0 +1,95 @@
+name: Deploy to Alibaba Cloud
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  SERVER_HOST: 47.88.52.213
+  SERVER_USER: zengxiao
+  SERVER_PATH: /home/zengxiao/study-test
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. 拉取代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 设置 Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 安装依赖（前端）
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # 4. 安装依赖（后端）
+      - name: Install backend dependencies
+        run: cd server && npm ci
+
+      # 5. 构建前端
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: /api
+
+      # 6. 配置 SSH
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 7. 部署到服务器
+      - name: Deploy to server
+        run: |
+          # 创建临时目录用于传输
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p ${{ env.SERVER_PATH }}/backup"
+          
+          # 备份当前构建文件
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_bak_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true"
+          
+          # 同步前端文件
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='server' \
+            ./ ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
+          
+          # 同步后端文件
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "rsync -avz --delete ./server/ ${{ env.SERVER_PATH }}/server/"
+
+      # 8. 在服务器上安装依赖并重启服务
+      - name: Restart services
+        run: |
+          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+            cd ${{ env.SERVER_PATH }}
+            
+            # 安装前端依赖
+            npm ci --production 2>/dev/null || npm install --production
+            
+            # 安装后端依赖
+            cd server
+            npm ci --production 2>/dev/null || npm install --production
+            
+            # 重启后端服务 (PM2)
+            pm2 restart study-server || pm2 start server/src/index.js --name study-server
+            
+            # 重启 nginx
+            sudo nginx -t && sudo nginx -s reload
+            
+            echo "部署完成！"
+          EOF
+
+      # 9. 显示完成信息
+      - name: Deploy completed
+        run: |
+          echo "✅ 部署成功！"
+          echo "🌐 访问地址: https://www.xiaoyue.shop"
