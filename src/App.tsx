@@ -697,18 +697,35 @@ export default function App() {
       subject: targetSubjectId 
     }));
 
+    // 先添加到前端本地状态（用于当前会话显示）
     setCustomQuestions(prev => [...prev, ...enriched]);
 
-    // 批量同步到 API
+    // 批量同步到后端数据库
     if (currentUser) {
-      questionApi.batchImport(enriched.map(q => ({
-        subject: q.subject, type: q.type, title: q.title,
-        code: q.code, options: q.options, answer: q.answer,
-        explanation: q.explanation, points: q.points, input: q.input,
-      }))).catch(e => console.warn('API批量导入失败:', e));
+      try {
+        const apiQuestions = enriched.map(q => ({
+          subject_id: q.subject,  // 使用 subject_id 字段
+          type: q.type, 
+          title: q.title,
+          code: q.code, 
+          options: q.options, 
+          answer: q.answer,
+          explanation: q.explanation, 
+          points: q.points, 
+          input: q.input,
+        }));
+        
+        // 传递 targetSubjectId 作为后端的 subject_id
+        await questionApi.batchImport(apiQuestions, targetSubjectId);
+        
+        setShowToast(`成功导入 ${newQuestions.length} 道题目到题库！`);
+      } catch (e) {
+        console.error('API批量导入失败:', e);
+        setShowToast(`本地导入成功，但数据库同步失败，请刷新重试`);
+      }
+    } else {
+      setShowToast(`成功导入 ${newQuestions.length} 道题目！（请登录以保存到服务器）`);
     }
-
-    setShowToast(`成功导入 ${newQuestions.length} 道题目！`);
   };
 
   const currentQuestion = examQuestions[currentIndex];
