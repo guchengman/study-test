@@ -10,8 +10,6 @@ env:
   SERVER_HOST: 47.88.52.213
   SERVER_USER: zengxiao
   SERVER_PATH: /home/zengxiao/study-test
-  # 强制使用Node.js 24，避免弃用警告
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   deploy:
@@ -22,11 +20,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js (升级到24)
+      # 2. 设置 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       # 3. 安装前端依赖
@@ -43,40 +41,48 @@ jobs:
         env:
           VITE_API_BASE_URL: /api
 
-      # 6. 设置 SSH - 获取服务器主机密钥
-      - name: Get server host key
+      # 6. 配置SSH（传统方式，避免Node.js兼容性问题）
+      - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -t rsa,ecdsa,ed25519 ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-      
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v1
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # 添加主机密钥
+          ssh-keyscan -t rsa,ecdsa,ed25519 ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          # 配置SSH使用私钥
+          cat > ~/.ssh/config << 'EOF'
+          Host server
+            HostName ${{ env.SERVER_HOST }}
+            User ${{ env.SERVER_USER }}
+            IdentityFile ~/.ssh/private_key
+            StrictHostKeyChecking accept-new
+          EOF
+          # 写入私钥
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/private_key
+          chmod 600 ~/.ssh/private_key
+          chmod 700 ~/.ssh
 
       # 7. 部署到服务器
       - name: Deploy to server
         run: |
           # 创建临时目录用于传输
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "mkdir -p ${{ env.SERVER_PATH }}/backup"
+          ssh server "mkdir -p ${{ env.SERVER_PATH }}/backup"
           
           # 备份当前构建文件
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_bak_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true"
+          ssh server "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_bak_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true"
           
           # 同步前端文件
           rsync -avz --delete \
             --exclude='node_modules' \
             --exclude='.git' \
             --exclude='server' \
-            ./ ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
+            ./ server:${{ env.SERVER_PATH }}/
           
           # 同步后端文件
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} "rsync -avz --delete ./server/ ${{ env.SERVER_PATH }}/server/"
+          ssh server "rsync -avz --delete ./server/ ${{ env.SERVER_PATH }}/server/"
 
       # 8. 重启服务
       - name: Restart services
         run: |
-          ssh ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'EOF'
+          ssh server << 'EOF'
             cd ${{ env.SERVER_PATH }}
             
             # 安装后端依赖
@@ -93,8 +99,8 @@ jobs:
             # 重启 nginx
             sudo nginx -t && sudo nginx -s reload
             
-            echo "🎉 部署完成！"
-            echo "🌐 网站地址: https://www.xiaoyyue.shop"
+            echo "部署完成！"
+            echo "网站地址: https://www.xiaoyyue.shop"
           EOF
 
       # 9. 部署完成
