@@ -10,6 +10,8 @@ env:
   SERVER_HOST: 47.88.52.213
   SERVER_USER: zengxiao
   SERVER_PATH: /home/zengxiao/study-test
+  # 强制使用Node.js 24，避免弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   deploy:
@@ -20,11 +22,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js
+      # 2. 设置 Node.js (升级到24)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       # 3. 安装前端依赖
@@ -48,7 +50,7 @@ jobs:
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
       
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
