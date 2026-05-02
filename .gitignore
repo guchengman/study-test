@@ -56,3 +56,18 @@ docker-compose.yml
 # CodeBuddy
 .codebuddy/
 
+# 敏感配置文件
+firebase-applet-config.json
+*.mjs
+*.cjs
+*.ps1
+*.sh
+*.sql
+*.bat
+*.py
+
+# 测试文件
+test-*.js
+test-*.html
+debug-*.js
+
