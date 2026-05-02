@@ -99,9 +99,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [preview, setPreview] = useState<Question[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSubjectSelectionOpen, setIsSubjectSelectionOpen] = useState(false);
-  const [detectedSubject, setDetectedSubject] = useState<string | null>(null);
   const [selectedTargetSubject, setSelectedTargetSubject] = useState<SubjectId>('python');
-  const [showMismatchConfirm, setShowMismatchConfirm] = useState(false);
   // 已登录用户从服务端加载的AI设置
   const [serverSettings, setServerSettings] = useState<AISettings | null>(null);
   // AI直连提取选项：选中后上传文件直接进入AI解析流程
@@ -267,50 +265,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
     return baseName === 'python' ? 'Python' : baseName === 'english' ? '英语' : baseName === 'chinese' ? '语文' : baseName === 'math' ? '数学' : subjectId;
   };
 
-  // 检测题目的subject字段是否一致，并映射到用户科目ID
-  const detectSubjectFromQuestions = (questions: Question[]): { detected: string | null; matchedSubjectId: SubjectId | null } => {
-    if (questions.length === 0) return { detected: null, matchedSubjectId: null };
-
-    // 获取所有题目的subject字段（AI返回的原始科目名：python/english/chinese/math）
-    const subjects = questions
-      .filter(q => q.subject && typeof q.subject === 'string')
-      .map(q => q.subject);
-
-    if (subjects.length === 0) return { detected: null, matchedSubjectId: null };
-
-    // 检查是否所有题目都是同一个科目
-    const uniqueSubjects = [...new Set(subjects)];
-    if (uniqueSubjects.length !== 1) return { detected: null, matchedSubjectId: null };
-
-    const detected = uniqueSubjects[0]; // python/english/chinese/math
-
-    // 只显示自己创建的科目（排除别人共享给自己的科目）
-    // 后端返回 is_owner（布尔）和 is_shared（0/1）
-    // 注意：自己创建的科目即使共享给其他人也应该显示
-    const mySubjects = (allSubjects || []).filter(s => {
-      // 只排除别人共享给我的科目（is_owner 为 false 且 is_shared 为 1）
-      return s.is_owner !== false;
-    });
-
-    // 尝试匹配科目：先精确匹配，再尝试前缀匹配
-    for (const subject of mySubjects) {
-      const subjectId = String(subject.id).toLowerCase();
-      const detectedLower = detected.toLowerCase();
-
-      // 精确匹配（如 python 匹配 python）
-      if (subjectId === detectedLower) {
-        return { detected, matchedSubjectId: subject.id };
-      }
-
-      // 前缀匹配（如 python_12 匹配 python）
-      if (subjectId.startsWith(detectedLower + '_')) {
-        return { detected, matchedSubjectId: subject.id };
-      }
-    }
-
-    return { detected, matchedSubjectId: null };
-  };
-
   // 验证题目格式
   const validateQuestions = (questions: Question[]): { valid: Question[]; invalid: Question[] } => {
     const valid: Question[] = [];
@@ -368,46 +322,23 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       setPreview(valid);
     }
 
-    // 首先尝试从题目中自动检测科目（并匹配用户科目ID）
-    const { detected, matchedSubjectId } = detectSubjectFromQuestions(valid);
-
     // 只显示自己创建的科目（排除别人共享给自己的科目）
-    // 后端返回 is_owner（布尔）和 is_shared（0/1）
-    // 注意：自己创建的科目即使共享给其他人也应该显示
     const mySubjects = (allSubjects || []).filter(s => {
-      // 只排除别人共享给我的科目（is_owner 为 false 且 is_shared 为 1）
       return s.is_owner !== false;
     });
 
-    if (matchedSubjectId && mySubjects.some(s => s.id === matchedSubjectId)) {
-      // 自动检测成功并匹配到用户科目,设置默认选中并打开选择界面
-      setDetectedSubject(detected);
-      setSelectedTargetSubject(matchedSubjectId);
-    } else if (currentSubjectId && mySubjects.some(s => s.id === currentSubjectId)) {
-      // 检测不到科目时，默认选中当前正在查看的科目
-      setDetectedSubject(null);
+    // 默认选中当前正在查看的科目，或第一个自己的科目
+    if (currentSubjectId && mySubjects.some(s => s.id === currentSubjectId)) {
       setSelectedTargetSubject(currentSubjectId);
     } else {
-      // 无法自动检测,使用第一个自己的科目
-      setDetectedSubject(null);
       setSelectedTargetSubject(mySubjects[0]?.id || 'python');
     }
 
-    // 打开自定义科目选择模态框
+    // 打开科目选择模态框
     setIsSubjectSelectionOpen(true);
   };
 
   const handleSubjectSelectionConfirm = () => {
-    // 检查用户选择的科目是否与检测到的科目不匹配
-    // detectedSubject 是名称(如 "english")，selectedTargetSubject 是 ID(如 "english_12")
-    // 需要比较名称而不是直接比较
-    const selectedSubjectName = selectedTargetSubject.replace(/_\d+$/, ''); // 提取名称部分
-    if (detectedSubject && selectedSubjectName !== detectedSubject) {
-      // 显示确认对话框
-      setShowMismatchConfirm(true);
-      return;
-    }
-
     // 确保所有导入的题目都使用选择的科目
     const finalQuestions = preview.map(q => ({
       ...q,
@@ -424,38 +355,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
     setText('');
     setPromptInput(''); // 清空提示词
     setIsSubjectSelectionOpen(false);
-    setDetectedSubject(null);
-  };
-
-  const handleMismatchConfirm = () => {
-    // 用户确认继续导入
-    const finalQuestions = preview.map(q => ({
-      ...q,
-      subject: selectedTargetSubject
-    }));
-    
-    // 再次验证题目格式（防御性编程）
-    const { valid } = validateQuestions(finalQuestions);
-    
-    // 传递目标科目给 onImport
-    onImport(valid, selectedTargetSubject);
-    onClose();
-    setPreview([]);
-    setText('');
-    setPromptInput(''); // 清空提示词
-    setIsSubjectSelectionOpen(false);
-    setDetectedSubject(null);
-    setShowMismatchConfirm(false);
-  };
-
-  const handleMismatchCancel = () => {
-    // 用户取消导入
-    setShowMismatchConfirm(false);
   };
 
   const handleSubjectSelectionCancel = () => {
     setIsSubjectSelectionOpen(false);
-    setDetectedSubject(null);
   };
 
   if (!isOpen) return null;
@@ -887,12 +790,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">选择目标题库</h2>
-                {detectedSubject && (
-                  <p className="text-sm text-slate-500 mt-1">
-                    检测到题目属于 "{getSubjectDisplayName(detectedSubject)}" 科目
-                  </p>
-                )}
+                <h2 className="text-lg font-bold text-slate-800">准备导入题库</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  请选择要导入的目标科目
+                </p>
               </div>
               <button onClick={handleSubjectSelectionCancel} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                 <X size={20} className="text-slate-400" />
