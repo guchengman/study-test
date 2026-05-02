@@ -41,13 +41,50 @@
 
 ---
 
-## 本地开发
+## 一键安装
 
-### 环境要求
+### Windows 一键安装（推荐）
+
+1. **下载项目**
+   ```bash
+   git clone https://github.com/guchengman/study-test.git
+   cd study-test
+   ```
+
+2. **运行安装脚本**
+   ```bash
+   # 方式1：双击运行
+   install.bat
+   
+   # 方式2：PowerShell 运行
+   .\install.ps1
+   
+   # 方式3：跳过 MySQL 检查（已有 MySQL）
+   .\install.ps1 -SkipMySQLCheck
+   
+   # 方式4：自动生成随机数据库密码
+   .\install.ps1 -AutoDBPassword
+   ```
+
+### 一键安装脚本功能
+
+| 功能 | 说明 |
+|------|------|
+| ✅ 环境检查 | 自动检测 Node.js、MySQL 是否安装 |
+| ✅ 下载代码 | 从 GitHub 克隆最新代码 |
+| ✅ 安装依赖 | 自动执行 npm install |
+| ✅ 配置环境 | 自动生成 .env 文件 |
+| ✅ 创建数据库 | 自动创建 MySQL 数据库 |
+| ✅ 初始化表 | 自动执行 SQL 迁移脚本 |
+| ✅ 启动服务 | 可选开发/生产模式启动 |
+
+### 手动安装
+
+**环境要求**
 - Node.js 18+
 - MySQL 5.7+ / MariaDB 10.4+
 
-### 安装步骤
+**安装步骤**
 
 ```bash
 # 1. 克隆项目
