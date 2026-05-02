@@ -60,14 +60,17 @@ docker-compose.yml
 firebase-applet-config.json
 *.mjs
 *.cjs
-*.ps1
-*.sh
 *.sql
-*.bat
 *.py
 
 # 测试文件
 test-*.js
 test-*.html
 debug-*.js
+
+# 允许安装脚本（但排除其他脚本）
+!install.ps1
+!install.bat
+install-*.ps1
+install-*.bat
 
