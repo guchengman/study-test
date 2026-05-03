@@ -1,8 +1,18 @@
+// 必须在所有其他导入之前加载环境变量
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '../.env');
+console.log('Loading .env from:', envPath);
+console.log('File exists:', existsSync(envPath));
+dotenv.config({ path: envPath });
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3100;

@@ -64,6 +64,8 @@ export function useAuth() {
     setIsAdmin(user.role === 'admin');
     setIsTeacher(user.role === 'teacher');
     setAuthUser(user);
+    // 触发登录事件
+    window.dispatchEvent(new CustomEvent('auth:login', { detail: { userId: user.id } }));
   }, []);
 
   // 注册 — 支持三角色
@@ -108,6 +110,8 @@ export function useAuth() {
     setIsAdmin(false);
     setIsTeacher(false);
     setAuthUser(null);
+    // 触发登出事件
+    window.dispatchEvent(new CustomEvent('auth:logout'));
   }, []);
 
   // 角色转换
@@ -192,7 +196,7 @@ export function useAuth() {
     if (!email.includes('@')) return { success: false, error: '请输入有效的邮箱地址' };
     if (code.length !== 6) return { success: false, error: '验证码应为6位数字' };
     if (newPassword.length < 6) return { success: false, error: '新密码至少6位' };
-    const storedCode = localStorage.getItem(VERIFY_CODE_KEY);
+    const storedCode = sessionStorage.getItem(VERIFY_CODE_KEY);
     const storedEmail = localStorage.getItem(VERIFY_EMAIL_KEY);
     const expires = parseInt(localStorage.getItem(VERIFY_EXPIRES_KEY) || '0');
     if (Date.now() > expires) return { success: false, error: '验证码已过期' };

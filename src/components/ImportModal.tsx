@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
-import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Zap } from 'lucide-react';
+import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Zap, Maximize2 } from 'lucide-react';
 import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc } from '../services/fileService';
 import { parseQuestionsWithAI, generateQuestionsFromPrompt, parseQuestionsWithFile } from '../services/geminiService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
@@ -99,6 +99,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [preview, setPreview] = useState<Question[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSubjectSelectionOpen, setIsSubjectSelectionOpen] = useState(false);
+  const [isPromptExpanded, setIsPromptExpanded] = useState(false);
+  const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [selectedTargetSubject, setSelectedTargetSubject] = useState<SubjectId>('python');
   // 已登录用户从服务端加载的AI设置
   const [serverSettings, setServerSettings] = useState<AISettings | null>(null);
@@ -403,6 +405,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <Sparkles className="text-purple-600" size={16} /> AI生成题目提示词
+                    <button
+                      onClick={() => setIsPromptExpanded(true)}
+                      className="ml-2 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      title="放大编辑"
+                    >
+                      <Maximize2 size={14} />
+                    </button>
                   </label>
                   <div className="flex items-center gap-3 flex-wrap">
                     <label className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer transition-all border border-slate-200 hover:border-purple-300">
@@ -638,6 +647,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                   <FileText size={16} className="text-blue-600" />
                   待解析文本
+                  <button
+                    onClick={() => setIsTextExpanded(true)}
+                    className="ml-2 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    title="放大编辑"
+                  >
+                    <Maximize2 size={14} />
+                  </button>
                 </label>
                 <textarea
                   value={text}
@@ -863,6 +879,108 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       {/* Settings Modal - rendered via Portal to body to avoid backdrop-blur stacking context issues */}
       {isSettingsOpen && ReactDOM.createPortal(
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} authUser={authUser} />,
+        document.body
+      )}
+
+      {/* Prompt Expand Modal */}
+      {isPromptExpanded && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col"
+          >
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Sparkles className="text-purple-600" size={20} />
+                AI生成题目提示词
+              </h3>
+              <button 
+                onClick={() => setIsPromptExpanded(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 overflow-hidden">
+              <textarea
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                placeholder="输入提示词生成题目..."
+                className="w-full h-full min-h-[400px] px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-purple-600 outline-none text-sm transition-all resize-none"
+              />
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  setPromptInput('');
+                  setIsPromptExpanded(false);
+                }}
+                className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all text-sm"
+              >
+                清空
+              </button>
+              <button 
+                onClick={() => setIsPromptExpanded(false)}
+                className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
+              >
+                完成
+              </button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {/* Text Expand Modal */}
+      {isTextExpanded && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col"
+          >
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <FileText className="text-blue-600" size={20} />
+                待解析文本
+              </h3>
+              <button 
+                onClick={() => setIsTextExpanded(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 overflow-hidden">
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="在此粘贴题目文本，AI解析后生成结构化题目..."
+                className="w-full h-full min-h-[400px] px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-600 outline-none text-sm transition-all resize-none"
+              />
+            </div>
+            <div className="p-4 border-t border-slate-100 flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  setText('');
+                  setIsTextExpanded(false);
+                }}
+                className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-all text-sm"
+              >
+                清空
+              </button>
+              <button 
+                onClick={() => setIsTextExpanded(false)}
+                className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
+              >
+                完成
+              </button>
+            </div>
+          </motion.div>
+        </div>,
         document.body
       )}
     </>

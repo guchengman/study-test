@@ -200,6 +200,7 @@ router.post('/register', async (req, res) => {
 // 登录
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login attempt:', req.body);
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -211,12 +212,15 @@ router.post('/login', async (req, res) => {
       [username]
     );
 
+    console.log('User found:', rows.length > 0 ? 'yes' : 'no');
     if (rows.length === 0) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
 
     const user = rows[0];
+    console.log('Comparing password with hash:', user.password_hash.substring(0, 20) + '...');
     const valid = await bcrypt.compare(password, user.password_hash);
+    console.log('Password valid:', valid);
     if (!valid) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }

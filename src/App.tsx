@@ -40,7 +40,9 @@ import {
   GraduationCap,
   ChevronDown,
   Clock,
-  HelpCircle
+  HelpCircle,
+  CloudOff,
+  Cloud
 } from 'lucide-react';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
 import { Question, ExamResult, SubjectId, Subject, DEFAULT_SUBJECTS, SUBJECT_ICONS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, MAX_SHARED_SUBJECTS, suggestSubject } from './types';
@@ -55,7 +57,6 @@ import { VisitCounter } from './components/VisitCounter';
 import { SubjectShareCode } from './components/SubjectShareCode';
 import { StudentSelectorModal } from './components/StudentSelectorModal';
 import { useAuth } from './hooks/useAuth';
-import { STORAGE_KEYS } from './constants/storage';
 import { questionApi, subjectApi, practiceApi, syncApi, inviteCodeApi, authApi, getToken, type AuthUser } from './services/api';
 
 interface MistakeRecord {
@@ -110,10 +111,7 @@ export default function App() {
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [currentSubjectId, setCurrentSubjectId] = useState<SubjectId>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_SUBJECT_ID);
-    return (saved as SubjectId) || DEFAULT_SUBJECTS[0]?.id || 'chinese';
-  });
+  const [currentSubjectId, setCurrentSubjectId] = useState<SubjectId>(DEFAULT_SUBJECTS[0]?.id || 'chinese');
 
   // 初始化模态框状态
   const [showInitModal, setShowInitModal] = useState(false);
@@ -153,39 +151,24 @@ export default function App() {
     allSubjects.find(s => s.id === currentSubjectId) || allSubjects[0] || DEFAULT_SUBJECTS[0]
   , [allSubjects, currentSubjectId]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_SUBJECT_ID, currentSubjectId);
-  }, [currentSubjectId]);
+  // 移除了 localStorage 存储，现在完全依赖 API
 
-  // 数据加载：优先 API，降级 localStorage
+  // 纯 API 驱动的数据加载
   const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
+    // 强制登录验证 - 未登录用户无法使用应用
     if (!currentUser) {
-      // 未登录：从 localStorage 加载
-      try {
-        const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
-        if (rawCQ) { const p = JSON.parse(rawCQ); if (Array.isArray(p) && p.length > 0) setCustomQuestions(p); }
-        const rawMQ = localStorage.getItem(STORAGE_KEYS.MISTAKE_RECORDS);
-        if (rawMQ) { const p = JSON.parse(rawMQ); if (Array.isArray(p)) setMistakeRecords(p); }
-        const rawFav = localStorage.getItem(STORAGE_KEYS.FAVORITE_IDS);
-        if (rawFav) { const p = JSON.parse(rawFav); if (Array.isArray(p)) setFavoriteIds(p); }
-        const rawRemoved = localStorage.getItem(STORAGE_KEYS.REMOVED_IDS);
-        if (rawRemoved) { const p = JSON.parse(rawRemoved); if (Array.isArray(p)) setRemovedIds(p); }
-        const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
-        if (rawSubjects) { const p = JSON.parse(rawSubjects); if (Array.isArray(p) && p.length > 0) setCustomSubjects(p); else setCustomSubjects(DEFAULT_SUBJECTS); }
-        else setCustomSubjects(DEFAULT_SUBJECTS);
-      } catch (e) { console.error('加载本地数据失败:', e); setCustomSubjects(DEFAULT_SUBJECTS); }
       setDataLoaded(true);
       return;
     }
 
-    // 已登录：从 API 加载
+    // 从 API 加载用户数据
     (async () => {
       try {
-        // 并行加载所有数据
+        // 并行加载所有数据 - 按当前科目加载题目，避免全量查询问题
         const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
-          questionApi.list({ limit: 5000 }),
+          questionApi.list({ subject: currentSubjectId, limit: 5000 }),
           practiceApi.getMistakes(),
           practiceApi.getFavorites(),
           subjectApi.list(),
@@ -194,12 +177,11 @@ export default function App() {
         // 题目
         if (questionsRes.status === 'fulfilled') {
           const qs = questionsRes.value.questions.map((q: any) => ({
-            id: q.id, subject: q.subject, type: q.type, title: q.title,
+            id: q.id, subject: q.subject_id, type: q.type, title: q.title,
             code: q.code, options: q.options, answer: q.answer,
             explanation: q.explanation, points: q.points, input: q.input,
           }));
           setCustomQuestions(qs);
-          localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(qs));
         }
 
         // 错题
@@ -208,19 +190,16 @@ export default function App() {
             questionId: m.questionId, consecutiveCorrect: m.consecutiveCorrect,
           }));
           setMistakeRecords(ms);
-          localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(ms));
         }
 
         // 收藏
         if (favoritesRes.status === 'fulfilled') {
           const fs = favoritesRes.value.favorites.map((f: any) => f.questionId);
           setFavoriteIds(fs);
-          localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(fs));
         }
 
         // 科目
         if (subjectsRes.status === 'fulfilled' && subjectsRes.value.subjects.length > 0) {
-          // 清除旧缓存：以 API 数据为准
           const subs = subjectsRes.value.subjects.map((s: any) => ({
             id: s.id, name: s.name, icon: s.icon,
             welcomeTitle: s.welcome_title || s.welcomeTitle || '', welcomeDesc: s.welcome_desc || s.welcomeDesc || '',
@@ -230,28 +209,11 @@ export default function App() {
             subscriptionStatus: s.subscription_status || undefined,
           }));
           setCustomSubjects(subs);
-          localStorage.setItem(STORAGE_KEYS.CUSTOM_SUBJECTS, JSON.stringify(subs));
           // 如果当前科目ID不在新列表中，重置为第一个
           if (!subs.find((s: Subject) => s.id === currentSubjectId)) {
             setCurrentSubjectId(subs[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
           }
         } else {
-          // API 无科目 → 尝试迁移本地科目到云端
-          const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
-          if (rawSubjects) {
-            try {
-              const localSubjects = JSON.parse(rawSubjects);
-              if (Array.isArray(localSubjects) && localSubjects.length > 0) {
-                setCustomSubjects(localSubjects);
-                // 迁移到云端
-                const userId = authUser?.id || '';
-                for (const s of localSubjects) {
-                  const cloudId = s.id.includes('_') ? s.id : `${s.id}_${userId}`;
-                  subjectApi.create({ id: cloudId, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }).catch(() => {});
-                }
-              }
-            } catch {}
-          } else {
             // 为新用户自动创建默认科目
             const userId = authUser?.id || '';
             const userDefaults = DEFAULT_SUBJECTS.map(s => ({
@@ -263,36 +225,19 @@ export default function App() {
             for (const s of userDefaults) {
               subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }).catch(() => {});
             }
-          }
-        }
-
-        // 首次登录迁移：如果 localStorage 有数据但 API 没有，做一次全量迁移
-        const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
-        if (rawCQ && questionsRes.status === 'fulfilled' && questionsRes.value.questions.length === 0) {
-          try {
-            const localQs = JSON.parse(rawCQ);
-            if (Array.isArray(localQs) && localQs.length > 0) {
-              syncApi.migrate({ questions: localQs }).catch(e => console.warn('迁移题目失败:', e));
-            }
-          } catch {}
         }
       } catch (e) {
-        console.error('从 API 加载数据失败，降级到 localStorage:', e);
-        // 降级到 localStorage
-        try {
-          const rawCQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
-          if (rawCQ) { const p = JSON.parse(rawCQ); if (Array.isArray(p) && p.length > 0) setCustomQuestions(p); }
-          const rawMQ = localStorage.getItem(STORAGE_KEYS.MISTAKE_RECORDS);
-          if (rawMQ) { const p = JSON.parse(rawMQ); if (Array.isArray(p)) setMistakeRecords(p); }
-          const rawFav = localStorage.getItem(STORAGE_KEYS.FAVORITE_IDS);
-          if (rawFav) { const p = JSON.parse(rawFav); if (Array.isArray(p)) setFavoriteIds(p); }
-          const rawSubjects = localStorage.getItem(STORAGE_KEYS.CUSTOM_SUBJECTS);
-          if (rawSubjects) { const p = JSON.parse(rawSubjects); if (Array.isArray(p) && p.length > 0) setCustomSubjects(p); }
-        } catch {}
+        console.error('从 API 加载数据失败:', e);
+        // 纯 API 模式，不降级到 localStorage
+        setCustomSubjects(DEFAULT_SUBJECTS);
       }
       setDataLoaded(true);
     })();
-  }, [currentUser]);
+  }, [currentUser, currentSubjectId]);
+
+
+  // 重试同步待同步的题目
+  // 移除了待同步题目功能，所有操作直接通过 API 完成
 
 
   // 无需登录，统一为本地模式
@@ -352,38 +297,12 @@ export default function App() {
     setConfirmingFilter(false);
   };
 
-  // Sync state to localStorage
   useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => setShowToast(null), 2000);
       return () => clearTimeout(timer);
     }
   }, [showToast]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.REMOVED_IDS, JSON.stringify(removedIds));
-  }, [removedIds]);
-
-  useEffect(() => {
-    const uniqueRecords = Array.from(new Map(mistakeRecords.map(r => [r.questionId, r])).values());
-    localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(uniqueRecords));
-    // 异步同步到 API
-    if (currentUser) {
-      // 增量同步：本地 state 已经是最新，API 同步在具体操作处处理
-    }
-  }, [mistakeRecords, currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(customQuestions));
-  }, [customQuestions]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(favoriteIds));
-  }, [favoriteIds]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CUSTOM_SUBJECTS, JSON.stringify(customSubjects));
-  }, [customSubjects]);
 
   // Combined bank (memoized for performance and stability)
   const fullBank = useMemo(() => 
@@ -688,7 +607,15 @@ export default function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // 移除了待同步题目功能，所有操作直接通过 API 完成
+
   const handleImport = async (newQuestions: Question[], targetSubjectId: SubjectId = currentSubjectId) => {
+    // 未登录用户不能导入题目
+    if (!currentUser) {
+      setShowToast('请先登录以保存题目到服务器');
+      return;
+    }
+    
     // 使用时间戳+随机数生成唯一ID，避免ID冲突
     const generateUniqueId = () => Date.now() + Math.floor(Math.random() * 1000);
     const enriched = newQuestions.map((q) => ({ 
@@ -697,11 +624,7 @@ export default function App() {
       subject: targetSubjectId 
     }));
 
-    // 先添加到前端本地状态（用于当前会话显示）
-    setCustomQuestions(prev => [...prev, ...enriched]);
-
     // 批量同步到后端数据库
-    if (currentUser) {
       try {
         const apiQuestions = enriched.map(q => ({
           subject_id: q.subject,  // 使用 subject_id 字段
@@ -718,14 +641,30 @@ export default function App() {
         // 传递 targetSubjectId 作为后端的 subject_id
         await questionApi.batchImport(apiQuestions, targetSubjectId);
         
+        // API 调用成功后，将题目添加到前端状态
+        setCustomQuestions(prev => [...prev, ...enriched]);
         setShowToast(`成功导入 ${newQuestions.length} 道题目到题库！`);
-      } catch (e) {
+      } catch (e: any) {
         console.error('API批量导入失败:', e);
-        setShowToast(`本地导入成功，但数据库同步失败，请刷新重试`);
+        
+        // 解析错误信息
+        let errorMessage = '数据库同步失败';
+        if (e?.message) {
+          errorMessage = e.message;
+        } else if (e?.response?.data?.error) {
+          errorMessage = e.response.data.error;
+        } else if (e?.status === 0) {
+          errorMessage = '网络连接失败，请检查网络';
+        } else if (e?.status === 401) {
+          errorMessage = '登录已过期，请重新登录';
+        } else if (e?.status === 403) {
+          errorMessage = '无权限向此科目导入题目';
+        } else if (e?.status === 500) {
+          errorMessage = '服务器错误，请稍后重试';
+        }
+        
+        setShowToast(`导入失败：${errorMessage}，请稍后重试`);
       }
-    } else {
-      setShowToast(`成功导入 ${newQuestions.length} 道题目！（请登录以保存到服务器）`);
-    }
   };
 
   const currentQuestion = examQuestions[currentIndex];
@@ -795,6 +734,9 @@ export default function App() {
                 <span className="hidden sm:inline">加入科目</span>
               </button>
             )}
+            
+            {/* 移除了待同步题目提示 */}
+            
             {/* 登录/登出按钮 */}
             {currentUser ? (
               <div className="relative">
@@ -984,6 +926,8 @@ export default function App() {
                   </button>
                 )}
               </div>
+
+
 
               <h2 className="text-2xl sm:text-3xl font-bold mb-3">{currentSubject.welcomeTitle}</h2>
               <p className="text-slate-500 mb-5 sm:mb-6 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
@@ -2176,11 +2120,7 @@ export default function App() {
                     id => !allRemovedIdsSet.has(id)
                   );
                   
-                  // 更新 localStorage
-                  localStorage.setItem(STORAGE_KEYS.REMOVED_IDS, JSON.stringify(newRemovedIds));
-                  localStorage.setItem(STORAGE_KEYS.CUSTOM_QUESTIONS, JSON.stringify(remainingCustomQuestions));
-                  localStorage.setItem(STORAGE_KEYS.MISTAKE_RECORDS, JSON.stringify(remainingMistakeRecords));
-                  localStorage.setItem(STORAGE_KEYS.FAVORITE_IDS, JSON.stringify(remainingFavoriteIds));
+                  // 移除了 localStorage 更新
                   
                   // 同步删除到 API
                   if (currentUser) {
@@ -2647,83 +2587,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* 共享设置 - 管理员或科目拥有者可设置 */}
-                {(isAdmin || editingSubject.isOwner) && !editingSubject.isSubscribed && (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Share2 size={16} className="text-blue-600" />
-                      <label className="text-sm font-medium text-slate-700">共享设置</label>
-                    </div>
-                    <div className="space-y-2">
-                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                        (editingSubject.shareScope || 'none') === 'none' ? 'bg-slate-200 ring-2 ring-slate-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="edit-share"
-                          checked={(editingSubject.shareScope || 'none') === 'none'}
-                          onChange={() => setEditingSubject({ ...editingSubject, isShared: false, shareScope: 'none' })}
-                          className="accent-slate-600"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-slate-700">不共享</div>
-                          <div className="text-xs text-slate-400">仅自己可见</div>
-                        </div>
-                      </label>
-                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                        editingSubject.shareScope === 'students' ? 'bg-indigo-50 ring-2 ring-indigo-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="edit-share"
-                          checked={editingSubject.shareScope === 'students'}
-                          onChange={() => setEditingSubject({ ...editingSubject, isShared: true, shareScope: 'students' })}
-                          className="accent-indigo-600"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-indigo-700">仅共享给学生</div>
-                          <div className="text-xs text-slate-400">你的学生可直接访问，也可生成邀请码</div>
-                        </div>
-                      </label>
-                      <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                        editingSubject.shareScope === 'all' ? 'bg-emerald-50 ring-2 ring-emerald-400' : 'bg-white hover:bg-slate-50 border border-slate-100'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="edit-share"
-                          checked={editingSubject.shareScope === 'all'}
-                          onChange={() => setEditingSubject({ ...editingSubject, isShared: true, shareScope: 'all' })}
-                          className="accent-emerald-600"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-emerald-700">全员共享</div>
-                          <div className="text-xs text-slate-400">任何用户可通过邀请码加入</div>
-                        </div>
-                      </label>
-                    </div>
-                    {/* 邀请码 */}
-                    {(editingSubject.shareScope === 'students' || editingSubject.shareScope === 'all') && (
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Key size={14} className={editingSubject.shareScope === 'students' ? 'text-indigo-600' : 'text-emerald-600'} />
-                          <span className="text-sm font-medium text-slate-700">邀请码</span>
-                          {editingSubject.shareScope === 'students' && (
-                            <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">仅限学生使用</span>
-                          )}
-                        </div>
-                        <SubjectShareCode subjectId={editingSubject.id} subjectName={editingSubject.name} scope={editingSubject.shareScope} pending={isSubjectPendingCreation} />
-                        {editingSubject.subscriberCount ? (
-                          <p className="text-xs text-emerald-600 mt-2">已有 {editingSubject.subscriberCount} 人订阅</p>
-                        ) : null}
-                      </div>
-                    )}
-                    {editingSubject.shareScope === 'none' && editingSubject.subscriberCount ? (
-                      <p className="text-xs text-amber-600 mt-2">
-                        关闭共享后，已订阅的 {editingSubject.subscriberCount} 人将无法继续访问
-                      </p>
-                    ) : null}
-                  </div>
-                )}
+{/* 共享设置暂时移除 - 简化初次创建流程 */}
               </div>
             )}
             
