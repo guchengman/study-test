@@ -1,0 +1,2617 @@
+[
+  {
+    "id": 4001,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"宿\"的读音正确的是？（宿新市徐公店）",
+    "options": [
+      "xiù",
+      "xiǔ",
+      "sù"
+    ],
+    "answer": "sù",
+    "explanation": "在\"宿新市徐公店\"中读sù",
+    "points": 1
+  },
+  {
+    "id": 4002,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"剥\"的读音正确的是？（剥莲蓬）",
+    "options": [
+      "bāo",
+      "bōu",
+      "bō"
+    ],
+    "answer": "bō",
+    "explanation": "在\"剥莲蓬\"中读bō",
+    "points": 1
+  },
+  {
+    "id": 4003,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"铺\"的读音正确的是？（铺床）",
+    "options": [
+      "pū",
+      "pǔ",
+      "pù"
+    ],
+    "answer": "pū",
+    "explanation": "在\"铺床\"中读pū",
+    "points": 1
+  },
+  {
+    "id": 4004,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"率\"的读音正确的是？（率领）",
+    "options": [
+      "suài",
+      "lǜ",
+      "shuài"
+    ],
+    "answer": "shuài",
+    "explanation": "在\"率领\"中读shuài",
+    "points": 1
+  },
+  {
+    "id": 4005,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"屏\"的读音正确的是？（屏风）",
+    "options": [
+      "píng",
+      "bǐng",
+      "pīn"
+    ],
+    "answer": "píng",
+    "explanation": "在\"屏风\"中读píng",
+    "points": 1
+  },
+  {
+    "id": 4006,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"冠\"的读音正确的是？（鸡冠花）",
+    "options": [
+      "guǎn",
+      "guàn",
+      "guān"
+    ],
+    "answer": "guān",
+    "explanation": "在\"鸡冠花\"中读guān",
+    "points": 1
+  },
+  {
+    "id": 4007,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"场\"的读音正确的是？（场院）",
+    "options": [
+      "chǎng",
+      "chāng",
+      "cháng"
+    ],
+    "answer": "cháng",
+    "explanation": "在\"场院\"中读cháng",
+    "points": 1
+  },
+  {
+    "id": 4008,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"结\"的读音正确的是？（结实）",
+    "options": [
+      "jiē",
+      "jié",
+      "jiě"
+    ],
+    "answer": "jiē",
+    "explanation": "在\"结实\"中读jiē",
+    "points": 1
+  },
+  {
+    "id": 4009,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"和\"的读音正确的是？（应和）",
+    "options": [
+      "hè",
+      "hé",
+      "huó"
+    ],
+    "answer": "hè",
+    "explanation": "在\"应和\"中读hè",
+    "points": 1
+  },
+  {
+    "id": 4010,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语中\"模\"的读音正确的是？（模样）",
+    "options": [
+      "mú",
+      "mó",
+      "mò"
+    ],
+    "answer": "mú",
+    "explanation": "在\"模样\"中读mú",
+    "points": 1
+  },
+  {
+    "id": 4011,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：稀___",
+    "options": [
+      "梳头",
+      "疏",
+      "梳",
+      "疏子"
+    ],
+    "answer": "疏",
+    "explanation": "稀___应填\"疏\"",
+    "points": 1
+  },
+  {
+    "id": 4012,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___笆",
+    "options": [
+      "篱子",
+      "离头",
+      "离",
+      "篱"
+    ],
+    "answer": "篱",
+    "explanation": "___笆应填\"篱\"",
+    "points": 1
+  },
+  {
+    "id": 4013,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___蜓",
+    "options": [
+      "清头",
+      "蜻子",
+      "蜻",
+      "清"
+    ],
+    "answer": "蜻",
+    "explanation": "___蜓应填\"蜻\"",
+    "points": 1
+  },
+  {
+    "id": 4014,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：蜻___",
+    "options": [
+      "蜓子",
+      "挺",
+      "蜓",
+      "挺头"
+    ],
+    "answer": "蜓",
+    "explanation": "蜻___应填\"蜓\"",
+    "points": 1
+  },
+  {
+    "id": 4015,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：房___",
+    "options": [
+      "瞻头",
+      "檐子",
+      "瞻",
+      "檐"
+    ],
+    "answer": "檐",
+    "explanation": "房___应填\"檐\"",
+    "points": 1
+  },
+  {
+    "id": 4016,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___成",
+    "options": [
+      "沟头",
+      "构子",
+      "沟",
+      "构"
+    ],
+    "answer": "构",
+    "explanation": "___成应填\"构\"",
+    "points": 1
+  },
+  {
+    "id": 4017,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：装___",
+    "options": [
+      "布头",
+      "饰",
+      "布",
+      "饰子"
+    ],
+    "answer": "饰",
+    "explanation": "装___应填\"饰\"",
+    "points": 1
+  },
+  {
+    "id": 4018,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___下",
+    "options": [
+      "蹲",
+      "尊",
+      "尊头",
+      "蹲子"
+    ],
+    "answer": "蹲",
+    "explanation": "___下应填\"蹲\"",
+    "points": 1
+  },
+  {
+    "id": 4019,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___凰",
+    "options": [
+      "风",
+      "凤",
+      "风头",
+      "凤子"
+    ],
+    "answer": "凤",
+    "explanation": "___凰应填\"凤\"",
+    "points": 1
+  },
+  {
+    "id": 4020,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___列",
+    "options": [
+      "序",
+      "序子",
+      "续头",
+      "续"
+    ],
+    "answer": "序",
+    "explanation": "___列应填\"序\"",
+    "points": 1
+  },
+  {
+    "id": 4021,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：寻___",
+    "options": [
+      "见头",
+      "觅子",
+      "见",
+      "觅"
+    ],
+    "answer": "觅",
+    "explanation": "寻___应填\"觅\"",
+    "points": 1
+  },
+  {
+    "id": 4022,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___立",
+    "options": [
+      "耳",
+      "耳头",
+      "耸子",
+      "耸"
+    ],
+    "answer": "耸",
+    "explanation": "___立应填\"耸\"",
+    "points": 1
+  },
+  {
+    "id": 4023,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：和___",
+    "options": [
+      "谐",
+      "谐子",
+      "皆",
+      "皆头"
+    ],
+    "answer": "谐",
+    "explanation": "和___应填\"谐\"",
+    "points": 1
+  },
+  {
+    "id": 4024,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___画",
+    "options": [
+      "绘子",
+      "会",
+      "绘",
+      "会头"
+    ],
+    "answer": "绘",
+    "explanation": "___画应填\"绘\"",
+    "points": 1
+  },
+  {
+    "id": 4025,
+    "subject": "chinese",
+    "type": "single",
+    "title": "选择正确的字填空：___藉",
+    "options": [
+      "蔚头",
+      "慰子",
+      "蔚",
+      "慰"
+    ],
+    "answer": "慰",
+    "explanation": "___藉应填\"慰\"",
+    "points": 1
+  },
+  {
+    "id": 4026,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容地理位置好\"对应的四字词语是？",
+    "options": [
+      "依山傍水",
+      "风和日丽",
+      "山清水秀",
+      "鸟语花香"
+    ],
+    "answer": "依山傍水",
+    "explanation": "形容地理位置好",
+    "points": 1
+  },
+  {
+    "id": 4027,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容人家聚居\"对应的四字词语是？",
+    "options": [
+      "山清水秀",
+      "鸡犬相闻",
+      "风和日丽",
+      "鸟语花香"
+    ],
+    "answer": "鸡犬相闻",
+    "explanation": "形容人家聚居",
+    "points": 1
+  },
+  {
+    "id": 4028,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容空间广阔\"对应的四字词语是？",
+    "options": [
+      "天高地阔",
+      "山清水秀",
+      "鸟语花香",
+      "风和日丽"
+    ],
+    "answer": "天高地阔",
+    "explanation": "形容空间广阔",
+    "points": 1
+  },
+  {
+    "id": 4029,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容夜晚安静\"对应的四字词语是？",
+    "options": [
+      "山清水秀",
+      "月明人静",
+      "风和日丽",
+      "鸟语花香"
+    ],
+    "answer": "月明人静",
+    "explanation": "形容夜晚安静",
+    "points": 1
+  },
+  {
+    "id": 4030,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容灯光灿烂\"对应的四字词语是？",
+    "options": [
+      "风和日丽",
+      "山清水秀",
+      "灯火辉煌",
+      "鸟语花香"
+    ],
+    "answer": "灯火辉煌",
+    "explanation": "形容灯光灿烂",
+    "points": 1
+  },
+  {
+    "id": 4031,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容热闹繁华\"对应的四字词语是？",
+    "options": [
+      "山清水秀",
+      "风和日丽",
+      "车水马龙",
+      "鸟语花香"
+    ],
+    "answer": "车水马龙",
+    "explanation": "形容热闹繁华",
+    "points": 1
+  },
+  {
+    "id": 4032,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容高楼很多\"对应的四字词语是？",
+    "options": [
+      "鸟语花香",
+      "山清水秀",
+      "高楼林立",
+      "风和日丽"
+    ],
+    "answer": "高楼林立",
+    "explanation": "形容高楼很多",
+    "points": 1
+  },
+  {
+    "id": 4033,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容做饭的烟\"对应的四字词语是？",
+    "options": [
+      "山清水秀",
+      "炊烟袅袅",
+      "鸟语花香",
+      "风和日丽"
+    ],
+    "answer": "炊烟袅袅",
+    "explanation": "形容做饭的烟",
+    "points": 1
+  },
+  {
+    "id": 4034,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容长得壮\"对应的四字词语是？",
+    "options": [
+      "山清水秀",
+      "肥肥壮壮",
+      "鸟语花香",
+      "风和日丽"
+    ],
+    "answer": "肥肥壮壮",
+    "explanation": "形容长得壮",
+    "points": 1
+  },
+  {
+    "id": 4035,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"形容生活幸福\"对应的四字词语是？",
+    "options": [
+      "甜甜蜜蜜",
+      "风和日丽",
+      "山清水秀",
+      "鸟语花香"
+    ],
+    "answer": "甜甜蜜蜜",
+    "explanation": "形容生活幸福",
+    "points": 1
+  },
+  {
+    "id": 4036,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《宿新市徐公店》的作者是？",
+    "options": [
+      "李白",
+      "杜甫",
+      "杨万里",
+      "白居易"
+    ],
+    "answer": "杨万里",
+    "explanation": "宿新市徐公店是宋诗人杨万里的作品",
+    "points": 1
+  },
+  {
+    "id": 4037,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《宿新市徐公店》是哪个朝代的作品？",
+    "options": [
+      "宋",
+      "清",
+      "明",
+      "唐"
+    ],
+    "answer": "宋",
+    "explanation": "宿新市徐公店创作于宋",
+    "points": 1
+  },
+  {
+    "id": 4038,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"儿童急走追黄蝶\"的下一句是？",
+    "options": [
+      "飞入菜花无处寻",
+      "飞入荷花无处寻",
+      "飞入黄花无处寻",
+      "飞入红花无处寻"
+    ],
+    "answer": "飞入菜花无处寻",
+    "explanation": "原句：儿童急走追黄蝶，飞入菜花无处寻",
+    "points": 1
+  },
+  {
+    "id": 4039,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《清平乐·村居》的作者是？",
+    "options": [
+      "杜甫",
+      "白居易",
+      "李白",
+      "辛弃疾"
+    ],
+    "answer": "辛弃疾",
+    "explanation": "清平乐·村居是宋诗人辛弃疾的作品",
+    "points": 1
+  },
+  {
+    "id": 4040,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《清平乐·村居》是哪个朝代的作品？",
+    "options": [
+      "宋",
+      "清",
+      "唐",
+      "明"
+    ],
+    "answer": "宋",
+    "explanation": "清平乐·村居创作于宋",
+    "points": 1
+  },
+  {
+    "id": 4041,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"茅檐低小\"的下一句是？",
+    "options": [
+      "溪上青青草",
+      "飞入荷花无处寻",
+      "飞入黄花无处寻",
+      "飞入红花无处寻"
+    ],
+    "answer": "溪上青青草",
+    "explanation": "原句：茅檐低小，溪上青青草",
+    "points": 1
+  },
+  {
+    "id": 4042,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《四时田园杂兴》的作者是？",
+    "options": [
+      "白居易",
+      "杜甫",
+      "李白",
+      "范成大"
+    ],
+    "answer": "范成大",
+    "explanation": "四时田园杂兴是宋诗人范成大的作品",
+    "points": 1
+  },
+  {
+    "id": 4043,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《四时田园杂兴》是哪个朝代的作品？",
+    "options": [
+      "唐",
+      "宋",
+      "明",
+      "清"
+    ],
+    "answer": "宋",
+    "explanation": "四时田园杂兴创作于宋",
+    "points": 1
+  },
+  {
+    "id": 4044,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"梅子金黄杏子肥\"的下一句是？",
+    "options": [
+      "飞入荷花无处寻",
+      "飞入黄花无处寻",
+      "飞入红花无处寻",
+      "麦花雪白菜花稀"
+    ],
+    "answer": "麦花雪白菜花稀",
+    "explanation": "原句：梅子金黄杏子肥，麦花雪白菜花稀",
+    "points": 1
+  },
+  {
+    "id": 4045,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《卜算子·咏梅》的作者是？",
+    "options": [
+      "杜甫",
+      "李白",
+      "毛泽东",
+      "白居易"
+    ],
+    "answer": "毛泽东",
+    "explanation": "卜算子·咏梅是现代诗人毛泽东的作品",
+    "points": 1
+  },
+  {
+    "id": 4046,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《卜算子·咏梅》是哪个朝代的作品？",
+    "options": [
+      "现代",
+      "唐",
+      "明",
+      "清"
+    ],
+    "answer": "现代",
+    "explanation": "卜算子·咏梅创作于现代",
+    "points": 1
+  },
+  {
+    "id": 4047,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"风雨送春归\"的下一句是？",
+    "options": [
+      "飞入红花无处寻",
+      "飞入黄花无处寻",
+      "飞入荷花无处寻",
+      "飞雪迎春到"
+    ],
+    "answer": "飞雪迎春到",
+    "explanation": "原句：风雨送春归，飞雪迎春到",
+    "points": 1
+  },
+  {
+    "id": 4048,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《江畔独步寻花》的作者是？",
+    "options": [
+      "杜甫",
+      "白居易",
+      "李白",
+      "杜甫"
+    ],
+    "answer": "杜甫",
+    "explanation": "江畔独步寻花是唐诗人杜甫的作品",
+    "points": 1
+  },
+  {
+    "id": 4049,
+    "subject": "chinese",
+    "type": "single",
+    "title": "《江畔独步寻花》是哪个朝代的作品？",
+    "options": [
+      "唐",
+      "唐",
+      "明",
+      "清"
+    ],
+    "answer": "唐",
+    "explanation": "江畔独步寻花创作于唐",
+    "points": 1
+  },
+  {
+    "id": 4050,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"桃花一簇开无主\"的下一句是？",
+    "options": [
+      "飞入荷花无处寻",
+      "可爱深红爱浅红",
+      "飞入黄花无处寻",
+      "飞入红花无处寻"
+    ],
+    "answer": "可爱深红爱浅红",
+    "explanation": "原句：桃花一簇开无主，可爱深红爱浅红",
+    "points": 1
+  },
+  {
+    "id": 4051,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"乡下人家\"一课中，作者描写了哪些景物？",
+    "options": [
+      "工厂、机器、工人",
+      "学校、操场、教室",
+      "高楼、汽车、商场",
+      "房屋、鸡鸭、花草"
+    ],
+    "answer": "房屋、鸡鸭、花草",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4052,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"琥珀\"一课中，琥珀是怎样形成的？",
+    "options": [
+      "石头压出来的",
+      "松脂包裹昆虫经过漫长年代",
+      "火烤出来的",
+      "水冲出来的"
+    ],
+    "answer": "松脂包裹昆虫经过漫长年代",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4053,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"纳米技术就在我们身边\"中，纳米技术可以用于？",
+    "options": [
+      "唱歌、跳舞、画画",
+      "医疗、材料、环保",
+      "做饭、洗衣、睡觉",
+      "跑步、跳远、游泳"
+    ],
+    "answer": "医疗、材料、环保",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4054,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"千年梦圆在今朝\"指的是？",
+    "options": [
+      "运河开通",
+      "长城修建",
+      "载人航天成功",
+      "故宫建成"
+    ],
+    "answer": "载人航天成功",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4055,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"白鹅\"一课中，白鹅的特点是？",
+    "options": [
+      "活泼、好动",
+      "高傲、架子十足",
+      "胆小、怕人",
+      "温顺、可爱"
+    ],
+    "answer": "高傲、架子十足",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4056,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"猫\"一课中，作者对猫的感情是？",
+    "options": [
+      "讨厌",
+      "喜爱",
+      "无所谓",
+      "害怕"
+    ],
+    "answer": "喜爱",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4057,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"母鸡\"一课中，作者对母鸡的态度变化是？",
+    "options": [
+      "喜欢→讨厌",
+      "讨厌→敬佩",
+      "害怕→喜欢",
+      "无所谓→讨厌"
+    ],
+    "answer": "讨厌→敬佩",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4058,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"海上日出\"的作者是？",
+    "options": [
+      "巴金",
+      "老舍",
+      "鲁迅",
+      "朱自清"
+    ],
+    "answer": "巴金",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4059,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"记金华的双龙洞\"按什么顺序写的？",
+    "options": [
+      "逻辑顺序",
+      "事情发展顺序",
+      "时间顺序",
+      "游览顺序"
+    ],
+    "answer": "游览顺序",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4060,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"小英雄雨来\"中雨来的特点是？",
+    "options": [
+      "调皮捣蛋",
+      "胆小怕事",
+      "机智勇敢",
+      "懒惰贪玩"
+    ],
+    "answer": "机智勇敢",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4061,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"比喻句\"的特点是什么？",
+    "options": [
+      "夸张说法",
+      "反问语气",
+      "直接描写",
+      "把 A 比作 B"
+    ],
+    "answer": "把 A 比作 B",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4062,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"拟人句\"的特点是什么？",
+    "options": [
+      "把物当人写",
+      "把人当物写",
+      "疑问句",
+      "直接叙述"
+    ],
+    "answer": "把物当人写",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4063,
+    "subject": "chinese",
+    "type": "single",
+    "title": "体会作者感情可以通过？",
+    "options": [
+      "看段落长短",
+      "数字数",
+      "数句子数量",
+      "关键词句"
+    ],
+    "answer": "关键词句",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4064,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"天窗\"一课中，天窗给孩子们带来了？",
+    "options": [
+      "想象和快乐",
+      "恐惧和不安",
+      "烦恼和困倦",
+      "无聊和寂寞"
+    ],
+    "answer": "想象和快乐",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4065,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"三月桃花水\"中\"桃花水\"指的是？",
+    "options": [
+      "桃花汁",
+      "春水",
+      "河水",
+      "雨水"
+    ],
+    "answer": "春水",
+    "explanation": "出自课文内容理解",
+    "points": 1
+  },
+  {
+    "id": 4066,
+    "subject": "chinese",
+    "type": "single",
+    "title": "作文开头可以？",
+    "options": [
+      "写无关内容",
+      "抄题目",
+      "不写开头",
+      "开门见山"
+    ],
+    "answer": "开门见山",
+    "explanation": "作文写作技巧",
+    "points": 1
+  },
+  {
+    "id": 4067,
+    "subject": "chinese",
+    "type": "single",
+    "title": "作文结尾应该？",
+    "options": [
+      "写新话题",
+      "重复开头",
+      "突然结束",
+      "总结全文"
+    ],
+    "answer": "总结全文",
+    "explanation": "作文写作技巧",
+    "points": 1
+  },
+  {
+    "id": 4068,
+    "subject": "chinese",
+    "type": "single",
+    "title": "写作文时字数要求 300+ 意思是？",
+    "options": [
+      "不超过 300 字",
+      "最多 300 字",
+      "至少 300 字",
+      "正好 300 字"
+    ],
+    "answer": "至少 300 字",
+    "explanation": "作文写作技巧",
+    "points": 1
+  },
+  {
+    "id": 4069,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列词语书写完全正确的是？",
+    "options": [
+      "装饰",
+      "装补",
+      "装怖",
+      "装布"
+    ],
+    "answer": "装饰",
+    "explanation": "语文基础知识",
+    "points": 1
+  },
+  {
+    "id": 4070,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列句子是病句的是？",
+    "options": [
+      "我大概错了",
+      "我可能错了",
+      "我错了",
+      "我大概可能错了"
+    ],
+    "answer": "我大概可能错了",
+    "explanation": "语文基础知识",
+    "points": 1
+  },
+  {
+    "id": 4071,
+    "subject": "chinese",
+    "type": "single",
+    "title": "\"锦上添花\"的近义词是？",
+    "options": [
+      "多此一举",
+      "画蛇添足",
+      "雪上加霜",
+      "雪中送炭"
+    ],
+    "answer": "精益求精",
+    "explanation": "\"锦上添花\"比喻使美好的事物更加美好，近义词是\"精益求精\"。\"雪中送炭\"是反义词。",
+    "points": 1
+  },
+  {
+    "id": 4072,
+    "subject": "chinese",
+    "type": "single",
+    "title": "下列标点使用正确的是？",
+    "options": [
+      "你吃饭了吗？",
+      "你吃饭了吗。",
+      "你吃饭了吗！",
+      "你吃饭了吗，"
+    ],
+    "answer": "你吃饭了吗？",
+    "explanation": "语文基础知识",
+    "points": 1
+  },
+  {
+    "id": 4073,
+    "subject": "chinese",
+    "type": "single",
+    "title": "赣州期中考作文分值重，应该？",
+    "options": [
+      "提前准备素材",
+      "抄别人文章",
+      "临时发挥",
+      "不写作文"
+    ],
+    "answer": "提前准备素材",
+    "explanation": "语文基础知识",
+    "points": 1
+  },
+  {
+    "id": 4074,
+    "subject": "math",
+    "type": "single",
+    "title": "221 + 467 = ?",
+    "options": [
+      688,
+      678,
+      689,
+      698
+    ],
+    "answer": 688,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4075,
+    "subject": "math",
+    "type": "single",
+    "title": "563 + 118 = ?",
+    "options": [
+      681,
+      691,
+      671,
+      682
+    ],
+    "answer": 681,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4076,
+    "subject": "math",
+    "type": "single",
+    "title": "205 + 282 = ?",
+    "options": [
+      487,
+      497,
+      477,
+      488
+    ],
+    "answer": 487,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4077,
+    "subject": "math",
+    "type": "single",
+    "title": "254 + 151 = ?",
+    "options": [
+      405,
+      406,
+      395,
+      415
+    ],
+    "answer": 405,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4078,
+    "subject": "math",
+    "type": "single",
+    "title": "414 + 202 = ?",
+    "options": [
+      616,
+      617,
+      606,
+      626
+    ],
+    "answer": 616,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4079,
+    "subject": "math",
+    "type": "single",
+    "title": "294 + 188 = ?",
+    "options": [
+      482,
+      483,
+      492,
+      472
+    ],
+    "answer": 482,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4080,
+    "subject": "math",
+    "type": "single",
+    "title": "256 + 211 = ?",
+    "options": [
+      467,
+      477,
+      457,
+      468
+    ],
+    "answer": 467,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4081,
+    "subject": "math",
+    "type": "single",
+    "title": "597 + 385 = ?",
+    "options": [
+      982,
+      983,
+      972,
+      992
+    ],
+    "answer": 982,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4082,
+    "subject": "math",
+    "type": "single",
+    "title": "452 + 530 = ?",
+    "options": [
+      982,
+      992,
+      972,
+      983
+    ],
+    "answer": 982,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4083,
+    "subject": "math",
+    "type": "single",
+    "title": "205 + 430 = ?",
+    "options": [
+      635,
+      625,
+      645,
+      636
+    ],
+    "answer": 635,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4084,
+    "subject": "math",
+    "type": "single",
+    "title": "146 + 458 = ?",
+    "options": [
+      604,
+      594,
+      614,
+      605
+    ],
+    "answer": 604,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4085,
+    "subject": "math",
+    "type": "single",
+    "title": "593 + 400 = ?",
+    "options": [
+      993,
+      994,
+      983,
+      1003
+    ],
+    "answer": 993,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4086,
+    "subject": "math",
+    "type": "single",
+    "title": "530 + 320 = ?",
+    "options": [
+      850,
+      840,
+      860,
+      851
+    ],
+    "answer": 850,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4087,
+    "subject": "math",
+    "type": "single",
+    "title": "518 + 542 = ?",
+    "options": [
+      1060,
+      1070,
+      1050,
+      1061
+    ],
+    "answer": 1060,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4088,
+    "subject": "math",
+    "type": "single",
+    "title": "554 + 525 = ?",
+    "options": [
+      1079,
+      1089,
+      1069,
+      1080
+    ],
+    "answer": 1079,
+    "explanation": "加法运算，注意进位",
+    "points": 1
+  },
+  {
+    "id": 4089,
+    "subject": "math",
+    "type": "single",
+    "title": "230 - 151 = ?",
+    "options": [
+      79,
+      69,
+      381,
+      89
+    ],
+    "answer": 79,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4090,
+    "subject": "math",
+    "type": "single",
+    "title": "202 - 133 = ?",
+    "options": [
+      69,
+      79,
+      335,
+      59
+    ],
+    "answer": 69,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4091,
+    "subject": "math",
+    "type": "single",
+    "title": "375 - 10 = ?",
+    "options": [
+      365,
+      385,
+      355,
+      375
+    ],
+    "answer": 365,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4092,
+    "subject": "math",
+    "type": "single",
+    "title": "480 - 192 = ?",
+    "options": [
+      288,
+      298,
+      278,
+      672
+    ],
+    "answer": 288,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4093,
+    "subject": "math",
+    "type": "single",
+    "title": "426 - 119 = ?",
+    "options": [
+      307,
+      297,
+      317,
+      545
+    ],
+    "answer": 307,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4094,
+    "subject": "math",
+    "type": "single",
+    "title": "287 - 47 = ?",
+    "options": [
+      240,
+      334,
+      230,
+      250
+    ],
+    "answer": 240,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4095,
+    "subject": "math",
+    "type": "single",
+    "title": "491 - 72 = ?",
+    "options": [
+      419,
+      429,
+      409,
+      563
+    ],
+    "answer": 419,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4096,
+    "subject": "math",
+    "type": "single",
+    "title": "301 - 207 = ?",
+    "options": [
+      94,
+      104,
+      508,
+      84
+    ],
+    "answer": 94,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4097,
+    "subject": "math",
+    "type": "single",
+    "title": "573 - 197 = ?",
+    "options": [
+      376,
+      770,
+      366,
+      386
+    ],
+    "answer": 376,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4098,
+    "subject": "math",
+    "type": "single",
+    "title": "445 - 118 = ?",
+    "options": [
+      327,
+      317,
+      337,
+      563
+    ],
+    "answer": 327,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4099,
+    "subject": "math",
+    "type": "single",
+    "title": "358 - 97 = ?",
+    "options": [
+      261,
+      271,
+      251,
+      455
+    ],
+    "answer": 261,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4100,
+    "subject": "math",
+    "type": "single",
+    "title": "543 - 173 = ?",
+    "options": [
+      370,
+      380,
+      360,
+      716
+    ],
+    "answer": 370,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4101,
+    "subject": "math",
+    "type": "single",
+    "title": "486 - 208 = ?",
+    "options": [
+      278,
+      694,
+      268,
+      288
+    ],
+    "answer": 278,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4102,
+    "subject": "math",
+    "type": "single",
+    "title": "553 - 70 = ?",
+    "options": [
+      483,
+      473,
+      623,
+      493
+    ],
+    "answer": 483,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4103,
+    "subject": "math",
+    "type": "single",
+    "title": "537 - 151 = ?",
+    "options": [
+      386,
+      396,
+      688,
+      376
+    ],
+    "answer": 386,
+    "explanation": "减法运算，注意退位",
+    "points": 1
+  },
+  {
+    "id": 4104,
+    "subject": "math",
+    "type": "single",
+    "title": "加法交换律可以表示为？",
+    "options": [
+      "a + b = b + a",
+      "a + b = a - b",
+      "a + b = a × b",
+      "a + b = b - a"
+    ],
+    "answer": "a + b = b + a",
+    "explanation": "加法交换律：交换加数位置，和不变",
+    "points": 1
+  },
+  {
+    "id": 4105,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：10 × (3 + 8) = ?",
+    "options": [
+      110,
+      38,
+      34,
+      -50
+    ],
+    "answer": 110,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4106,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：8 × (8 + 2) = ?",
+    "options": [
+      80,
+      66,
+      24,
+      48
+    ],
+    "answer": 80,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4107,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：9 × (4 + 8) = ?",
+    "options": [
+      108,
+      44,
+      41,
+      -36
+    ],
+    "answer": 108,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4108,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：10 × (10 + 6) = ?",
+    "options": [
+      160,
+      106,
+      70,
+      40
+    ],
+    "answer": 160,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4109,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：5 × (2 + 10) = ?",
+    "options": [
+      60,
+      20,
+      25,
+      -40
+    ],
+    "answer": 60,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4110,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：11 × (3 + 5) = ?",
+    "options": [
+      88,
+      38,
+      26,
+      -22
+    ],
+    "answer": 88,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4111,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：5 × (8 + 10) = ?",
+    "options": [
+      90,
+      50,
+      85,
+      -10
+    ],
+    "answer": 90,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4112,
+    "subject": "math",
+    "type": "single",
+    "title": "用乘法分配律计算：2 × (2 + 3) = ?",
+    "options": [
+      10,
+      7,
+      8,
+      -2
+    ],
+    "answer": 10,
+    "explanation": "乘法分配律：a × (b + c) = a × b + a × c",
+    "points": 1
+  },
+  {
+    "id": 4113,
+    "subject": "math",
+    "type": "single",
+    "title": "25 × 4 = ?",
+    "options": [
+      100,
+      90,
+      110,
+      80
+    ],
+    "answer": 100,
+    "explanation": "简便计算",
+    "points": 1
+  },
+  {
+    "id": 4114,
+    "subject": "math",
+    "type": "single",
+    "title": "125 × 8 = ?",
+    "options": [
+      1000,
+      900,
+      1100,
+      800
+    ],
+    "answer": 1000,
+    "explanation": "简便计算",
+    "points": 1
+  },
+  {
+    "id": 4115,
+    "subject": "math",
+    "type": "single",
+    "title": "100 - 25 - 75 = ?",
+    "options": [
+      0,
+      100,
+      50,
+      25
+    ],
+    "answer": 0,
+    "explanation": "简便计算",
+    "points": 1
+  },
+  {
+    "id": 4116,
+    "subject": "math",
+    "type": "single",
+    "title": "36 + 47 + 64 = ?",
+    "options": [
+      147,
+      137,
+      157,
+      127
+    ],
+    "answer": 147,
+    "explanation": "简便计算",
+    "points": 1
+  },
+  {
+    "id": 4117,
+    "subject": "math",
+    "type": "single",
+    "title": "25 × 16 = ?",
+    "options": [
+      400,
+      380,
+      420,
+      360
+    ],
+    "answer": 400,
+    "explanation": "简便计算",
+    "points": 1
+  },
+  {
+    "id": 4118,
+    "subject": "math",
+    "type": "single",
+    "title": "锐角是？",
+    "options": [
+      "小于 90°的角",
+      "等于 90°的角",
+      "大于 90°的角",
+      "等于 180°的角"
+    ],
+    "answer": "小于 90°的角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4119,
+    "subject": "math",
+    "type": "single",
+    "title": "直角是？",
+    "options": [
+      "等于 90°的角",
+      "小于 90°的角",
+      "大于 90°的角",
+      "等于 180°的角"
+    ],
+    "answer": "等于 90°的角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4120,
+    "subject": "math",
+    "type": "single",
+    "title": "钝角是？",
+    "options": [
+      "大于 90°小于 180°的角",
+      "等于 90°的角",
+      "小于 90°的角",
+      "等于 360°的角"
+    ],
+    "answer": "大于 90°小于 180°的角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4121,
+    "subject": "math",
+    "type": "single",
+    "title": "平角是？",
+    "options": [
+      "等于 180°的角",
+      "等于 90°的角",
+      "等于 360°的角",
+      "小于 90°的角"
+    ],
+    "answer": "等于 180°的角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4122,
+    "subject": "math",
+    "type": "single",
+    "title": "周角是？",
+    "options": [
+      "等于 360°的角",
+      "等于 180°的角",
+      "等于 90°的角",
+      "大于 180°的角"
+    ],
+    "answer": "等于 360°的角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4123,
+    "subject": "math",
+    "type": "single",
+    "title": "三角形内角和是？",
+    "options": [
+      "180°",
+      "90°",
+      "360°",
+      "270°"
+    ],
+    "answer": "180°",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4124,
+    "subject": "math",
+    "type": "single",
+    "title": "等边三角形每个角是？",
+    "options": [
+      "60°",
+      "90°",
+      "45°",
+      "30°"
+    ],
+    "answer": "60°",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4125,
+    "subject": "math",
+    "type": "single",
+    "title": "等腰三角形有？",
+    "options": [
+      "两条边相等",
+      "三条边相等",
+      "没有边相等",
+      "四条边相等"
+    ],
+    "answer": "两条边相等",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4126,
+    "subject": "math",
+    "type": "single",
+    "title": "直角三角形有？",
+    "options": [
+      "一个直角",
+      "两个直角",
+      "三个直角",
+      "没有直角"
+    ],
+    "answer": "一个直角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4127,
+    "subject": "math",
+    "type": "single",
+    "title": "三角形任意两边之和？",
+    "options": [
+      "大于第三边",
+      "等于第三边",
+      "小于第三边",
+      "不确定"
+    ],
+    "answer": "大于第三边",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4128,
+    "subject": "math",
+    "type": "single",
+    "title": "平行四边形的对边？",
+    "options": [
+      "平行且相等",
+      "只平行不相等",
+      "只相等不平行",
+      "既不平行也不相等"
+    ],
+    "answer": "平行且相等",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4129,
+    "subject": "math",
+    "type": "single",
+    "title": "长方形有？",
+    "options": [
+      "四个直角",
+      "两个直角",
+      "没有直角",
+      "三个直角"
+    ],
+    "answer": "四个直角",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4130,
+    "subject": "math",
+    "type": "single",
+    "title": "正方形的四条边？",
+    "options": [
+      "都相等",
+      "只有对边相等",
+      "都不相等",
+      "只有邻边相等"
+    ],
+    "answer": "都相等",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4131,
+    "subject": "math",
+    "type": "single",
+    "title": "梯形有？",
+    "options": [
+      "只有一组对边平行",
+      "两组对边平行",
+      "没有对边平行",
+      "三组对边平行"
+    ],
+    "answer": "只有一组对边平行",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4132,
+    "subject": "math",
+    "type": "single",
+    "title": "四边形内角和是？",
+    "options": [
+      "360°",
+      "180°",
+      "270°",
+      "90°"
+    ],
+    "answer": "360°",
+    "explanation": "几何基础知识",
+    "points": 1
+  },
+  {
+    "id": 4133,
+    "subject": "math",
+    "type": "single",
+    "title": "小明有 25 元，买书花了 12 元，还剩？",
+    "options": [
+      "13 元",
+      "12 元",
+      "14 元",
+      "11 元"
+    ],
+    "answer": "13 元",
+    "explanation": "用数学知识解决实际问题",
+    "points": 1
+  },
+  {
+    "id": 4134,
+    "subject": "math",
+    "type": "single",
+    "title": "一辆车每小时行 60 千米，3 小时行？",
+    "options": [
+      "180 千米",
+      "120 千米",
+      "200 千米",
+      "160 千米"
+    ],
+    "answer": "180 千米",
+    "explanation": "用数学知识解决实际问题",
+    "points": 1
+  },
+  {
+    "id": 4135,
+    "subject": "math",
+    "type": "single",
+    "title": "一个足球 45 元，买 3 个需要？",
+    "options": [
+      "135 元",
+      "125 元",
+      "145 元",
+      "155 元"
+    ],
+    "answer": "135 元",
+    "explanation": "用数学知识解决实际问题",
+    "points": 1
+  },
+  {
+    "id": 4136,
+    "subject": "math",
+    "type": "single",
+    "title": "果园有苹果树 120 棵，梨树比苹果树多 30 棵，梨树有？",
+    "options": [
+      "150 棵",
+      "90 棵",
+      "130 棵",
+      "100 棵"
+    ],
+    "answer": "150 棵",
+    "explanation": "用数学知识解决实际问题",
+    "points": 1
+  },
+  {
+    "id": 4137,
+    "subject": "math",
+    "type": "single",
+    "title": "一本书 180 页，每天看 20 页，几天看完？",
+    "options": [
+      "9 天",
+      "8 天",
+      "10 天",
+      "7 天"
+    ],
+    "answer": "9 天",
+    "explanation": "用数学知识解决实际问题",
+    "points": 1
+  },
+  {
+    "id": 4138,
+    "subject": "math",
+    "type": "single",
+    "title": "正方形面积公式是？",
+    "options": [
+      "边长×边长",
+      "边长×4",
+      "边长 + 边长",
+      "边长÷2"
+    ],
+    "answer": "边长×边长",
+    "explanation": "基本公式",
+    "points": 1
+  },
+  {
+    "id": 4139,
+    "subject": "math",
+    "type": "single",
+    "title": "速度×时间=？",
+    "options": [
+      "路程",
+      "速度",
+      "时间",
+      "重量"
+    ],
+    "answer": "路程",
+    "explanation": "基本公式",
+    "points": 1
+  },
+  {
+    "id": 4140,
+    "subject": "math",
+    "type": "single",
+    "title": "长方形周长公式是？",
+    "options": [
+      "(长 + 宽) × 2",
+      "长×宽",
+      "长 + 宽",
+      "长×宽×2"
+    ],
+    "answer": "(长 + 宽) × 2",
+    "explanation": "基本公式",
+    "points": 1
+  },
+  {
+    "id": 4141,
+    "subject": "english",
+    "type": "single",
+    "title": "\"苹果\"的英文是？",
+    "options": [
+      "apple",
+      "banana",
+      "orange",
+      "pear"
+    ],
+    "answer": "apple",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4142,
+    "subject": "english",
+    "type": "single",
+    "title": "\"书\"的英文是？",
+    "options": [
+      "book",
+      "pen",
+      "ruler",
+      "pencil"
+    ],
+    "answer": "book",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4143,
+    "subject": "english",
+    "type": "single",
+    "title": "\"学校\"的英文是？",
+    "options": [
+      "school",
+      "home",
+      "park",
+      "shop"
+    ],
+    "answer": "school",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4144,
+    "subject": "english",
+    "type": "single",
+    "title": "\"老师\"的英文是？",
+    "options": [
+      "teacher",
+      "student",
+      "doctor",
+      "nurse"
+    ],
+    "answer": "teacher",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4145,
+    "subject": "english",
+    "type": "single",
+    "title": "\"学生\"的英文是？",
+    "options": [
+      "student",
+      "teacher",
+      "worker",
+      "driver"
+    ],
+    "answer": "student",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4146,
+    "subject": "english",
+    "type": "single",
+    "title": "\"红色\"的英文是？",
+    "options": [
+      "red",
+      "blue",
+      "green",
+      "yellow"
+    ],
+    "answer": "red",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4147,
+    "subject": "english",
+    "type": "single",
+    "title": "\"猫\"的英文是？",
+    "options": [
+      "cat",
+      "dog",
+      "bird",
+      "fish"
+    ],
+    "answer": "cat",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4148,
+    "subject": "english",
+    "type": "single",
+    "title": "\"狗\"的英文是？",
+    "options": [
+      "dog",
+      "cat",
+      "pig",
+      "cow"
+    ],
+    "answer": "dog",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4149,
+    "subject": "english",
+    "type": "single",
+    "title": "\"水\"的英文是？",
+    "options": [
+      "water",
+      "milk",
+      "juice",
+      "tea"
+    ],
+    "answer": "water",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4150,
+    "subject": "english",
+    "type": "single",
+    "title": "\"面包\"的英文是？",
+    "options": [
+      "bread",
+      "rice",
+      "meat",
+      "fish"
+    ],
+    "answer": "bread",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4151,
+    "subject": "english",
+    "type": "single",
+    "title": "\"早晨\"的英文是？",
+    "options": [
+      "morning",
+      "afternoon",
+      "evening",
+      "night"
+    ],
+    "answer": "morning",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4152,
+    "subject": "english",
+    "type": "single",
+    "title": "\"朋友\"的英文是？",
+    "options": [
+      "friend",
+      "family",
+      "brother",
+      "sister"
+    ],
+    "answer": "friend",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4153,
+    "subject": "english",
+    "type": "single",
+    "title": "\"足球\"的英文是？",
+    "options": [
+      "football",
+      "basketball",
+      "tennis",
+      "volleyball"
+    ],
+    "answer": "football",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4154,
+    "subject": "english",
+    "type": "single",
+    "title": "\"医院\"的英文是？",
+    "options": [
+      "hospital",
+      "school",
+      "park",
+      "shop"
+    ],
+    "answer": "hospital",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4155,
+    "subject": "english",
+    "type": "single",
+    "title": "\"医生\"的英文是？",
+    "options": [
+      "doctor",
+      "teacher",
+      "nurse",
+      "driver"
+    ],
+    "answer": "doctor",
+    "explanation": "基础词汇",
+    "points": 1
+  },
+  {
+    "id": 4156,
+    "subject": "english",
+    "type": "single",
+    "title": "I ___ a student.",
+    "options": [
+      "am",
+      "is",
+      "are",
+      "be"
+    ],
+    "answer": "am",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4157,
+    "subject": "english",
+    "type": "single",
+    "title": "He ___ my teacher.",
+    "options": [
+      "is",
+      "am",
+      "are",
+      "be"
+    ],
+    "answer": "is",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4158,
+    "subject": "english",
+    "type": "single",
+    "title": "They ___ friends.",
+    "options": [
+      "are",
+      "am",
+      "is",
+      "be"
+    ],
+    "answer": "are",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4159,
+    "subject": "english",
+    "type": "single",
+    "title": "This is ___ book.",
+    "options": [
+      "my",
+      "I",
+      "me",
+      "mine"
+    ],
+    "answer": "my",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4160,
+    "subject": "english",
+    "type": "single",
+    "title": "___ you like apples?",
+    "options": [
+      "Do",
+      "Does",
+      "Is",
+      "Are"
+    ],
+    "answer": "Do",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4161,
+    "subject": "english",
+    "type": "single",
+    "title": "She ___ to school every day.",
+    "options": [
+      "goes",
+      "go",
+      "going",
+      "went"
+    ],
+    "answer": "goes",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4162,
+    "subject": "english",
+    "type": "single",
+    "title": "There ___ a cat in the room.",
+    "options": [
+      "is",
+      "are",
+      "am",
+      "be"
+    ],
+    "answer": "is",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4163,
+    "subject": "english",
+    "type": "single",
+    "title": "There ___ some books on the desk.",
+    "options": [
+      "are",
+      "is",
+      "am",
+      "be"
+    ],
+    "answer": "are",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4164,
+    "subject": "english",
+    "type": "single",
+    "title": "I have ___ apple.",
+    "options": [
+      "an",
+      "a",
+      "the",
+      "two"
+    ],
+    "answer": "an",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4165,
+    "subject": "english",
+    "type": "single",
+    "title": "This is ___ orange.",
+    "options": [
+      "an",
+      "a",
+      "two",
+      "some"
+    ],
+    "answer": "an",
+    "explanation": "基础语法",
+    "points": 1
+  },
+  {
+    "id": 4166,
+    "subject": "english",
+    "type": "single",
+    "title": "\"你好吗？\"英文是？",
+    "options": [
+      "How are you?",
+      "Who are you?",
+      "What are you?",
+      "Where are you?"
+    ],
+    "answer": "How are you?",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4167,
+    "subject": "english",
+    "type": "single",
+    "title": "\"这是什么？\"英文是？",
+    "options": [
+      "What's this?",
+      "Who's this?",
+      "Where's this?",
+      "How's this?"
+    ],
+    "answer": "What's this?",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4168,
+    "subject": "english",
+    "type": "single",
+    "title": "\"我很好\"英文是？",
+    "options": [
+      "I'm fine.",
+      "You're fine.",
+      "He's fine.",
+      "She's fine."
+    ],
+    "answer": "I'm fine.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4169,
+    "subject": "english",
+    "type": "single",
+    "title": "\"谢谢\"英文是？",
+    "options": [
+      "Thank you.",
+      "Sorry.",
+      "Hello.",
+      "Goodbye."
+    ],
+    "answer": "Thank you.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4170,
+    "subject": "english",
+    "type": "single",
+    "title": "\"再见\"英文是？",
+    "options": [
+      "Goodbye.",
+      "Hello.",
+      "Thanks.",
+      "OK."
+    ],
+    "answer": "Goodbye.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4171,
+    "subject": "english",
+    "type": "single",
+    "title": "\"早上好\"英文是？",
+    "options": [
+      "Good morning.",
+      "Good afternoon.",
+      "Good evening.",
+      "Good night."
+    ],
+    "answer": "Good morning.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4172,
+    "subject": "english",
+    "type": "single",
+    "title": "\"你叫什么名字？\"英文是？",
+    "options": [
+      "What's your name?",
+      "How are you?",
+      "Where are you?",
+      "Who are you?"
+    ],
+    "answer": "What's your name?",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4173,
+    "subject": "english",
+    "type": "single",
+    "title": "\"我十岁了\"英文是？",
+    "options": [
+      "I'm ten years old.",
+      "I'm nine.",
+      "I'm eleven.",
+      "I'm twelve."
+    ],
+    "answer": "I'm ten years old.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4174,
+    "subject": "english",
+    "type": "single",
+    "title": "\"这是我的家\"英文是？",
+    "options": [
+      "This is my home.",
+      "This is my school.",
+      "This is my room.",
+      "This is my class."
+    ],
+    "answer": "This is my home.",
+    "explanation": "基础句型",
+    "points": 1
+  },
+  {
+    "id": 4175,
+    "subject": "english",
+    "type": "single",
+    "title": "\"我喜欢英语\"英文是？",
+    "options": [
+      "I like English.",
+      "I like math.",
+      "I like Chinese.",
+      "I like PE."
+    ],
+    "answer": "I like English.",
+    "explanation": "基础句型",
+    "points": 1
+  }
+]

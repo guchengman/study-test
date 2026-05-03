@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, AISettings } from "../types";
 import { loadApiConfig } from "../config/apiConfig";
-import { STORAGE_KEYS } from "../constants/storage";
+
 
 // 延迟初始化 AI 实例，仅在需要时创建
 let aiInstance: GoogleGenAI | null = null;
@@ -335,11 +335,9 @@ function buildRequestBody(model: string, messages: any[], temperature: number, m
     max_tokens: maxTokens
   };
   
-  // OpenAI 和部分兼容 API 支持 stream 参数
-  if (!model.includes('deepseek')) {
-    // DeepSeek 不支持 stream 参数
-    baseBody.stream = false;
-  }
+  // 所有模型都明确设置 stream 参数
+  // DeepSeek 实际上支持 stream 参数，但我们需要明确关闭流式响应
+  baseBody.stream = false;
   
   return baseBody;
 }
@@ -522,7 +520,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
 
 function getSettings(override?: AISettings): AISettings {
   if (override) return override;
-  const settingsStr = sessionStorage.getItem(STORAGE_KEYS.AI_SETTINGS);
+  const settingsStr = sessionStorage.getItem('AI_SETTINGS');
   return settingsStr ? JSON.parse(settingsStr) : {};
 }
 

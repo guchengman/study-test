@@ -5,7 +5,13 @@
 
 import { AISettings } from '../types';
 
-const API_BASE = '/api';
+// 根据环境确定 API 基础 URL
+// 开发环境：使用代理 '/api'
+// 生产环境：使用环境变量 VITE_API_BASE_URL 或相对路径 '/api'
+const isDevelopment = import.meta.env.MODE === 'development';
+const API_BASE = isDevelopment 
+  ? '/api' 
+  : (import.meta.env.VITE_API_BASE_URL || '/api');
 const TOKEN_KEY = 'study_test_token';
 const REFRESH_TOKEN_KEY = 'study_test_refresh_token';
 
@@ -158,7 +164,7 @@ export interface PendingSubscription {
 
 export interface QuestionItem {
   id: number;
-  subject: string;
+  subject_id: string;  // 后端返回的字段名
   type: string;
   title: string;
   code?: string;
@@ -253,7 +259,7 @@ export const subjectApi = {
 export const questionApi = {
   list: (params?: { subject?: string; type?: string; page?: number; limit?: number; }) => {
     const query = new URLSearchParams();
-    if (params?.subject) query.set('subject', params.subject);
+    if (params?.subject) query.set('subject_id', params.subject); // 后端期望 subject_id 参数
     if (params?.type) query.set('type', params.type);
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));

@@ -66,7 +66,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const offsetNum = (pageNum - 1) * limitNum;
     sql += ` ORDER BY q.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await pool.query(sql, params);
     rows.forEach(r => { r.is_owner = (r.created_by === userId); });
 
     res.json({ questions: rows, total, page: pageNum, limit: limitNum });
@@ -120,13 +120,32 @@ router.post('/', authMiddleware, async (req, res) => {
     if (title.length > 2000) {
       return res.status(400).json({ error: '标题长度不能超过2000字符' });
     }
-    const [subjectCheck] = await pool.execute(
+    
+    let [subjectCheck] = await pool.execute(
       'SELECT id, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
       [subject_id, req.user.id, req.user.role === 'admin' ? 1 : 0]
     );
+    
+    // 如果科目不存在，尝试自动创建它
     if (subjectCheck.length === 0) {
-      return res.status(403).json({ error: '科目不存在或无权限' });
+      try {
+        await pool.execute(
+          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [subject_id, subject_id, '📚', '', '', 0, 0, 'none', req.user.id]
+        );
+        subjectCheck = [{ id: subject_id, created_by: req.user.id }];
+      } catch (createErr) {
+        // 如果创建失败，再次检查
+        [subjectCheck] = await pool.execute(
+          'SELECT id, created_by FROM subjects WHERE id = ?',
+          [subject_id]
+        );
+        if (subjectCheck.length === 0) {
+          return res.status(403).json({ error: '科目不存在且无法自动创建' });
+        }
+      }
     }
+    
     const [result] = await pool.execute(
       `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -154,12 +173,30 @@ router.post('/batch', authMiddleware, async (req, res) => {
     if (!effectiveSubjectId) {
       return res.status(400).json({ error: '必须指定科目' });
     }
-    const [subjectCheck] = await pool.execute(
+    
+    let [subjectCheck] = await pool.execute(
       'SELECT id, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
       [effectiveSubjectId, req.user.id, req.user.role === 'admin' ? 1 : 0]
     );
+    
+    // 如果科目不存在，尝试自动创建它（使用科目ID作为名称）
     if (subjectCheck.length === 0) {
-      return res.status(403).json({ error: '科目不存在或无权限向此科目导入题目' });
+      try {
+        await pool.execute(
+          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [effectiveSubjectId, effectiveSubjectId, '📚', '', '', 0, 0, 'none', req.user.id]
+        );
+        subjectCheck = [{ id: effectiveSubjectId, created_by: req.user.id }];
+      } catch (createErr) {
+        // 如果创建失败（可能已存在或ID冲突），再次检查
+        [subjectCheck] = await pool.execute(
+          'SELECT id, created_by FROM subjects WHERE id = ?',
+          [effectiveSubjectId]
+        );
+        if (subjectCheck.length === 0) {
+          return res.status(403).json({ error: '科目不存在且无法自动创建，请先在系统中创建该科目' });
+        }
+      }
     }
 
     await conn.beginTransaction();

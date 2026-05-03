@@ -1,0 +1,4198 @@
+{
+  "chinese": [
+    {
+      "id": "ch-1",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"宿\"的读音正确的是？（宿新市徐公店）",
+      "options": [
+        "xiù",
+        "xiǔ",
+        "sù"
+      ],
+      "answer": "sù",
+      "explanation": "在\"宿新市徐公店\"中读sù"
+    },
+    {
+      "id": "ch-2",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"剥\"的读音正确的是？（剥莲蓬）",
+      "options": [
+        "bāo",
+        "bōu",
+        "bō"
+      ],
+      "answer": "bō",
+      "explanation": "在\"剥莲蓬\"中读bō"
+    },
+    {
+      "id": "ch-3",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"铺\"的读音正确的是？（铺床）",
+      "options": [
+        "pū",
+        "pǔ",
+        "pù"
+      ],
+      "answer": "pū",
+      "explanation": "在\"铺床\"中读pū"
+    },
+    {
+      "id": "ch-4",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"率\"的读音正确的是？（率领）",
+      "options": [
+        "suài",
+        "lǜ",
+        "shuài"
+      ],
+      "answer": "shuài",
+      "explanation": "在\"率领\"中读shuài"
+    },
+    {
+      "id": "ch-5",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"屏\"的读音正确的是？（屏风）",
+      "options": [
+        "píng",
+        "bǐng",
+        "pīn"
+      ],
+      "answer": "píng",
+      "explanation": "在\"屏风\"中读píng"
+    },
+    {
+      "id": "ch-6",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"冠\"的读音正确的是？（鸡冠花）",
+      "options": [
+        "guǎn",
+        "guàn",
+        "guān"
+      ],
+      "answer": "guān",
+      "explanation": "在\"鸡冠花\"中读guān"
+    },
+    {
+      "id": "ch-7",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"场\"的读音正确的是？（场院）",
+      "options": [
+        "chǎng",
+        "chāng",
+        "cháng"
+      ],
+      "answer": "cháng",
+      "explanation": "在\"场院\"中读cháng"
+    },
+    {
+      "id": "ch-8",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"结\"的读音正确的是？（结实）",
+      "options": [
+        "jiē",
+        "jié",
+        "jiě"
+      ],
+      "answer": "jiē",
+      "explanation": "在\"结实\"中读jiē"
+    },
+    {
+      "id": "ch-9",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"和\"的读音正确的是？（应和）",
+      "options": [
+        "hè",
+        "hé",
+        "huó"
+      ],
+      "answer": "hè",
+      "explanation": "在\"应和\"中读hè"
+    },
+    {
+      "id": "ch-10",
+      "type": "choice",
+      "category": "字词",
+      "question": "下列词语中\"模\"的读音正确的是？（模样）",
+      "options": [
+        "mú",
+        "mó",
+        "mò"
+      ],
+      "answer": "mú",
+      "explanation": "在\"模样\"中读mú"
+    },
+    {
+      "id": "ch-11",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：稀___",
+      "options": [
+        "梳头",
+        "疏",
+        "梳",
+        "疏子"
+      ],
+      "answer": "疏",
+      "explanation": "稀___应填\"疏\""
+    },
+    {
+      "id": "ch-12",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___笆",
+      "options": [
+        "篱子",
+        "离头",
+        "离",
+        "篱"
+      ],
+      "answer": "篱",
+      "explanation": "___笆应填\"篱\""
+    },
+    {
+      "id": "ch-13",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___蜓",
+      "options": [
+        "清头",
+        "蜻子",
+        "蜻",
+        "清"
+      ],
+      "answer": "蜻",
+      "explanation": "___蜓应填\"蜻\""
+    },
+    {
+      "id": "ch-14",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：蜻___",
+      "options": [
+        "蜓子",
+        "挺",
+        "蜓",
+        "挺头"
+      ],
+      "answer": "蜓",
+      "explanation": "蜻___应填\"蜓\""
+    },
+    {
+      "id": "ch-15",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：房___",
+      "options": [
+        "瞻头",
+        "檐子",
+        "瞻",
+        "檐"
+      ],
+      "answer": "檐",
+      "explanation": "房___应填\"檐\""
+    },
+    {
+      "id": "ch-16",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___成",
+      "options": [
+        "沟头",
+        "构子",
+        "沟",
+        "构"
+      ],
+      "answer": "构",
+      "explanation": "___成应填\"构\""
+    },
+    {
+      "id": "ch-17",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：装___",
+      "options": [
+        "布头",
+        "饰",
+        "布",
+        "饰子"
+      ],
+      "answer": "饰",
+      "explanation": "装___应填\"饰\""
+    },
+    {
+      "id": "ch-18",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___下",
+      "options": [
+        "蹲",
+        "尊",
+        "尊头",
+        "蹲子"
+      ],
+      "answer": "蹲",
+      "explanation": "___下应填\"蹲\""
+    },
+    {
+      "id": "ch-19",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___凰",
+      "options": [
+        "风",
+        "凤",
+        "风头",
+        "凤子"
+      ],
+      "answer": "凤",
+      "explanation": "___凰应填\"凤\""
+    },
+    {
+      "id": "ch-20",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___列",
+      "options": [
+        "序",
+        "序子",
+        "续头",
+        "续"
+      ],
+      "answer": "序",
+      "explanation": "___列应填\"序\""
+    },
+    {
+      "id": "ch-21",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：寻___",
+      "options": [
+        "见头",
+        "觅子",
+        "见",
+        "觅"
+      ],
+      "answer": "觅",
+      "explanation": "寻___应填\"觅\""
+    },
+    {
+      "id": "ch-22",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___立",
+      "options": [
+        "耳",
+        "耳头",
+        "耸子",
+        "耸"
+      ],
+      "answer": "耸",
+      "explanation": "___立应填\"耸\""
+    },
+    {
+      "id": "ch-23",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：和___",
+      "options": [
+        "谐",
+        "谐子",
+        "皆",
+        "皆头"
+      ],
+      "answer": "谐",
+      "explanation": "和___应填\"谐\""
+    },
+    {
+      "id": "ch-24",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___画",
+      "options": [
+        "绘子",
+        "会",
+        "绘",
+        "会头"
+      ],
+      "answer": "绘",
+      "explanation": "___画应填\"绘\""
+    },
+    {
+      "id": "ch-25",
+      "type": "choice",
+      "category": "字词",
+      "question": "选择正确的字填空：___藉",
+      "options": [
+        "蔚头",
+        "慰子",
+        "蔚",
+        "慰"
+      ],
+      "answer": "慰",
+      "explanation": "___藉应填\"慰\""
+    },
+    {
+      "id": "ch-26",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容地理位置好\"对应的四字词语是？",
+      "options": [
+        "依山傍水",
+        "风和日丽",
+        "山清水秀",
+        "鸟语花香"
+      ],
+      "answer": "依山傍水",
+      "explanation": "形容地理位置好"
+    },
+    {
+      "id": "ch-27",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容人家聚居\"对应的四字词语是？",
+      "options": [
+        "山清水秀",
+        "鸡犬相闻",
+        "风和日丽",
+        "鸟语花香"
+      ],
+      "answer": "鸡犬相闻",
+      "explanation": "形容人家聚居"
+    },
+    {
+      "id": "ch-28",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容空间广阔\"对应的四字词语是？",
+      "options": [
+        "天高地阔",
+        "山清水秀",
+        "鸟语花香",
+        "风和日丽"
+      ],
+      "answer": "天高地阔",
+      "explanation": "形容空间广阔"
+    },
+    {
+      "id": "ch-29",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容夜晚安静\"对应的四字词语是？",
+      "options": [
+        "山清水秀",
+        "月明人静",
+        "风和日丽",
+        "鸟语花香"
+      ],
+      "answer": "月明人静",
+      "explanation": "形容夜晚安静"
+    },
+    {
+      "id": "ch-30",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容灯光灿烂\"对应的四字词语是？",
+      "options": [
+        "风和日丽",
+        "山清水秀",
+        "灯火辉煌",
+        "鸟语花香"
+      ],
+      "answer": "灯火辉煌",
+      "explanation": "形容灯光灿烂"
+    },
+    {
+      "id": "ch-31",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容热闹繁华\"对应的四字词语是？",
+      "options": [
+        "山清水秀",
+        "风和日丽",
+        "车水马龙",
+        "鸟语花香"
+      ],
+      "answer": "车水马龙",
+      "explanation": "形容热闹繁华"
+    },
+    {
+      "id": "ch-32",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容高楼很多\"对应的四字词语是？",
+      "options": [
+        "鸟语花香",
+        "山清水秀",
+        "高楼林立",
+        "风和日丽"
+      ],
+      "answer": "高楼林立",
+      "explanation": "形容高楼很多"
+    },
+    {
+      "id": "ch-33",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容做饭的烟\"对应的四字词语是？",
+      "options": [
+        "山清水秀",
+        "炊烟袅袅",
+        "鸟语花香",
+        "风和日丽"
+      ],
+      "answer": "炊烟袅袅",
+      "explanation": "形容做饭的烟"
+    },
+    {
+      "id": "ch-34",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容长得壮\"对应的四字词语是？",
+      "options": [
+        "山清水秀",
+        "肥肥壮壮",
+        "鸟语花香",
+        "风和日丽"
+      ],
+      "answer": "肥肥壮壮",
+      "explanation": "形容长得壮"
+    },
+    {
+      "id": "ch-35",
+      "type": "choice",
+      "category": "词语",
+      "question": "\"形容生活幸福\"对应的四字词语是？",
+      "options": [
+        "甜甜蜜蜜",
+        "风和日丽",
+        "山清水秀",
+        "鸟语花香"
+      ],
+      "answer": "甜甜蜜蜜",
+      "explanation": "形容生活幸福"
+    },
+    {
+      "id": "ch-36",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《宿新市徐公店》的作者是？",
+      "options": [
+        "李白",
+        "杜甫",
+        "杨万里",
+        "白居易"
+      ],
+      "answer": "杨万里",
+      "explanation": "宿新市徐公店是宋诗人杨万里的作品"
+    },
+    {
+      "id": "ch-37",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《宿新市徐公店》是哪个朝代的作品？",
+      "options": [
+        "宋",
+        "清",
+        "明",
+        "唐"
+      ],
+      "answer": "宋",
+      "explanation": "宿新市徐公店创作于宋"
+    },
+    {
+      "id": "ch-38",
+      "type": "choice",
+      "category": "古诗",
+      "question": "\"儿童急走追黄蝶\"的下一句是？",
+      "options": [
+        "飞入菜花无处寻",
+        "飞入荷花无处寻",
+        "飞入黄花无处寻",
+        "飞入红花无处寻"
+      ],
+      "answer": "飞入菜花无处寻",
+      "explanation": "原句：儿童急走追黄蝶，飞入菜花无处寻"
+    },
+    {
+      "id": "ch-39",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《清平乐·村居》的作者是？",
+      "options": [
+        "杜甫",
+        "白居易",
+        "李白",
+        "辛弃疾"
+      ],
+      "answer": "辛弃疾",
+      "explanation": "清平乐·村居是宋诗人辛弃疾的作品"
+    },
+    {
+      "id": "ch-40",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《清平乐·村居》是哪个朝代的作品？",
+      "options": [
+        "宋",
+        "清",
+        "唐",
+        "明"
+      ],
+      "answer": "宋",
+      "explanation": "清平乐·村居创作于宋"
+    },
+    {
+      "id": "ch-41",
+      "type": "choice",
+      "category": "古诗",
+      "question": "\"茅檐低小\"的下一句是？",
+      "options": [
+        "溪上青青草",
+        "飞入荷花无处寻",
+        "飞入黄花无处寻",
+        "飞入红花无处寻"
+      ],
+      "answer": "溪上青青草",
+      "explanation": "原句：茅檐低小，溪上青青草"
+    },
+    {
+      "id": "ch-42",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《四时田园杂兴》的作者是？",
+      "options": [
+        "白居易",
+        "杜甫",
+        "李白",
+        "范成大"
+      ],
+      "answer": "范成大",
+      "explanation": "四时田园杂兴是宋诗人范成大的作品"
+    },
+    {
+      "id": "ch-43",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《四时田园杂兴》是哪个朝代的作品？",
+      "options": [
+        "唐",
+        "宋",
+        "明",
+        "清"
+      ],
+      "answer": "宋",
+      "explanation": "四时田园杂兴创作于宋"
+    },
+    {
+      "id": "ch-44",
+      "type": "choice",
+      "category": "古诗",
+      "question": "\"梅子金黄杏子肥\"的下一句是？",
+      "options": [
+        "飞入荷花无处寻",
+        "飞入黄花无处寻",
+        "飞入红花无处寻",
+        "麦花雪白菜花稀"
+      ],
+      "answer": "麦花雪白菜花稀",
+      "explanation": "原句：梅子金黄杏子肥，麦花雪白菜花稀"
+    },
+    {
+      "id": "ch-45",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《卜算子·咏梅》的作者是？",
+      "options": [
+        "杜甫",
+        "李白",
+        "毛泽东",
+        "白居易"
+      ],
+      "answer": "毛泽东",
+      "explanation": "卜算子·咏梅是现代诗人毛泽东的作品"
+    },
+    {
+      "id": "ch-46",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《卜算子·咏梅》是哪个朝代的作品？",
+      "options": [
+        "现代",
+        "唐",
+        "明",
+        "清"
+      ],
+      "answer": "现代",
+      "explanation": "卜算子·咏梅创作于现代"
+    },
+    {
+      "id": "ch-47",
+      "type": "choice",
+      "category": "古诗",
+      "question": "\"风雨送春归\"的下一句是？",
+      "options": [
+        "飞入红花无处寻",
+        "飞入黄花无处寻",
+        "飞入荷花无处寻",
+        "飞雪迎春到"
+      ],
+      "answer": "飞雪迎春到",
+      "explanation": "原句：风雨送春归，飞雪迎春到"
+    },
+    {
+      "id": "ch-48",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《江畔独步寻花》的作者是？",
+      "options": [
+        "杜甫",
+        "白居易",
+        "李白",
+        "杜甫"
+      ],
+      "answer": "杜甫",
+      "explanation": "江畔独步寻花是唐诗人杜甫的作品"
+    },
+    {
+      "id": "ch-49",
+      "type": "choice",
+      "category": "古诗",
+      "question": "《江畔独步寻花》是哪个朝代的作品？",
+      "options": [
+        "唐",
+        "唐",
+        "明",
+        "清"
+      ],
+      "answer": "唐",
+      "explanation": "江畔独步寻花创作于唐"
+    },
+    {
+      "id": "ch-50",
+      "type": "choice",
+      "category": "古诗",
+      "question": "\"桃花一簇开无主\"的下一句是？",
+      "options": [
+        "飞入荷花无处寻",
+        "可爱深红爱浅红",
+        "飞入黄花无处寻",
+        "飞入红花无处寻"
+      ],
+      "answer": "可爱深红爱浅红",
+      "explanation": "原句：桃花一簇开无主，可爱深红爱浅红"
+    },
+    {
+      "id": "ch-51",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"乡下人家\"一课中，作者描写了哪些景物？",
+      "options": [
+        "工厂、机器、工人",
+        "学校、操场、教室",
+        "高楼、汽车、商场",
+        "房屋、鸡鸭、花草"
+      ],
+      "answer": "房屋、鸡鸭、花草",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-52",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"琥珀\"一课中，琥珀是怎样形成的？",
+      "options": [
+        "石头压出来的",
+        "松脂包裹昆虫经过漫长年代",
+        "火烤出来的",
+        "水冲出来的"
+      ],
+      "answer": "松脂包裹昆虫经过漫长年代",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-53",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"纳米技术就在我们身边\"中，纳米技术可以用于？",
+      "options": [
+        "唱歌、跳舞、画画",
+        "医疗、材料、环保",
+        "做饭、洗衣、睡觉",
+        "跑步、跳远、游泳"
+      ],
+      "answer": "医疗、材料、环保",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-54",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"千年梦圆在今朝\"指的是？",
+      "options": [
+        "运河开通",
+        "长城修建",
+        "载人航天成功",
+        "故宫建成"
+      ],
+      "answer": "载人航天成功",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-55",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"白鹅\"一课中，白鹅的特点是？",
+      "options": [
+        "活泼、好动",
+        "高傲、架子十足",
+        "胆小、怕人",
+        "温顺、可爱"
+      ],
+      "answer": "高傲、架子十足",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-56",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"猫\"一课中，作者对猫的感情是？",
+      "options": [
+        "讨厌",
+        "喜爱",
+        "无所谓",
+        "害怕"
+      ],
+      "answer": "喜爱",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-57",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"母鸡\"一课中，作者对母鸡的态度变化是？",
+      "options": [
+        "喜欢→讨厌",
+        "讨厌→敬佩",
+        "害怕→喜欢",
+        "无所谓→讨厌"
+      ],
+      "answer": "讨厌→敬佩",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-58",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"海上日出\"的作者是？",
+      "options": [
+        "巴金",
+        "老舍",
+        "鲁迅",
+        "朱自清"
+      ],
+      "answer": "巴金",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-59",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"记金华的双龙洞\"按什么顺序写的？",
+      "options": [
+        "逻辑顺序",
+        "事情发展顺序",
+        "时间顺序",
+        "游览顺序"
+      ],
+      "answer": "游览顺序",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-60",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"小英雄雨来\"中雨来的特点是？",
+      "options": [
+        "调皮捣蛋",
+        "胆小怕事",
+        "机智勇敢",
+        "懒惰贪玩"
+      ],
+      "answer": "机智勇敢",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-61",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"比喻句\"的特点是什么？",
+      "options": [
+        "夸张说法",
+        "反问语气",
+        "直接描写",
+        "把 A 比作 B"
+      ],
+      "answer": "把 A 比作 B",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-62",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"拟人句\"的特点是什么？",
+      "options": [
+        "把物当人写",
+        "把人当物写",
+        "疑问句",
+        "直接叙述"
+      ],
+      "answer": "把物当人写",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-63",
+      "type": "choice",
+      "category": "阅读",
+      "question": "体会作者感情可以通过？",
+      "options": [
+        "看段落长短",
+        "数字数",
+        "数句子数量",
+        "关键词句"
+      ],
+      "answer": "关键词句",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-64",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"天窗\"一课中，天窗给孩子们带来了？",
+      "options": [
+        "想象和快乐",
+        "恐惧和不安",
+        "烦恼和困倦",
+        "无聊和寂寞"
+      ],
+      "answer": "想象和快乐",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-65",
+      "type": "choice",
+      "category": "阅读",
+      "question": "\"三月桃花水\"中\"桃花水\"指的是？",
+      "options": [
+        "桃花汁",
+        "春水",
+        "河水",
+        "雨水"
+      ],
+      "answer": "春水",
+      "explanation": "出自课文内容理解"
+    },
+    {
+      "id": "ch-66",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文开头可以？",
+      "options": [
+        "写无关内容",
+        "抄题目",
+        "不写开头",
+        "开门见山"
+      ],
+      "answer": "开门见山",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-67",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文结尾应该？",
+      "options": [
+        "写新话题",
+        "重复开头",
+        "突然结束",
+        "总结全文"
+      ],
+      "answer": "总结全文",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-68",
+      "type": "choice",
+      "category": "作文",
+      "question": "写作文时字数要求 300+ 意思是？",
+      "options": [
+        "不超过 300 字",
+        "最多 300 字",
+        "至少 300 字",
+        "正好 300 字"
+      ],
+      "answer": "至少 300 字",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-69",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文开头可以？",
+      "options": [
+        "抄题目",
+        "不写开头",
+        "写无关内容",
+        "开门见山"
+      ],
+      "answer": "开门见山",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-70",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文结尾应该？",
+      "options": [
+        "写新话题",
+        "重复开头",
+        "突然结束",
+        "总结全文"
+      ],
+      "answer": "总结全文",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-71",
+      "type": "choice",
+      "category": "作文",
+      "question": "写作文时字数要求 300+ 意思是？",
+      "options": [
+        "至少 300 字",
+        "不超过 300 字",
+        "最多 300 字",
+        "正好 300 字"
+      ],
+      "answer": "至少 300 字",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-72",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文开头可以？",
+      "options": [
+        "写无关内容",
+        "不写开头",
+        "开门见山",
+        "抄题目"
+      ],
+      "answer": "开门见山",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-73",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文结尾应该？",
+      "options": [
+        "突然结束",
+        "总结全文",
+        "重复开头",
+        "写新话题"
+      ],
+      "answer": "总结全文",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-74",
+      "type": "choice",
+      "category": "作文",
+      "question": "写作文时字数要求 300+ 意思是？",
+      "options": [
+        "不超过 300 字",
+        "至少 300 字",
+        "最多 300 字",
+        "正好 300 字"
+      ],
+      "answer": "至少 300 字",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-75",
+      "type": "choice",
+      "category": "作文",
+      "question": "作文开头可以？",
+      "options": [
+        "抄题目",
+        "不写开头",
+        "写无关内容",
+        "开门见山"
+      ],
+      "answer": "开门见山",
+      "explanation": "作文写作技巧"
+    },
+    {
+      "id": "ch-76",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列词语书写完全正确的是？",
+      "options": [
+        "装饰",
+        "装补",
+        "装怖",
+        "装布"
+      ],
+      "answer": "装饰",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-77",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列句子是病句的是？",
+      "options": [
+        "我大概错了",
+        "我可能错了",
+        "我错了",
+        "我大概可能错了"
+      ],
+      "answer": "我大概可能错了",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-78",
+      "type": "choice",
+      "category": "综合",
+      "question": "\"锦上添花\"的近义词是？",
+      "options": [
+        "多此一举",
+        "画蛇添足",
+        "雪上加霜",
+        "雪中送炭"
+      ],
+      "answer": "雪中送炭",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-79",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列标点使用正确的是？",
+      "options": [
+        "你吃饭了吗？",
+        "你吃饭了吗。",
+        "你吃饭了吗！",
+        "你吃饭了吗，"
+      ],
+      "answer": "你吃饭了吗？",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-80",
+      "type": "choice",
+      "category": "综合",
+      "question": "赣州期中考作文分值重，应该？",
+      "options": [
+        "提前准备素材",
+        "抄别人文章",
+        "临时发挥",
+        "不写作文"
+      ],
+      "answer": "提前准备素材",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-81",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列词语书写完全正确的是？",
+      "options": [
+        "装饰",
+        "装怖",
+        "装布",
+        "装补"
+      ],
+      "answer": "装饰",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-82",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列句子是病句的是？",
+      "options": [
+        "我大概可能错了",
+        "我错了",
+        "我可能错了",
+        "我大概错了"
+      ],
+      "answer": "我大概可能错了",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-83",
+      "type": "choice",
+      "category": "综合",
+      "question": "\"锦上添花\"的近义词是？",
+      "options": [
+        "多此一举",
+        "画蛇添足",
+        "雪上加霜",
+        "雪中送炭"
+      ],
+      "answer": "雪中送炭",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-84",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列标点使用正确的是？",
+      "options": [
+        "你吃饭了吗？",
+        "你吃饭了吗，",
+        "你吃饭了吗。",
+        "你吃饭了吗！"
+      ],
+      "answer": "你吃饭了吗？",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-85",
+      "type": "choice",
+      "category": "综合",
+      "question": "赣州期中考作文分值重，应该？",
+      "options": [
+        "临时发挥",
+        "抄别人文章",
+        "提前准备素材",
+        "不写作文"
+      ],
+      "answer": "提前准备素材",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-86",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列词语书写完全正确的是？",
+      "options": [
+        "装补",
+        "装布",
+        "装怖",
+        "装饰"
+      ],
+      "answer": "装饰",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-87",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列句子是病句的是？",
+      "options": [
+        "我大概可能错了",
+        "我错了",
+        "我大概错了",
+        "我可能错了"
+      ],
+      "answer": "我大概可能错了",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-88",
+      "type": "choice",
+      "category": "综合",
+      "question": "\"锦上添花\"的近义词是？",
+      "options": [
+        "多此一举",
+        "雪上加霜",
+        "雪中送炭",
+        "画蛇添足"
+      ],
+      "answer": "雪中送炭",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-89",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列标点使用正确的是？",
+      "options": [
+        "你吃饭了吗？",
+        "你吃饭了吗！",
+        "你吃饭了吗，",
+        "你吃饭了吗。"
+      ],
+      "answer": "你吃饭了吗？",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-90",
+      "type": "choice",
+      "category": "综合",
+      "question": "赣州期中考作文分值重，应该？",
+      "options": [
+        "抄别人文章",
+        "不写作文",
+        "临时发挥",
+        "提前准备素材"
+      ],
+      "answer": "提前准备素材",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-91",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列词语书写完全正确的是？",
+      "options": [
+        "装补",
+        "装布",
+        "装怖",
+        "装饰"
+      ],
+      "answer": "装饰",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-92",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列句子是病句的是？",
+      "options": [
+        "我大概错了",
+        "我可能错了",
+        "我错了",
+        "我大概可能错了"
+      ],
+      "answer": "我大概可能错了",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-93",
+      "type": "choice",
+      "category": "综合",
+      "question": "\"锦上添花\"的近义词是？",
+      "options": [
+        "画蛇添足",
+        "雪上加霜",
+        "雪中送炭",
+        "多此一举"
+      ],
+      "answer": "雪中送炭",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-94",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列标点使用正确的是？",
+      "options": [
+        "你吃饭了吗，",
+        "你吃饭了吗！",
+        "你吃饭了吗。",
+        "你吃饭了吗？"
+      ],
+      "answer": "你吃饭了吗？",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-95",
+      "type": "choice",
+      "category": "综合",
+      "question": "赣州期中考作文分值重，应该？",
+      "options": [
+        "提前准备素材",
+        "临时发挥",
+        "不写作文",
+        "抄别人文章"
+      ],
+      "answer": "提前准备素材",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-96",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列词语书写完全正确的是？",
+      "options": [
+        "装补",
+        "装布",
+        "装怖",
+        "装饰"
+      ],
+      "answer": "装饰",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-97",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列句子是病句的是？",
+      "options": [
+        "我可能错了",
+        "我错了",
+        "我大概可能错了",
+        "我大概错了"
+      ],
+      "answer": "我大概可能错了",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-98",
+      "type": "choice",
+      "category": "综合",
+      "question": "\"锦上添花\"的近义词是？",
+      "options": [
+        "雪上加霜",
+        "画蛇添足",
+        "多此一举",
+        "雪中送炭"
+      ],
+      "answer": "雪中送炭",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-99",
+      "type": "choice",
+      "category": "综合",
+      "question": "下列标点使用正确的是？",
+      "options": [
+        "你吃饭了吗？",
+        "你吃饭了吗。",
+        "你吃饭了吗！",
+        "你吃饭了吗，"
+      ],
+      "answer": "你吃饭了吗？",
+      "explanation": "语文基础知识"
+    },
+    {
+      "id": "ch-100",
+      "type": "choice",
+      "category": "综合",
+      "question": "赣州期中考作文分值重，应该？",
+      "options": [
+        "临时发挥",
+        "提前准备素材",
+        "抄别人文章",
+        "不写作文"
+      ],
+      "answer": "提前准备素材",
+      "explanation": "语文基础知识"
+    }
+  ],
+  "math": [
+    {
+      "id": "m-1",
+      "type": "choice",
+      "category": "计算",
+      "question": "221 + 467 = ?",
+      "options": [
+        688,
+        678,
+        689,
+        698
+      ],
+      "answer": 688,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-2",
+      "type": "choice",
+      "category": "计算",
+      "question": "563 + 118 = ?",
+      "options": [
+        681,
+        691,
+        671,
+        682
+      ],
+      "answer": 681,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-3",
+      "type": "choice",
+      "category": "计算",
+      "question": "205 + 282 = ?",
+      "options": [
+        487,
+        497,
+        477,
+        488
+      ],
+      "answer": 487,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-4",
+      "type": "choice",
+      "category": "计算",
+      "question": "254 + 151 = ?",
+      "options": [
+        405,
+        406,
+        395,
+        415
+      ],
+      "answer": 405,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-5",
+      "type": "choice",
+      "category": "计算",
+      "question": "414 + 202 = ?",
+      "options": [
+        616,
+        617,
+        606,
+        626
+      ],
+      "answer": 616,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-6",
+      "type": "choice",
+      "category": "计算",
+      "question": "294 + 188 = ?",
+      "options": [
+        482,
+        483,
+        492,
+        472
+      ],
+      "answer": 482,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-7",
+      "type": "choice",
+      "category": "计算",
+      "question": "256 + 211 = ?",
+      "options": [
+        467,
+        477,
+        457,
+        468
+      ],
+      "answer": 467,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-8",
+      "type": "choice",
+      "category": "计算",
+      "question": "597 + 385 = ?",
+      "options": [
+        982,
+        983,
+        972,
+        992
+      ],
+      "answer": 982,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-9",
+      "type": "choice",
+      "category": "计算",
+      "question": "452 + 530 = ?",
+      "options": [
+        982,
+        992,
+        972,
+        983
+      ],
+      "answer": 982,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-10",
+      "type": "choice",
+      "category": "计算",
+      "question": "205 + 430 = ?",
+      "options": [
+        635,
+        625,
+        645,
+        636
+      ],
+      "answer": 635,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-11",
+      "type": "choice",
+      "category": "计算",
+      "question": "146 + 458 = ?",
+      "options": [
+        604,
+        594,
+        614,
+        605
+      ],
+      "answer": 604,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-12",
+      "type": "choice",
+      "category": "计算",
+      "question": "593 + 400 = ?",
+      "options": [
+        993,
+        994,
+        983,
+        1003
+      ],
+      "answer": 993,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-13",
+      "type": "choice",
+      "category": "计算",
+      "question": "530 + 320 = ?",
+      "options": [
+        850,
+        840,
+        860,
+        851
+      ],
+      "answer": 850,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-14",
+      "type": "choice",
+      "category": "计算",
+      "question": "518 + 542 = ?",
+      "options": [
+        1060,
+        1070,
+        1050,
+        1061
+      ],
+      "answer": 1060,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-15",
+      "type": "choice",
+      "category": "计算",
+      "question": "554 + 525 = ?",
+      "options": [
+        1079,
+        1089,
+        1069,
+        1080
+      ],
+      "answer": 1079,
+      "explanation": "加法运算，注意进位"
+    },
+    {
+      "id": "m-16",
+      "type": "choice",
+      "category": "计算",
+      "question": "230 - 151 = ?",
+      "options": [
+        79,
+        69,
+        381,
+        89
+      ],
+      "answer": 79,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-17",
+      "type": "choice",
+      "category": "计算",
+      "question": "202 - 133 = ?",
+      "options": [
+        69,
+        79,
+        335,
+        59
+      ],
+      "answer": 69,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-18",
+      "type": "choice",
+      "category": "计算",
+      "question": "375 - 10 = ?",
+      "options": [
+        365,
+        385,
+        355,
+        375
+      ],
+      "answer": 365,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-19",
+      "type": "choice",
+      "category": "计算",
+      "question": "480 - 192 = ?",
+      "options": [
+        288,
+        298,
+        278,
+        672
+      ],
+      "answer": 288,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-20",
+      "type": "choice",
+      "category": "计算",
+      "question": "426 - 119 = ?",
+      "options": [
+        307,
+        297,
+        317,
+        545
+      ],
+      "answer": 307,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-21",
+      "type": "choice",
+      "category": "计算",
+      "question": "287 - 47 = ?",
+      "options": [
+        240,
+        334,
+        230,
+        250
+      ],
+      "answer": 240,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-22",
+      "type": "choice",
+      "category": "计算",
+      "question": "491 - 72 = ?",
+      "options": [
+        419,
+        429,
+        409,
+        563
+      ],
+      "answer": 419,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-23",
+      "type": "choice",
+      "category": "计算",
+      "question": "301 - 207 = ?",
+      "options": [
+        94,
+        104,
+        508,
+        84
+      ],
+      "answer": 94,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-24",
+      "type": "choice",
+      "category": "计算",
+      "question": "573 - 197 = ?",
+      "options": [
+        376,
+        770,
+        366,
+        386
+      ],
+      "answer": 376,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-25",
+      "type": "choice",
+      "category": "计算",
+      "question": "445 - 118 = ?",
+      "options": [
+        327,
+        317,
+        337,
+        563
+      ],
+      "answer": 327,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-26",
+      "type": "choice",
+      "category": "计算",
+      "question": "358 - 97 = ?",
+      "options": [
+        261,
+        271,
+        251,
+        455
+      ],
+      "answer": 261,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-27",
+      "type": "choice",
+      "category": "计算",
+      "question": "543 - 173 = ?",
+      "options": [
+        370,
+        380,
+        360,
+        716
+      ],
+      "answer": 370,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-28",
+      "type": "choice",
+      "category": "计算",
+      "question": "486 - 208 = ?",
+      "options": [
+        278,
+        694,
+        268,
+        288
+      ],
+      "answer": 278,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-29",
+      "type": "choice",
+      "category": "计算",
+      "question": "553 - 70 = ?",
+      "options": [
+        483,
+        473,
+        623,
+        493
+      ],
+      "answer": 483,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-30",
+      "type": "choice",
+      "category": "计算",
+      "question": "537 - 151 = ?",
+      "options": [
+        386,
+        396,
+        688,
+        376
+      ],
+      "answer": 386,
+      "explanation": "减法运算，注意退位"
+    },
+    {
+      "id": "m-31",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-32",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-33",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-34",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-35",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-36",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-37",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-38",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-39",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-40",
+      "type": "choice",
+      "category": "定律",
+      "question": "加法交换律可以表示为？",
+      "options": [
+        "a + b = b + a",
+        "a + b = a - b",
+        "a + b = a × b",
+        "a + b = b - a"
+      ],
+      "answer": "a + b = b + a",
+      "explanation": "加法交换律：交换加数位置，和不变"
+    },
+    {
+      "id": "m-41",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：10 × (3 + 8) = ?",
+      "options": [
+        110,
+        38,
+        34,
+        -50
+      ],
+      "answer": 110,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-42",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：8 × (8 + 2) = ?",
+      "options": [
+        80,
+        66,
+        24,
+        48
+      ],
+      "answer": 80,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-43",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：9 × (4 + 8) = ?",
+      "options": [
+        108,
+        44,
+        41,
+        -36
+      ],
+      "answer": 108,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-44",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：10 × (10 + 6) = ?",
+      "options": [
+        160,
+        106,
+        70,
+        40
+      ],
+      "answer": 160,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-45",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：5 × (2 + 10) = ?",
+      "options": [
+        60,
+        20,
+        25,
+        -40
+      ],
+      "answer": 60,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-46",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：11 × (3 + 5) = ?",
+      "options": [
+        88,
+        38,
+        26,
+        -22
+      ],
+      "answer": 88,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-47",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：5 × (8 + 10) = ?",
+      "options": [
+        90,
+        50,
+        85,
+        -10
+      ],
+      "answer": 90,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-48",
+      "type": "choice",
+      "category": "定律",
+      "question": "用乘法分配律计算：2 × (2 + 3) = ?",
+      "options": [
+        10,
+        7,
+        8,
+        -2
+      ],
+      "answer": 10,
+      "explanation": "乘法分配律：a × (b + c) = a × b + a × c"
+    },
+    {
+      "id": "m-49",
+      "type": "choice",
+      "category": "定律",
+      "question": "25 × 4 = ?",
+      "options": [
+        100,
+        90,
+        110,
+        80
+      ],
+      "answer": 100,
+      "explanation": "简便计算"
+    },
+    {
+      "id": "m-50",
+      "type": "choice",
+      "category": "定律",
+      "question": "125 × 8 = ?",
+      "options": [
+        1000,
+        900,
+        1100,
+        800
+      ],
+      "answer": 1000,
+      "explanation": "简便计算"
+    },
+    {
+      "id": "m-51",
+      "type": "choice",
+      "category": "定律",
+      "question": "100 - 25 - 75 = ?",
+      "options": [
+        0,
+        100,
+        50,
+        25
+      ],
+      "answer": 0,
+      "explanation": "简便计算"
+    },
+    {
+      "id": "m-52",
+      "type": "choice",
+      "category": "定律",
+      "question": "36 + 47 + 64 = ?",
+      "options": [
+        147,
+        137,
+        157,
+        127
+      ],
+      "answer": 147,
+      "explanation": "简便计算"
+    },
+    {
+      "id": "m-53",
+      "type": "choice",
+      "category": "定律",
+      "question": "25 × 16 = ?",
+      "options": [
+        400,
+        380,
+        420,
+        360
+      ],
+      "answer": 400,
+      "explanation": "简便计算"
+    },
+    {
+      "id": "m-54",
+      "type": "choice",
+      "category": "几何",
+      "question": "锐角是？",
+      "options": [
+        "小于 90°的角",
+        "等于 90°的角",
+        "大于 90°的角",
+        "等于 180°的角"
+      ],
+      "answer": "小于 90°的角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-55",
+      "type": "choice",
+      "category": "几何",
+      "question": "直角是？",
+      "options": [
+        "等于 90°的角",
+        "小于 90°的角",
+        "大于 90°的角",
+        "等于 180°的角"
+      ],
+      "answer": "等于 90°的角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-56",
+      "type": "choice",
+      "category": "几何",
+      "question": "钝角是？",
+      "options": [
+        "大于 90°小于 180°的角",
+        "等于 90°的角",
+        "小于 90°的角",
+        "等于 360°的角"
+      ],
+      "answer": "大于 90°小于 180°的角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-57",
+      "type": "choice",
+      "category": "几何",
+      "question": "平角是？",
+      "options": [
+        "等于 180°的角",
+        "等于 90°的角",
+        "等于 360°的角",
+        "小于 90°的角"
+      ],
+      "answer": "等于 180°的角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-58",
+      "type": "choice",
+      "category": "几何",
+      "question": "周角是？",
+      "options": [
+        "等于 360°的角",
+        "等于 180°的角",
+        "等于 90°的角",
+        "大于 180°的角"
+      ],
+      "answer": "等于 360°的角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-59",
+      "type": "choice",
+      "category": "几何",
+      "question": "三角形内角和是？",
+      "options": [
+        "180°",
+        "90°",
+        "360°",
+        "270°"
+      ],
+      "answer": "180°",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-60",
+      "type": "choice",
+      "category": "几何",
+      "question": "等边三角形每个角是？",
+      "options": [
+        "60°",
+        "90°",
+        "45°",
+        "30°"
+      ],
+      "answer": "60°",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-61",
+      "type": "choice",
+      "category": "几何",
+      "question": "等腰三角形有？",
+      "options": [
+        "两条边相等",
+        "三条边相等",
+        "没有边相等",
+        "四条边相等"
+      ],
+      "answer": "两条边相等",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-62",
+      "type": "choice",
+      "category": "几何",
+      "question": "直角三角形有？",
+      "options": [
+        "一个直角",
+        "两个直角",
+        "三个直角",
+        "没有直角"
+      ],
+      "answer": "一个直角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-63",
+      "type": "choice",
+      "category": "几何",
+      "question": "三角形任意两边之和？",
+      "options": [
+        "大于第三边",
+        "等于第三边",
+        "小于第三边",
+        "不确定"
+      ],
+      "answer": "大于第三边",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-64",
+      "type": "choice",
+      "category": "几何",
+      "question": "平行四边形的对边？",
+      "options": [
+        "平行且相等",
+        "只平行不相等",
+        "只相等不平行",
+        "既不平行也不相等"
+      ],
+      "answer": "平行且相等",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-65",
+      "type": "choice",
+      "category": "几何",
+      "question": "长方形有？",
+      "options": [
+        "四个直角",
+        "两个直角",
+        "没有直角",
+        "三个直角"
+      ],
+      "answer": "四个直角",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-66",
+      "type": "choice",
+      "category": "几何",
+      "question": "正方形的四条边？",
+      "options": [
+        "都相等",
+        "只有对边相等",
+        "都不相等",
+        "只有邻边相等"
+      ],
+      "answer": "都相等",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-67",
+      "type": "choice",
+      "category": "几何",
+      "question": "梯形有？",
+      "options": [
+        "只有一组对边平行",
+        "两组对边平行",
+        "没有对边平行",
+        "三组对边平行"
+      ],
+      "answer": "只有一组对边平行",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-68",
+      "type": "choice",
+      "category": "几何",
+      "question": "四边形内角和是？",
+      "options": [
+        "360°",
+        "180°",
+        "270°",
+        "90°"
+      ],
+      "answer": "360°",
+      "explanation": "几何基础知识"
+    },
+    {
+      "id": "m-69",
+      "type": "choice",
+      "category": "应用",
+      "question": "小明有 25 元，买书花了 12 元，还剩？",
+      "options": [
+        "13 元",
+        "12 元",
+        "14 元",
+        "11 元"
+      ],
+      "answer": "13 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-70",
+      "type": "choice",
+      "category": "应用",
+      "question": "小明有 25 元，买书花了 12 元，还剩？",
+      "options": [
+        "13 元",
+        "12 元",
+        "14 元",
+        "11 元"
+      ],
+      "answer": "13 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-71",
+      "type": "choice",
+      "category": "应用",
+      "question": "小明有 25 元，买书花了 12 元，还剩？",
+      "options": [
+        "13 元",
+        "12 元",
+        "14 元",
+        "11 元"
+      ],
+      "answer": "13 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-72",
+      "type": "choice",
+      "category": "应用",
+      "question": "小明有 25 元，买书花了 12 元，还剩？",
+      "options": [
+        "13 元",
+        "12 元",
+        "14 元",
+        "11 元"
+      ],
+      "answer": "13 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-73",
+      "type": "choice",
+      "category": "应用",
+      "question": "一辆车每小时行 60 千米，3 小时行？",
+      "options": [
+        "180 千米",
+        "120 千米",
+        "200 千米",
+        "160 千米"
+      ],
+      "answer": "180 千米",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-74",
+      "type": "choice",
+      "category": "应用",
+      "question": "一辆车每小时行 60 千米，3 小时行？",
+      "options": [
+        "180 千米",
+        "120 千米",
+        "200 千米",
+        "160 千米"
+      ],
+      "answer": "180 千米",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-75",
+      "type": "choice",
+      "category": "应用",
+      "question": "一辆车每小时行 60 千米，3 小时行？",
+      "options": [
+        "180 千米",
+        "120 千米",
+        "200 千米",
+        "160 千米"
+      ],
+      "answer": "180 千米",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-76",
+      "type": "choice",
+      "category": "应用",
+      "question": "一辆车每小时行 60 千米，3 小时行？",
+      "options": [
+        "180 千米",
+        "120 千米",
+        "200 千米",
+        "160 千米"
+      ],
+      "answer": "180 千米",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-77",
+      "type": "choice",
+      "category": "应用",
+      "question": "一个足球 45 元，买 3 个需要？",
+      "options": [
+        "135 元",
+        "125 元",
+        "145 元",
+        "155 元"
+      ],
+      "answer": "135 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-78",
+      "type": "choice",
+      "category": "应用",
+      "question": "一个足球 45 元，买 3 个需要？",
+      "options": [
+        "135 元",
+        "125 元",
+        "145 元",
+        "155 元"
+      ],
+      "answer": "135 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-79",
+      "type": "choice",
+      "category": "应用",
+      "question": "一个足球 45 元，买 3 个需要？",
+      "options": [
+        "135 元",
+        "125 元",
+        "145 元",
+        "155 元"
+      ],
+      "answer": "135 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-80",
+      "type": "choice",
+      "category": "应用",
+      "question": "一个足球 45 元，买 3 个需要？",
+      "options": [
+        "135 元",
+        "125 元",
+        "145 元",
+        "155 元"
+      ],
+      "answer": "135 元",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-81",
+      "type": "choice",
+      "category": "应用",
+      "question": "果园有苹果树 120 棵，梨树比苹果树多 30 棵，梨树有？",
+      "options": [
+        "150 棵",
+        "90 棵",
+        "130 棵",
+        "100 棵"
+      ],
+      "answer": "150 棵",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-82",
+      "type": "choice",
+      "category": "应用",
+      "question": "果园有苹果树 120 棵，梨树比苹果树多 30 棵，梨树有？",
+      "options": [
+        "150 棵",
+        "90 棵",
+        "130 棵",
+        "100 棵"
+      ],
+      "answer": "150 棵",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-83",
+      "type": "choice",
+      "category": "应用",
+      "question": "果园有苹果树 120 棵，梨树比苹果树多 30 棵，梨树有？",
+      "options": [
+        "150 棵",
+        "90 棵",
+        "130 棵",
+        "100 棵"
+      ],
+      "answer": "150 棵",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-84",
+      "type": "choice",
+      "category": "应用",
+      "question": "果园有苹果树 120 棵，梨树比苹果树多 30 棵，梨树有？",
+      "options": [
+        "150 棵",
+        "90 棵",
+        "130 棵",
+        "100 棵"
+      ],
+      "answer": "150 棵",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-85",
+      "type": "choice",
+      "category": "应用",
+      "question": "一本书 180 页，每天看 20 页，几天看完？",
+      "options": [
+        "9 天",
+        "8 天",
+        "10 天",
+        "7 天"
+      ],
+      "answer": "9 天",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-86",
+      "type": "choice",
+      "category": "应用",
+      "question": "一本书 180 页，每天看 20 页，几天看完？",
+      "options": [
+        "9 天",
+        "8 天",
+        "10 天",
+        "7 天"
+      ],
+      "answer": "9 天",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-87",
+      "type": "choice",
+      "category": "应用",
+      "question": "一本书 180 页，每天看 20 页，几天看完？",
+      "options": [
+        "9 天",
+        "8 天",
+        "10 天",
+        "7 天"
+      ],
+      "answer": "9 天",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-88",
+      "type": "choice",
+      "category": "应用",
+      "question": "一本书 180 页，每天看 20 页，几天看完？",
+      "options": [
+        "9 天",
+        "8 天",
+        "10 天",
+        "7 天"
+      ],
+      "answer": "9 天",
+      "explanation": "用数学知识解决实际问题"
+    },
+    {
+      "id": "m-89",
+      "type": "choice",
+      "category": "公式",
+      "question": "正方形面积公式是？",
+      "options": [
+        "边长×边长",
+        "边长×4",
+        "边长 + 边长",
+        "边长÷2"
+      ],
+      "answer": "边长×边长",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-90",
+      "type": "choice",
+      "category": "公式",
+      "question": "速度×时间=？",
+      "options": [
+        "路程",
+        "速度",
+        "时间",
+        "重量"
+      ],
+      "answer": "路程",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-91",
+      "type": "choice",
+      "category": "公式",
+      "question": "长方形周长公式是？",
+      "options": [
+        "(长 + 宽) × 2",
+        "长×宽",
+        "长 + 宽",
+        "长×宽×2"
+      ],
+      "answer": "(长 + 宽) × 2",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-92",
+      "type": "choice",
+      "category": "公式",
+      "question": "正方形面积公式是？",
+      "options": [
+        "边长×边长",
+        "边长×4",
+        "边长 + 边长",
+        "边长÷2"
+      ],
+      "answer": "边长×边长",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-93",
+      "type": "choice",
+      "category": "公式",
+      "question": "速度×时间=？",
+      "options": [
+        "路程",
+        "速度",
+        "时间",
+        "重量"
+      ],
+      "answer": "路程",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-94",
+      "type": "choice",
+      "category": "公式",
+      "question": "长方形周长公式是？",
+      "options": [
+        "(长 + 宽) × 2",
+        "长×宽",
+        "长 + 宽",
+        "长×宽×2"
+      ],
+      "answer": "(长 + 宽) × 2",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-95",
+      "type": "choice",
+      "category": "公式",
+      "question": "正方形面积公式是？",
+      "options": [
+        "边长×边长",
+        "边长×4",
+        "边长 + 边长",
+        "边长÷2"
+      ],
+      "answer": "边长×边长",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-96",
+      "type": "choice",
+      "category": "公式",
+      "question": "速度×时间=？",
+      "options": [
+        "路程",
+        "速度",
+        "时间",
+        "重量"
+      ],
+      "answer": "路程",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-97",
+      "type": "choice",
+      "category": "公式",
+      "question": "长方形周长公式是？",
+      "options": [
+        "(长 + 宽) × 2",
+        "长×宽",
+        "长 + 宽",
+        "长×宽×2"
+      ],
+      "answer": "(长 + 宽) × 2",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-98",
+      "type": "choice",
+      "category": "公式",
+      "question": "正方形面积公式是？",
+      "options": [
+        "边长×边长",
+        "边长×4",
+        "边长 + 边长",
+        "边长÷2"
+      ],
+      "answer": "边长×边长",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-99",
+      "type": "choice",
+      "category": "公式",
+      "question": "速度×时间=？",
+      "options": [
+        "路程",
+        "速度",
+        "时间",
+        "重量"
+      ],
+      "answer": "路程",
+      "explanation": "基本公式"
+    },
+    {
+      "id": "m-100",
+      "type": "choice",
+      "category": "公式",
+      "question": "长方形周长公式是？",
+      "options": [
+        "(长 + 宽) × 2",
+        "长×宽",
+        "长 + 宽",
+        "长×宽×2"
+      ],
+      "answer": "(长 + 宽) × 2",
+      "explanation": "基本公式"
+    }
+  ],
+  "english": [
+    {
+      "id": "e-1",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"苹果\"的英文是？",
+      "options": [
+        "apple",
+        "banana",
+        "orange",
+        "pear"
+      ],
+      "answer": "apple",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-2",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"苹果\"的英文是？",
+      "options": [
+        "apple",
+        "banana",
+        "orange",
+        "pear"
+      ],
+      "answer": "apple",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-3",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"书\"的英文是？",
+      "options": [
+        "book",
+        "pen",
+        "ruler",
+        "pencil"
+      ],
+      "answer": "book",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-4",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"书\"的英文是？",
+      "options": [
+        "book",
+        "pen",
+        "ruler",
+        "pencil"
+      ],
+      "answer": "book",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-5",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"学校\"的英文是？",
+      "options": [
+        "school",
+        "home",
+        "park",
+        "shop"
+      ],
+      "answer": "school",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-6",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"学校\"的英文是？",
+      "options": [
+        "school",
+        "home",
+        "park",
+        "shop"
+      ],
+      "answer": "school",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-7",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"老师\"的英文是？",
+      "options": [
+        "teacher",
+        "student",
+        "doctor",
+        "nurse"
+      ],
+      "answer": "teacher",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-8",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"老师\"的英文是？",
+      "options": [
+        "teacher",
+        "student",
+        "doctor",
+        "nurse"
+      ],
+      "answer": "teacher",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-9",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"学生\"的英文是？",
+      "options": [
+        "student",
+        "teacher",
+        "worker",
+        "driver"
+      ],
+      "answer": "student",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-10",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"学生\"的英文是？",
+      "options": [
+        "student",
+        "teacher",
+        "worker",
+        "driver"
+      ],
+      "answer": "student",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-11",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"红色\"的英文是？",
+      "options": [
+        "red",
+        "blue",
+        "green",
+        "yellow"
+      ],
+      "answer": "red",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-12",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"红色\"的英文是？",
+      "options": [
+        "red",
+        "blue",
+        "green",
+        "yellow"
+      ],
+      "answer": "red",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-13",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"猫\"的英文是？",
+      "options": [
+        "cat",
+        "dog",
+        "bird",
+        "fish"
+      ],
+      "answer": "cat",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-14",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"猫\"的英文是？",
+      "options": [
+        "cat",
+        "dog",
+        "bird",
+        "fish"
+      ],
+      "answer": "cat",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-15",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"狗\"的英文是？",
+      "options": [
+        "dog",
+        "cat",
+        "pig",
+        "cow"
+      ],
+      "answer": "dog",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-16",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"狗\"的英文是？",
+      "options": [
+        "dog",
+        "cat",
+        "pig",
+        "cow"
+      ],
+      "answer": "dog",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-17",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"水\"的英文是？",
+      "options": [
+        "water",
+        "milk",
+        "juice",
+        "tea"
+      ],
+      "answer": "water",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-18",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"水\"的英文是？",
+      "options": [
+        "water",
+        "milk",
+        "juice",
+        "tea"
+      ],
+      "answer": "water",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-19",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"面包\"的英文是？",
+      "options": [
+        "bread",
+        "rice",
+        "meat",
+        "fish"
+      ],
+      "answer": "bread",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-20",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"面包\"的英文是？",
+      "options": [
+        "bread",
+        "rice",
+        "meat",
+        "fish"
+      ],
+      "answer": "bread",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-21",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"早晨\"的英文是？",
+      "options": [
+        "morning",
+        "afternoon",
+        "evening",
+        "night"
+      ],
+      "answer": "morning",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-22",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"早晨\"的英文是？",
+      "options": [
+        "morning",
+        "afternoon",
+        "evening",
+        "night"
+      ],
+      "answer": "morning",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-23",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"朋友\"的英文是？",
+      "options": [
+        "friend",
+        "family",
+        "brother",
+        "sister"
+      ],
+      "answer": "friend",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-24",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"朋友\"的英文是？",
+      "options": [
+        "friend",
+        "family",
+        "brother",
+        "sister"
+      ],
+      "answer": "friend",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-25",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"足球\"的英文是？",
+      "options": [
+        "football",
+        "basketball",
+        "tennis",
+        "volleyball"
+      ],
+      "answer": "football",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-26",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"足球\"的英文是？",
+      "options": [
+        "football",
+        "basketball",
+        "tennis",
+        "volleyball"
+      ],
+      "answer": "football",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-27",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"医院\"的英文是？",
+      "options": [
+        "hospital",
+        "school",
+        "park",
+        "shop"
+      ],
+      "answer": "hospital",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-28",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"医院\"的英文是？",
+      "options": [
+        "hospital",
+        "school",
+        "park",
+        "shop"
+      ],
+      "answer": "hospital",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-29",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"医生\"的英文是？",
+      "options": [
+        "doctor",
+        "teacher",
+        "nurse",
+        "driver"
+      ],
+      "answer": "doctor",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-30",
+      "type": "choice",
+      "category": "词汇",
+      "question": "\"医生\"的英文是？",
+      "options": [
+        "doctor",
+        "teacher",
+        "nurse",
+        "driver"
+      ],
+      "answer": "doctor",
+      "explanation": "基础词汇"
+    },
+    {
+      "id": "e-31",
+      "type": "choice",
+      "category": "语法",
+      "question": "I ___ a student.",
+      "options": [
+        "am",
+        "is",
+        "are",
+        "be"
+      ],
+      "answer": "am",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-32",
+      "type": "choice",
+      "category": "语法",
+      "question": "I ___ a student.",
+      "options": [
+        "am",
+        "is",
+        "are",
+        "be"
+      ],
+      "answer": "am",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-33",
+      "type": "choice",
+      "category": "语法",
+      "question": "I ___ a student.",
+      "options": [
+        "am",
+        "is",
+        "are",
+        "be"
+      ],
+      "answer": "am",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-34",
+      "type": "choice",
+      "category": "语法",
+      "question": "I ___ a student.",
+      "options": [
+        "am",
+        "is",
+        "are",
+        "be"
+      ],
+      "answer": "am",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-35",
+      "type": "choice",
+      "category": "语法",
+      "question": "He ___ my teacher.",
+      "options": [
+        "is",
+        "am",
+        "are",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-36",
+      "type": "choice",
+      "category": "语法",
+      "question": "He ___ my teacher.",
+      "options": [
+        "is",
+        "am",
+        "are",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-37",
+      "type": "choice",
+      "category": "语法",
+      "question": "He ___ my teacher.",
+      "options": [
+        "is",
+        "am",
+        "are",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-38",
+      "type": "choice",
+      "category": "语法",
+      "question": "He ___ my teacher.",
+      "options": [
+        "is",
+        "am",
+        "are",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-39",
+      "type": "choice",
+      "category": "语法",
+      "question": "They ___ friends.",
+      "options": [
+        "are",
+        "am",
+        "is",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-40",
+      "type": "choice",
+      "category": "语法",
+      "question": "They ___ friends.",
+      "options": [
+        "are",
+        "am",
+        "is",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-41",
+      "type": "choice",
+      "category": "语法",
+      "question": "They ___ friends.",
+      "options": [
+        "are",
+        "am",
+        "is",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-42",
+      "type": "choice",
+      "category": "语法",
+      "question": "They ___ friends.",
+      "options": [
+        "are",
+        "am",
+        "is",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-43",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ book.",
+      "options": [
+        "my",
+        "I",
+        "me",
+        "mine"
+      ],
+      "answer": "my",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-44",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ book.",
+      "options": [
+        "my",
+        "I",
+        "me",
+        "mine"
+      ],
+      "answer": "my",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-45",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ book.",
+      "options": [
+        "my",
+        "I",
+        "me",
+        "mine"
+      ],
+      "answer": "my",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-46",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ book.",
+      "options": [
+        "my",
+        "I",
+        "me",
+        "mine"
+      ],
+      "answer": "my",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-47",
+      "type": "choice",
+      "category": "语法",
+      "question": "___ you like apples?",
+      "options": [
+        "Do",
+        "Does",
+        "Is",
+        "Are"
+      ],
+      "answer": "Do",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-48",
+      "type": "choice",
+      "category": "语法",
+      "question": "___ you like apples?",
+      "options": [
+        "Do",
+        "Does",
+        "Is",
+        "Are"
+      ],
+      "answer": "Do",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-49",
+      "type": "choice",
+      "category": "语法",
+      "question": "___ you like apples?",
+      "options": [
+        "Do",
+        "Does",
+        "Is",
+        "Are"
+      ],
+      "answer": "Do",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-50",
+      "type": "choice",
+      "category": "语法",
+      "question": "___ you like apples?",
+      "options": [
+        "Do",
+        "Does",
+        "Is",
+        "Are"
+      ],
+      "answer": "Do",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-51",
+      "type": "choice",
+      "category": "语法",
+      "question": "She ___ to school every day.",
+      "options": [
+        "goes",
+        "go",
+        "going",
+        "went"
+      ],
+      "answer": "goes",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-52",
+      "type": "choice",
+      "category": "语法",
+      "question": "She ___ to school every day.",
+      "options": [
+        "goes",
+        "go",
+        "going",
+        "went"
+      ],
+      "answer": "goes",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-53",
+      "type": "choice",
+      "category": "语法",
+      "question": "She ___ to school every day.",
+      "options": [
+        "goes",
+        "go",
+        "going",
+        "went"
+      ],
+      "answer": "goes",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-54",
+      "type": "choice",
+      "category": "语法",
+      "question": "She ___ to school every day.",
+      "options": [
+        "goes",
+        "go",
+        "going",
+        "went"
+      ],
+      "answer": "goes",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-55",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ a cat in the room.",
+      "options": [
+        "is",
+        "are",
+        "am",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-56",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ a cat in the room.",
+      "options": [
+        "is",
+        "are",
+        "am",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-57",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ a cat in the room.",
+      "options": [
+        "is",
+        "are",
+        "am",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-58",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ a cat in the room.",
+      "options": [
+        "is",
+        "are",
+        "am",
+        "be"
+      ],
+      "answer": "is",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-59",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ some books on the desk.",
+      "options": [
+        "are",
+        "is",
+        "am",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-60",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ some books on the desk.",
+      "options": [
+        "are",
+        "is",
+        "am",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-61",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ some books on the desk.",
+      "options": [
+        "are",
+        "is",
+        "am",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-62",
+      "type": "choice",
+      "category": "语法",
+      "question": "There ___ some books on the desk.",
+      "options": [
+        "are",
+        "is",
+        "am",
+        "be"
+      ],
+      "answer": "are",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-63",
+      "type": "choice",
+      "category": "语法",
+      "question": "I have ___ apple.",
+      "options": [
+        "an",
+        "a",
+        "the",
+        "two"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-64",
+      "type": "choice",
+      "category": "语法",
+      "question": "I have ___ apple.",
+      "options": [
+        "an",
+        "a",
+        "the",
+        "two"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-65",
+      "type": "choice",
+      "category": "语法",
+      "question": "I have ___ apple.",
+      "options": [
+        "an",
+        "a",
+        "the",
+        "two"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-66",
+      "type": "choice",
+      "category": "语法",
+      "question": "I have ___ apple.",
+      "options": [
+        "an",
+        "a",
+        "the",
+        "two"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-67",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ orange.",
+      "options": [
+        "an",
+        "a",
+        "two",
+        "some"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-68",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ orange.",
+      "options": [
+        "an",
+        "a",
+        "two",
+        "some"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-69",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ orange.",
+      "options": [
+        "an",
+        "a",
+        "two",
+        "some"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-70",
+      "type": "choice",
+      "category": "语法",
+      "question": "This is ___ orange.",
+      "options": [
+        "an",
+        "a",
+        "two",
+        "some"
+      ],
+      "answer": "an",
+      "explanation": "基础语法"
+    },
+    {
+      "id": "e-71",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你好吗？\"英文是？",
+      "options": [
+        "How are you?",
+        "Who are you?",
+        "What are you?",
+        "Where are you?"
+      ],
+      "answer": "How are you?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-72",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你好吗？\"英文是？",
+      "options": [
+        "How are you?",
+        "Who are you?",
+        "What are you?",
+        "Where are you?"
+      ],
+      "answer": "How are you?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-73",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你好吗？\"英文是？",
+      "options": [
+        "How are you?",
+        "Who are you?",
+        "What are you?",
+        "Where are you?"
+      ],
+      "answer": "How are you?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-74",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是什么？\"英文是？",
+      "options": [
+        "What's this?",
+        "Who's this?",
+        "Where's this?",
+        "How's this?"
+      ],
+      "answer": "What's this?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-75",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是什么？\"英文是？",
+      "options": [
+        "What's this?",
+        "Who's this?",
+        "Where's this?",
+        "How's this?"
+      ],
+      "answer": "What's this?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-76",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是什么？\"英文是？",
+      "options": [
+        "What's this?",
+        "Who's this?",
+        "Where's this?",
+        "How's this?"
+      ],
+      "answer": "What's this?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-77",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我很好\"英文是？",
+      "options": [
+        "I'm fine.",
+        "You're fine.",
+        "He's fine.",
+        "She's fine."
+      ],
+      "answer": "I'm fine.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-78",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我很好\"英文是？",
+      "options": [
+        "I'm fine.",
+        "You're fine.",
+        "He's fine.",
+        "She's fine."
+      ],
+      "answer": "I'm fine.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-79",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我很好\"英文是？",
+      "options": [
+        "I'm fine.",
+        "You're fine.",
+        "He's fine.",
+        "She's fine."
+      ],
+      "answer": "I'm fine.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-80",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"谢谢\"英文是？",
+      "options": [
+        "Thank you.",
+        "Sorry.",
+        "Hello.",
+        "Goodbye."
+      ],
+      "answer": "Thank you.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-81",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"谢谢\"英文是？",
+      "options": [
+        "Thank you.",
+        "Sorry.",
+        "Hello.",
+        "Goodbye."
+      ],
+      "answer": "Thank you.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-82",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"谢谢\"英文是？",
+      "options": [
+        "Thank you.",
+        "Sorry.",
+        "Hello.",
+        "Goodbye."
+      ],
+      "answer": "Thank you.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-83",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"再见\"英文是？",
+      "options": [
+        "Goodbye.",
+        "Hello.",
+        "Thanks.",
+        "OK."
+      ],
+      "answer": "Goodbye.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-84",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"再见\"英文是？",
+      "options": [
+        "Goodbye.",
+        "Hello.",
+        "Thanks.",
+        "OK."
+      ],
+      "answer": "Goodbye.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-85",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"再见\"英文是？",
+      "options": [
+        "Goodbye.",
+        "Hello.",
+        "Thanks.",
+        "OK."
+      ],
+      "answer": "Goodbye.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-86",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"早上好\"英文是？",
+      "options": [
+        "Good morning.",
+        "Good afternoon.",
+        "Good evening.",
+        "Good night."
+      ],
+      "answer": "Good morning.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-87",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"早上好\"英文是？",
+      "options": [
+        "Good morning.",
+        "Good afternoon.",
+        "Good evening.",
+        "Good night."
+      ],
+      "answer": "Good morning.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-88",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"早上好\"英文是？",
+      "options": [
+        "Good morning.",
+        "Good afternoon.",
+        "Good evening.",
+        "Good night."
+      ],
+      "answer": "Good morning.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-89",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你叫什么名字？\"英文是？",
+      "options": [
+        "What's your name?",
+        "How are you?",
+        "Where are you?",
+        "Who are you?"
+      ],
+      "answer": "What's your name?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-90",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你叫什么名字？\"英文是？",
+      "options": [
+        "What's your name?",
+        "How are you?",
+        "Where are you?",
+        "Who are you?"
+      ],
+      "answer": "What's your name?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-91",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"你叫什么名字？\"英文是？",
+      "options": [
+        "What's your name?",
+        "How are you?",
+        "Where are you?",
+        "Who are you?"
+      ],
+      "answer": "What's your name?",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-92",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我十岁了\"英文是？",
+      "options": [
+        "I'm ten years old.",
+        "I'm nine.",
+        "I'm eleven.",
+        "I'm twelve."
+      ],
+      "answer": "I'm ten years old.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-93",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我十岁了\"英文是？",
+      "options": [
+        "I'm ten years old.",
+        "I'm nine.",
+        "I'm eleven.",
+        "I'm twelve."
+      ],
+      "answer": "I'm ten years old.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-94",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我十岁了\"英文是？",
+      "options": [
+        "I'm ten years old.",
+        "I'm nine.",
+        "I'm eleven.",
+        "I'm twelve."
+      ],
+      "answer": "I'm ten years old.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-95",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是我的家\"英文是？",
+      "options": [
+        "This is my home.",
+        "This is my school.",
+        "This is my room.",
+        "This is my class."
+      ],
+      "answer": "This is my home.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-96",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是我的家\"英文是？",
+      "options": [
+        "This is my home.",
+        "This is my school.",
+        "This is my room.",
+        "This is my class."
+      ],
+      "answer": "This is my home.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-97",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"这是我的家\"英文是？",
+      "options": [
+        "This is my home.",
+        "This is my school.",
+        "This is my room.",
+        "This is my class."
+      ],
+      "answer": "This is my home.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-98",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我喜欢英语\"英文是？",
+      "options": [
+        "I like English.",
+        "I like math.",
+        "I like Chinese.",
+        "I like PE."
+      ],
+      "answer": "I like English.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-99",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我喜欢英语\"英文是？",
+      "options": [
+        "I like English.",
+        "I like math.",
+        "I like Chinese.",
+        "I like PE."
+      ],
+      "answer": "I like English.",
+      "explanation": "基础句型"
+    },
+    {
+      "id": "e-100",
+      "type": "choice",
+      "category": "句型",
+      "question": "\"我喜欢英语\"英文是？",
+      "options": [
+        "I like English.",
+        "I like math.",
+        "I like Chinese.",
+        "I like PE."
+      ],
+      "answer": "I like English.",
+      "explanation": "基础句型"
+    }
+  ]
+}
