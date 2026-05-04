@@ -69,6 +69,7 @@ export default defineConfig(({mode}) => {
             'vendor-motion': ['motion'],
             'vendor-lucide': ['lucide-react'],
             'vendor-pdf': ['pdfjs-dist'],
+            'vendor-ai': ['@google/genai'],
           },
         },
       },

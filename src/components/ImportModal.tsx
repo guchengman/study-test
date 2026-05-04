@@ -54,16 +54,16 @@ const MODELS = [
     desc: '使用您自己的 OpenAI 兼容接口。',
     req: '需在设置中配置 Endpoint 和 Key。'
   },
-  // Google Gemini
+    // Google Gemini
   {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
+    id: 'gemini-3-flash-preview',
+    name: 'Gemini 3 Flash',
     desc: '速度极快,结构化输出能力强。',
     req: '适合清晰的题目文本,解析效率最高。'
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
+    id: 'gemini-3-pro-preview',
+    name: 'Gemini 3 Pro',
     desc: '推理能力最强,适合复杂、模糊或超长文本。',
     req: '适合手写识别、复杂排版或需要深度理解的题目。'
   },
@@ -82,7 +82,7 @@ const MODELS = [
 ];
 
 interface ImportModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;  // Optional, parent controls visibility via conditional rendering
   onClose: () => void;
   onImport: (questions: Question[]) => void;
   allSubjects?: Subject[];
@@ -92,7 +92,7 @@ interface ImportModalProps {
 
 export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, allSubjects, currentSubjectId, authUser }) => {
   const [text, setText] = useState('');
-  const [selectedModel, setSelectedModel] = useState('deepseek-v4-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,14 +109,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   // 上传中的文件名显示
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
   useEffect(() => {
-    if (!isOpen) return;
-    setServerSettings(null);
-    if (authUser) {
-      authApi.getSettings().then(res => {
-        if (res.settings) setServerSettings(res.settings);
-      }).catch(() => {});
+    // Modal is controlled by parent, so we always try to fetch settings when mounted
+    if (!authUser) {
+      setServerSettings(null);
+      return;
     }
-  }, [isOpen, authUser]);
+    setServerSettings(null);
+    authApi.getSettings().then(res => {
+      if (res.settings) setServerSettings(res.settings);
+    }).catch(() => {});
+  }, [authUser]);
   // 默认提示词
   const DEFAULT_PROMPTS = [
     '生成10道Python选择题，包含单选和多选题，难度适中',
@@ -363,7 +365,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
     setIsSubjectSelectionOpen(false);
   };
 
-  if (!isOpen) return null;
+  // Modal is rendered by parent only when needed, isOpen prop check is for safety
+  // if (!isOpen) return null;
 
   return (
     <>
@@ -609,7 +612,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   <div className="flex items-center gap-2">
                     <Cpu size={16} className="text-blue-600" /> 选择 AI 解析模型
                   </div>
-                  {!localStorage.getItem('ai_settings') && selectedModel !== 'gemini-2.0-flash' && (
+                  {!localStorage.getItem('ai_settings') && selectedModel !== 'gemini-3-flash-preview' && (
                     <span className="text-[10px] text-rose-500 font-bold animate-pulse">
                       需配置 API Key
                     </span>
@@ -736,60 +739,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           )}
         </div>
       </motion.div>
-
-      {/* Mismatch Confirmation Modal */}
-      {showMismatchConfirm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
-          >
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
-              <div>
-                <h2 className="text-lg font-bold text-rose-800">题库选择错误</h2>
-                <p className="text-sm text-rose-600 mt-1">检测到的题目科目与您选择的目标科目不匹配</p>
-              </div>
-              <button onClick={handleMismatchCancel} className="p-2 hover:bg-rose-100 rounded-full transition-colors">
-                <X size={20} className="text-rose-400" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-6">
-              <div className="space-y-3">
-                <p className="text-sm text-slate-700">
-                  检测到题目属于 "{getSubjectDisplayName(detectedSubject)}" 科目,但您选择了 "{getSubjectDisplayNameById(selectedTargetSubject)}" 科目。
-                </p>
-                <p className="text-sm text-slate-600">
-                  <strong>是否仍要继续导入?</strong> 这可能会导致题目被错误分类。
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  onClick={handleMismatchCancel}
-                  className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition-all"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleMismatchConfirm}
-                  className="px-6 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 flex items-center gap-2"
-                >
-                  <AlertCircle size={18} />
-                  继续导入
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
 
       {/* Subject Selection Modal */}
       {isSubjectSelectionOpen && (
