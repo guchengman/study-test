@@ -91,8 +91,14 @@ const GENERATE_PROMPT = `
 **智能判断输入内容类型：**
 1. 如果是明确的生成指令（如"生成10道Python选择题"）→ 直接按要求生成题目
 2. 如果是待优化的题目文本 → 优化题目表述，修正错误，补充缺失信息
-3. 如果是大纲、教程、学习资料 → **默认生成100道题目**，分析内容结构，生成覆盖知识点的练习题
+3. 如果是大纲、教程、学习资料 → **必须生成100道题目**，分析内容结构，生成覆盖知识点的练习题
 4. 如果是混合内容 → 提取其中的题目进行优化，同时为教程内容生成练习题
+
+**题目数量强制要求：**
+- 用户未指定数量时，默认生成100道题目
+- 用户指定数量时，严格按指定数量生成，不得擅自减少
+- 生成过程中不得中断或分批输出，必须一次性完成全部题目
+- 禁止出现"先生成X道"、"由于篇幅限制"等任何减少题目数量的说明或借口
 
 **答案正确性审核（必须执行）：**
 - 生成每道题时，确保答案100%正确
@@ -130,12 +136,57 @@ D. 选项D
 答案：正确 / 错误
 解析：详细的解析说明（说明判断依据）
 
+=====================================
+【⚠️强制格式规范：数学+化学+物理 全科目 100%严格执行，无任何例外】
+=====================================
+
+【数学符号强制规范】
+1. 平方、立方、指数、单位必须使用Unicode上标：
+ 正确：2²、2³、m²、cm²、m³、dm³、xⁿ
+ 绝对禁止：2^2、2^3、m2、m3、cm2、cm3、x^n
+2. 下标必须规范：a₁、a₂、x₃，绝对禁止：a1、a2、x3
+3. 标准符号：± × ÷ √ ∞ ∠ ∥ ⊥ ≈ ≠ ≤ ≥ π ½ ⅓ ⅔
+4. 温度/角度：℃、°，禁止写成 C、度
+
+【化学符号强制规范】
+1. 化学式数字必须用Unicode下标：
+ 正确：H₂O、CO₂、O₂、Ca(OH)₂、Na₂CO₃、CuSO₄·5H₂O
+ 绝对禁止：H2O、CO2、O2、Ca(OH)2、Na2CO3
+2. 离子电荷必须用上标：
+ 正确：H⁺、OH⁻、Na⁺、Ca²⁺、Al³⁺、SO₄²⁻
+ 绝对禁止：H+、OH-、Na+、Ca2+、SO42-
+3. 化学方程式：→、=、↑、↓、△、点燃、通电、催化剂
+4. 绝对禁止使用 ^ 符号
+
+【物理符号强制规范】
+1. 单位上标：m²、cm²、m³、dm³、s²
+2. 物理专用字符：ρ、η、Ω、℃、△、°、g、kW、h、mL、L
+3. 下标必须规范：F₁、F₂、R₁、R₂、U₁、U₂、I₁、I₂
+ 绝对禁止：F1、R1、U1、I1
+4. 变化量：△t、△s，禁止写成 delta t
+
+【全局铁律（违反即输出无效）】
+1. 所有题目、选项、解析必须统一格式
+2. 纯文本输出，禁止markdown、禁止代码块、禁止HTML标签
+3. 数字与单位之间不加空格：1m³、5cm²、20℃
+4. 绝不允许出现：H2O、m3、cm2、F1、R1、^、-、+
+5. 所有符号可直接复制到Word/PPT/教学平台正常显示
+6. 物理单位书写规范：Ω（电阻）、ρ（密度）、η（效率）、λ（波长）等希腊字母必须使用标准Unicode字符，禁止用相近字母替代
+
+【标准示例（必须严格模仿）】
+题目：下列说法正确的是（）
+A. 水的化学式是H₂O
+B. 1m³=1000dm³
+C. 氢氧化钠可电离出Na⁺与OH⁻
+D. 2cm²=200mm²
+
 **重要说明：**
 - 默认生成选择题，不生成问答题或编程题
 - 多选题用逗号分隔所有正确答案字母（如"A,B"表示AB正确）
 - 确保生成的题目可直接导入系统使用
 - 可以一次性处理多条输入，每条用空行分隔
-- **答案正确性是第一优先级，宁可不给答案，也不要给错误答案**
+- 答案正确性是第一优先级，宁可不给答案，也不要给错误答案
+- **数量铁律：必须严格按用户要求或默认100道的数量完成，不得中途停止、分批或缩减**
 `;
 
 // 更强大的JSON修复函数，专门处理大量题目被截断的情况
@@ -406,7 +457,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
     } else if (finishReason === null && nativeFinishReason === null) {
       reason = `模型 "${model}" 拒绝生成内容，请尝试其他模型`;
     }
-    throw new Error(`AI 模型未返回有效内容\n原因: ${reason}\n建议: 尝试更换为 openai/gpt-4o-mini 或 google/gemini-2.0-flash 等可靠模型`);
+    throw new Error(`AI 模型未返回有效内容\n原因: ${reason}\n建议: 尝试更换为 openai/gpt-4o-mini 或 google/gemini-3-flash-preview 等可靠模型`);
   }
   
   // Clean up potential markdown blocks
@@ -832,7 +883,7 @@ async function waitForFileProcessing(ai: GoogleGenAI, fileName: string, maxWaitT
 // 直接以附件方式上传文件给 Gemini 解析
 export async function parseQuestionsWithFile(
   file: File,
-  modelName: string = "gemini-2.0-flash-preview",
+  modelName: string = "gemini-3-flash-preview",
   settingsOverride?: AISettings
 ): Promise<Question[]> {
   const ai = getAIInstance(settingsOverride);

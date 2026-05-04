@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  BookOpen, 
-  CheckCircle2, 
-  XCircle, 
-  ChevronRight, 
-  ChevronLeft, 
-  Timer, 
-  Award, 
+import {
+  BookOpen,
+  CheckCircle2,
+  XCircle,
+  ChevronRight,
+  ChevronLeft,
+  Timer,
+  Award,
   RefreshCcw,
   ListChecks,
   CircleDot,
@@ -42,6 +42,7 @@ import {
   Clock,
   HelpCircle,
   CloudOff,
+  Loader2,
   Cloud
 } from 'lucide-react';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
@@ -50,14 +51,16 @@ import { ImportModal } from './components/ImportModal';
 import { LoginModal } from './components/LoginModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { JoinSubjectModal } from './components/JoinSubjectModal';
-import { StudentManagementModal } from './components/StudentManagementModal';
 import { RoleSwitchModal } from './components/RoleSwitchModal';
-import { HelpModal } from './components/HelpModal';
 import { VisitCounter } from './components/VisitCounter';
-import { SubjectShareCode } from './components/SubjectShareCode';
-import { StudentSelectorModal } from './components/StudentSelectorModal';
 import { useAuth } from './hooks/useAuth';
 import { questionApi, subjectApi, practiceApi, syncApi, inviteCodeApi, authApi, getToken, type AuthUser } from './services/api';
+
+// 懒加载大型弹窗组件
+const StudentManagementModal = React.lazy(() => import('./components/StudentManagementModal').then(module => ({ default: module.StudentManagementModal })));
+const HelpModal = React.lazy(() => import('./components/HelpModal').then(module => ({ default: module.HelpModal })));
+const SubjectShareCode = React.lazy(() => import('./components/SubjectShareCode').then(module => ({ default: module.SubjectShareCode })));
+const StudentSelectorModal = React.lazy(() => import('./components/StudentSelectorModal').then(module => ({ default: module.StudentSelectorModal })));
 
 interface MistakeRecord {
   questionId: number;
@@ -81,6 +84,10 @@ export default function App() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountResult, setDeleteAccountResult] = useState<'success' | 'error' | null>(null);
   const [deleteAccountError, setDeleteAccountError] = useState('');
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
 
   const [status, setStatus] = useState<'welcome' | 'exam' | 'result' | 'mistakes'>('welcome');
   const [isRandomMode, setIsRandomMode] = useState(false);
@@ -108,6 +115,7 @@ export default function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isJoinSubjectOpen, setIsJoinSubjectOpen] = useState(false);
   const [isStudentManagementOpen, setIsStudentManagementOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -117,7 +125,7 @@ export default function App() {
   const [showInitModal, setShowInitModal] = useState(false);
   const [selectedInitSubjects, setSelectedInitSubjects] = useState<SubjectId[]>([]);
 
-  // 统一科目管理（所有科目均可编辑/删除，但至少保留1个）
+  // 统一科目管理(所有科目均可编辑/删除,但至少保留1个)
   const [customSubjects, setCustomSubjects] = useState<Subject[]>(DEFAULT_SUBJECTS);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
@@ -133,28 +141,29 @@ export default function App() {
   const [expandedShareSubject, setExpandedShareSubject] = useState<string | null>(null);
   const [studentSelectorSubject, setStudentSelectorSubject] = useState<{ id: string; name: string } | null>(null);
 
-  // 计算所有科目（统一管理）
+  // 计算所有科目(统一管理)
   const allSubjects = useMemo(() => {
     return customSubjects;
   }, [customSubjects]);
 
   // 计算自有科目和共享科目数量
-  const ownSubjectCount = useMemo(() => 
+  const ownSubjectCount = useMemo(() =>
     allSubjects.filter(s => s.isOwner !== false && s.isShared !== 1).length
   , [allSubjects]);
 
-  const sharedSubjectCount = useMemo(() => 
+  const sharedSubjectCount = useMemo(() =>
     allSubjects.filter(s => s.isOwner === false || s.isShared === 1).length
   , [allSubjects]);
 
-  const currentSubject = useMemo(() => 
+  const currentSubject = useMemo(() =>
     allSubjects.find(s => s.id === currentSubjectId) || allSubjects[0] || DEFAULT_SUBJECTS[0]
   , [allSubjects, currentSubjectId]);
 
-  // 移除了 localStorage 存储，现在完全依赖 API
+  // 移除了 localStorage 存储,现在完全依赖 API
 
   // 纯 API 驱动的数据加载
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
 
   useEffect(() => {
     // 强制登录验证 - 未登录用户无法使用应用
@@ -166,13 +175,15 @@ export default function App() {
     // 从 API 加载用户数据
     (async () => {
       try {
-        // 并行加载所有数据 - 按当前科目加载题目，避免全量查询问题
+        setQuestionsLoading(true);
+        // 并行加载所有数据 - 按当前科目加载题目,避免全量查询问题
         const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
           questionApi.list({ subject: currentSubjectId, limit: 5000 }),
           practiceApi.getMistakes(),
           practiceApi.getFavorites(),
           subjectApi.list(),
         ]);
+        setQuestionsLoading(false);
 
         // 题目
         if (questionsRes.status === 'fulfilled') {
@@ -209,7 +220,7 @@ export default function App() {
             subscriptionStatus: s.subscription_status || undefined,
           }));
           setCustomSubjects(subs);
-          // 如果当前科目ID不在新列表中，重置为第一个
+          // 如果当前科目ID不在新列表中,重置为第一个
           if (!subs.find((s: Subject) => s.id === currentSubjectId)) {
             setCurrentSubjectId(subs[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
           }
@@ -228,7 +239,8 @@ export default function App() {
         }
       } catch (e) {
         console.error('从 API 加载数据失败:', e);
-        // 纯 API 模式，不降级到 localStorage
+        setQuestionsLoading(false);
+        // 纯 API 模式,不降级到 localStorage
         setCustomSubjects(DEFAULT_SUBJECTS);
       }
       setDataLoaded(true);
@@ -237,29 +249,29 @@ export default function App() {
 
 
   // 重试同步待同步的题目
-  // 移除了待同步题目功能，所有操作直接通过 API 完成
+  // 移除了待同步题目功能,所有操作直接通过 API 完成
 
 
-  // 无需登录，统一为本地模式
+  // 无需登录,统一为本地模式
 
   const deduplicateBank = () => {
     const seen = new Map<string, { question: Question; source: 'initial' | 'custom' }>();
-    
-    // 遍历完整题库，按指纹去重
+
+    // 遍历完整题库,按指纹去重
     fullBank.forEach(q => {
       const fingerprint = `${q.title.trim()}_${q.type}_${JSON.stringify(q.options)}_${JSON.stringify(q.answer)}`;
       const isFromInitial = INITIAL_BANK.some(iq => iq.id === q.id);
       const source = isFromInitial ? 'initial' : 'custom';
-      
+
       if (!seen.has(fingerprint)) {
-        // 首次遇到，保存
+        // 首次遇到,保存
         seen.set(fingerprint, { question: q, source });
       } else {
-        // 重复项：如果是自定义题目加入removedIds，如果是初始题库则忽略
+        // 重复项:如果是自定义题目加入removedIds,如果是初始题库则忽略
         if (source === 'custom') {
           setRemovedIds(prev => [...new Set([...prev, q.id])]);
         }
-        // 如果已保存的是自定义题，而当前是初始题库，替换它
+        // 如果已保存的是自定义题,而当前是初始题库,替换它
         const existing = seen.get(fingerprint)!;
         if (existing.source === 'custom' && source === 'initial') {
           // 将旧的自定义题目标记为移除
@@ -271,10 +283,10 @@ export default function App() {
 
     // 从 seen 中提取保留的题目ID集合
     const keptIds = new Set([...seen.values()].map(entry => entry.question.id));
-    
-    // 更新 customQuestions，移除被去重掉的题目
+
+    // 更新 customQuestions,移除被去重掉的题目
     setCustomQuestions(prev => prev.filter(cq => keptIds.has(cq.id)));
-    
+
     setShowToast('题库去重完成');
     setConfirmingDeduplicate(false);
   };
@@ -282,17 +294,17 @@ export default function App() {
   const filterObjectiveOnly = () => {
     // Objective types are 'single', 'multiple'
     const objectiveTypes = ['single', 'multiple'];
-    
+
     // For INITIAL_BANK, we add non-objective to removedIds
     const toRemove = INITIAL_BANK
       .filter(q => !objectiveTypes.includes(q.type))
       .map(q => q.id);
-    
+
     setRemovedIds(prev => [...new Set([...prev, ...toRemove])]);
 
     // For customQuestions, we filter them out
     setCustomQuestions(prev => prev.filter(q => objectiveTypes.includes(q.type)));
-    
+
     setShowToast('已去除非选择/判断题');
     setConfirmingFilter(false);
   };
@@ -305,7 +317,7 @@ export default function App() {
   }, [showToast]);
 
   // Combined bank (memoized for performance and stability)
-  const fullBank = useMemo(() => 
+  const fullBank = useMemo(() =>
     [...INITIAL_BANK, ...customQuestions].filter(q => q.subject === currentSubjectId)
   , [customQuestions, currentSubjectId]);
 
@@ -344,15 +356,15 @@ export default function App() {
       const mistakeIds = mistakeRecords.map(r => r.questionId);
       const uniqueMistakeIds = Array.from(new Set(mistakeIds));
       source = currentBank.filter(q => uniqueMistakeIds.includes(q.id));
-      
+
       if (source.length === 0) {
-        setShowToast('错题本目前是空的哦！');
+        setShowToast('错题本目前是空的哦!');
         return;
       }
     } else if (mode === 'favorites') {
       source = currentBank.filter(q => favoriteIds.includes(q.id));
       if (source.length === 0) {
-        setShowToast('收藏夹目前是空的哦！');
+        setShowToast('收藏夹目前是空的哦!');
         return;
       }
     }
@@ -364,12 +376,12 @@ export default function App() {
 
     const shuffled = [...source].sort(() => 0.5 - Math.random());
     let selected = shuffled;
-    
+
     if (mode === 'normal' || mode === 'random') {
       const count = parseInt(examQuestionCount) || (mode === 'random' ? 10 : 20);
       selected = shuffled.slice(0, count);
     }
-    
+
     setExamQuestions(selected);
     setMasteredIds([]);
     setStatus('exam');
@@ -386,9 +398,9 @@ export default function App() {
   const removeQuestion = async (id: number) => {
     const newRemovedIds = [...new Set([...removedIds, id])];
     setRemovedIds(newRemovedIds);
-    
-    // 同步到 API
-    if (currentUser) {
+
+    // 同步到 API(只删除实际存在的题目)
+    if (currentUser && customQuestions.some(q => q.id === id)) {
       questionApi.delete(id).catch(e => console.warn('API删除题目失败:', e));
     }
 
@@ -410,7 +422,7 @@ export default function App() {
 
   const toggleFavorite = async (id: number) => {
     const isFav = favoriteIds.includes(id);
-    
+
     try {
       if (isFav) {
         setFavoriteIds(prev => prev.filter(fid => fid !== id));
@@ -432,13 +444,13 @@ export default function App() {
   const handleAnswerChange = (questionId: number, answer: string | string[]) => {
     if (showFeedback && (isMistakeMode || isFullMode)) return;
     setUserAnswers(prev => ({ ...prev, [questionId]: answer }));
-    
+
     // Auto-check for single choice in practice modes
     const q = examQuestions.find(q => q.id === questionId);
     if ((isMistakeMode || isFullMode || isRandomMode) && q?.type === 'single') {
       setShowFeedback(true);
-      const isCorrect = typeof answer === 'string' && typeof q.answer === 'string' 
-        ? answer.trim() === q.answer.trim() 
+      const isCorrect = typeof answer === 'string' && typeof q.answer === 'string'
+        ? answer.trim() === q.answer.trim()
         : answer === q.answer;
       updateMistakeRecord(q.id, isCorrect);
     }
@@ -449,7 +461,7 @@ export default function App() {
     const userAns = userAnswers[q.id] as string;
     const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
     const isCorrect = normalize(userAns) === normalize(q.answer as string);
-    
+
     setShowFeedback(true);
     updateMistakeRecord(q.id, isCorrect);
   };
@@ -466,16 +478,16 @@ export default function App() {
 
   const updateMistakeRecord = async (questionId: number, isCorrect: boolean) => {
     const currentRecord = mistakeRecords.find(r => r.questionId === questionId);
-    
+
     if (isCorrect) {
-      // 答对时：如果在错题本中，增加连续正确次数，达到3次则移除
+      // 答对时:如果在错题本中,增加连续正确次数,达到3次则移除
       if (currentRecord) {
         const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
         if (nextCorrect >= 3) {
           setMistakeRecords(prev => prev.filter(r => r.questionId !== questionId));
           setMasteredIds(prev => [...new Set([...prev, questionId])]);
           if (currentUser) practiceApi.deleteMistake(questionId).catch(() => {});
-          setShowToast('太棒了！这道题你已经掌握，已从错题本移除 ✨');
+          setShowToast('太棒了!这道题你已经掌握,已从错题本移除 ✨');
         } else {
           setMistakeRecords(prev =>
             prev.map(r => r.questionId === questionId ? { ...r, consecutiveCorrect: nextCorrect } : r)
@@ -483,7 +495,7 @@ export default function App() {
         }
       }
     } else {
-      // 答错时：如果不在错题本中则添加，已存在则重置计数
+      // 答错时:如果不在错题本中则添加,已存在则重置计数
       if (!currentRecord) {
         setMistakeRecords(prev => [...prev, { questionId, consecutiveCorrect: 0 }]);
         if (currentUser) {
@@ -521,7 +533,7 @@ export default function App() {
     if (q.type === 'multiple') {
       const sortedUser = Array.isArray(userAns) ? [...userAns].map(s => s.trim()).sort() : [];
       const qAns = q.answer;
-      
+
       // If answer is labels like ["A", "B"]
       let targetAns = Array.isArray(qAns) ? [...qAns].map(s => s.trim()).sort() : [];
       if (q.options && targetAns.every(a => /^[A-Z]$/.test(a.toUpperCase()))) {
@@ -546,7 +558,7 @@ export default function App() {
     const q = examQuestions[currentIndex];
     const userAns = userAnswers[q.id] || [];
     const isCorrect = isAnswerCorrect(q, userAns);
-    
+
     setShowFeedback(true);
     updateMistakeRecord(q.id, isCorrect);
   };
@@ -558,9 +570,9 @@ export default function App() {
     for (const q of examQuestions) {
       const userAns = userAnswers[q.id];
       const isCorrect = isAnswerCorrect(q, userAns);
-      
+
       correctness[q.id] = isCorrect;
-      
+
       if (isCorrect) {
         score += (100 / examQuestions.length);
       }
@@ -571,7 +583,7 @@ export default function App() {
         if (currentRecord) {
           const nextCorrect = (currentRecord.consecutiveCorrect || 0) + 1;
           if (nextCorrect >= 3) {
-            // 连续答对3次，从错题本移除
+            // 连续答对3次,从错题本移除
             const updated = mistakeRecords.filter(r => r.questionId !== q.id);
             setMistakeRecords(updated);
             setMasteredIds(prev => [...new Set([...prev, q.id])]);
@@ -607,7 +619,7 @@ export default function App() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // 移除了待同步题目功能，所有操作直接通过 API 完成
+  // 移除了待同步题目功能,所有操作直接通过 API 完成
 
   const handleImport = async (newQuestions: Question[], targetSubjectId: SubjectId = currentSubjectId) => {
     // 未登录用户不能导入题目
@@ -615,38 +627,38 @@ export default function App() {
       setShowToast('请先登录以保存题目到服务器');
       return;
     }
-    
-    // 使用时间戳+随机数生成唯一ID，避免ID冲突
+
+    // 使用时间戳+随机数生成唯一ID,避免ID冲突
     const generateUniqueId = () => Date.now() + Math.floor(Math.random() * 1000);
-    const enriched = newQuestions.map((q) => ({ 
-      ...q, 
-      id: generateUniqueId(), 
-      subject: targetSubjectId 
+    const enriched = newQuestions.map((q) => ({
+      ...q,
+      id: generateUniqueId(),
+      subject: targetSubjectId
     }));
 
     // 批量同步到后端数据库
       try {
         const apiQuestions = enriched.map(q => ({
           subject_id: q.subject,  // 使用 subject_id 字段
-          type: q.type, 
+          type: q.type,
           title: q.title,
-          code: q.code, 
-          options: q.options, 
+          code: q.code,
+          options: q.options,
           answer: q.answer,
-          explanation: q.explanation, 
-          points: q.points, 
+          explanation: q.explanation,
+          points: q.points,
           input: q.input,
         }));
-        
+
         // 传递 targetSubjectId 作为后端的 subject_id
         await questionApi.batchImport(apiQuestions, targetSubjectId);
-        
-        // API 调用成功后，将题目添加到前端状态
+
+        // API 调用成功后,将题目添加到前端状态
         setCustomQuestions(prev => [...prev, ...enriched]);
-        setShowToast(`成功导入 ${newQuestions.length} 道题目到题库！`);
+        setShowToast(`成功导入 ${newQuestions.length} 道题目到题库!`);
       } catch (e: any) {
         console.error('API批量导入失败:', e);
-        
+
         // 解析错误信息
         let errorMessage = '数据库同步失败';
         if (e?.message) {
@@ -654,16 +666,16 @@ export default function App() {
         } else if (e?.response?.data?.error) {
           errorMessage = e.response.data.error;
         } else if (e?.status === 0) {
-          errorMessage = '网络连接失败，请检查网络';
+          errorMessage = '网络连接失败,请检查网络';
         } else if (e?.status === 401) {
-          errorMessage = '登录已过期，请重新登录';
+          errorMessage = '登录已过期,请重新登录';
         } else if (e?.status === 403) {
           errorMessage = '无权限向此科目导入题目';
         } else if (e?.status === 500) {
-          errorMessage = '服务器错误，请稍后重试';
+          errorMessage = '服务器错误,请稍后重试';
         }
-        
-        setShowToast(`导入失败：${errorMessage}，请稍后重试`);
+
+        setShowToast(`导入失败:${errorMessage},请稍后重试`);
       }
   };
 
@@ -681,7 +693,7 @@ export default function App() {
                 </div>
                 <h1 className="font-bold text-lg tracking-tight hidden sm:block">{currentSubject.name}</h1>
               </div>
-              
+
               {/* 初始化按钮 - 登录用户可用 */}
               <button
                 onClick={(e) => {
@@ -701,28 +713,8 @@ export default function App() {
                 <span className="hidden xs:inline">重置</span>
               </button>
             </div>
-          
+
           <div className="flex items-center gap-1.5 sm:gap-3">
-            {/* 帮助按钮 - 始终可见 */}
-            <button
-              onClick={() => setIsHelpOpen(true)}
-              className="px-2.5 sm:px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center gap-1.5"
-              title="帮助手册"
-            >
-              <HelpCircle size={15} />
-              <span className="hidden sm:inline">帮助</span>
-            </button>
-            {/* 老师学生管理入口 */}
-            {isTeacher && (
-              <button
-                onClick={() => setIsStudentManagementOpen(true)}
-                className="px-2 sm:px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-indigo-100 transition-all flex items-center gap-1"
-                title="学生管理"
-              >
-                <Users size={14} />
-                <span className="hidden sm:inline">学生管理</span>
-              </button>
-            )}
             {/* 加入共享科目入口 */}
             {currentUser && (
               <button
@@ -734,9 +726,43 @@ export default function App() {
                 <span className="hidden sm:inline">加入科目</span>
               </button>
             )}
-            
+            {/* 管理员用户管理入口 */}
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setShowUserManagement(true);
+                  getUserList().then(list => setUserList(list));
+                }}
+                className="px-2 sm:px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-100 transition-all flex items-center gap-1"
+                title="管理用户"
+              >
+                <Shield size={14} />
+                <span className="hidden sm:inline">管理用户</span>
+              </button>
+            )}
+            {/* 老师学生管理入口 */}
+            {isTeacher && (
+              <button
+                onClick={() => setIsStudentManagementOpen(true)}
+                className="px-2 sm:px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-indigo-100 transition-all flex items-center gap-1"
+                title="学生管理"
+              >
+                <Users size={14} />
+                <span className="hidden sm:inline">学生管理</span>
+              </button>
+            )}
+            {/* 帮助按钮 - 始终可见 */}
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center gap-1.5"
+              title="帮助手册"
+            >
+              <HelpCircle size={15} />
+              <span className="hidden sm:inline">帮助</span>
+            </button>
+
             {/* 移除了待同步题目提示 */}
-            
+
             {/* 登录/登出按钮 */}
             {currentUser ? (
               <div className="relative">
@@ -775,6 +801,15 @@ export default function App() {
                     <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-50 min-w-[160px]">
                       {!isAdmin && (
                         <button
+                          onClick={() => { setShowUserMenu(false); setShowDeleteAccountConfirm(true); }}
+                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-500"
+                        >
+                          <Trash2 size={15} className="text-slate-400" />
+                          注销账号
+                        </button>
+                      )}
+                      {!isAdmin && (
+                        <button
                           onClick={() => { setShowUserMenu(false); setShowRoleSwitch(true); }}
                           className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
                         >
@@ -782,18 +817,16 @@ export default function App() {
                           切换身份
                         </button>
                       )}
-                      {!isAdmin && (
-                        <button
-                          onClick={() => { setShowUserMenu(false); setShowDeleteAccountConfirm(true); }}
-                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-red-50 flex items-center gap-2.5 text-red-600 border-t border-slate-50 mt-1 pt-1.5"
-                        >
-                          <Trash2 size={15} />
-                          注销账号
-                        </button>
-                      )}
+                      <button
+                        onClick={() => { setShowUserMenu(false); setShowChangePasswordModal(true); }}
+                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
+                      >
+                        <Key size={15} className="text-blue-500" />
+                        修改密码
+                      </button>
                       <button
                         onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }}
-                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-red-600"
+                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-red-600 border-t border-slate-50 mt-1 pt-1.5"
                       >
                         <XCircle size={15} />
                         退出登录
@@ -824,10 +857,10 @@ export default function App() {
               </div>
             </div>
           )}
-          
+
           {(status === 'result' || status === 'mistakes') && (
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setStatus('welcome')}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-all"
               >
@@ -843,7 +876,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
         <AnimatePresence mode="wait">
           {status === 'welcome' && (
-            <motion.div 
+            <motion.div
               key="welcome"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -859,19 +892,26 @@ export default function App() {
                   <div key={subject.id} className="relative group">
                     <button
                       onClick={() => !isPending && setCurrentSubjectId(subject.id)}
+                      disabled={questionsLoading}
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
-                        isPending
-                          ? 'bg-amber-50 text-amber-500 cursor-not-allowed opacity-70 border-2 border-amber-200 border-dashed'
-                          : currentSubjectId === subject.id
-                            ? isApprovedShared
-                              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105'
-                              : 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                            : isApprovedShared
-                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-2 border-emerald-300 border-dashed'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        questionsLoading
+                          ? 'opacity-60 cursor-wait'
+                          : isPending
+                            ? 'bg-amber-50 text-amber-500 cursor-not-allowed opacity-70 border-2 border-amber-200 border-dashed'
+                            : currentSubjectId === subject.id
+                              ? isApprovedShared
+                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105'
+                                : 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
+                              : isApprovedShared
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-2 border-emerald-300 border-dashed'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      <span>{subject.icon}</span>
+                      {questionsLoading && currentSubjectId === subject.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <span>{subject.icon}</span>
+                      )}
                       <span>{subject.name}</span>
                       {isPending && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 bg-amber-200 text-amber-700">
@@ -911,20 +951,6 @@ export default function App() {
                   <Layers size={14} />
                   <span>管理</span>
                 </button>
-                {/* 用户管理入口 - 仅管理员可见 */}
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setShowUserManagement(true);
-                      getUserList().then(list => setUserList(list));
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-all text-sm bg-purple-100 text-purple-600 hover:bg-purple-200 cursor-pointer"
-                    title="用户管理"
-                  >
-                    <Users size={14} />
-                    <span>用户</span>
-                  </button>
-                )}
               </div>
 
 
@@ -933,9 +959,9 @@ export default function App() {
               <p className="text-slate-500 mb-5 sm:mb-6 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
                 {currentSubject.welcomeDesc} (题库共 {currentBank.length} 题)
               </p>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 text-left">
-                <button 
+                <button
                   onClick={() => startExam('random')}
                   className="p-4 sm:p-5 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
                 >
@@ -943,11 +969,11 @@ export default function App() {
                     <RefreshCcw size={24} />
                   </div>
                   <div className="font-bold text-lg text-emerald-900">随机练习模式</div>
-                  <div className="text-sm text-emerald-600/70">即时反馈，自定义题数</div>
+                  <div className="text-sm text-emerald-600/70">即时反馈,自定义题数</div>
                   <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="relative group/input">
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         value={examQuestionCount}
@@ -974,7 +1000,7 @@ export default function App() {
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => startExam('normal')}
                   className="p-4 sm:p-5 bg-blue-50 rounded-2xl border-2 border-blue-100 hover:border-blue-300 transition-all text-left group"
                 >
@@ -982,11 +1008,11 @@ export default function App() {
                     <BookOpen size={24} />
                   </div>
                   <div className="font-bold text-lg text-blue-900">开始正式考试</div>
-                  <div className="text-sm text-blue-600/70">随机抽取 {examQuestionCount || '...'} 题，全面检测</div>
+                  <div className="text-sm text-blue-600/70">随机抽取 {examQuestionCount || '...'} 题,全面检测</div>
                   <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <div className="relative group/input">
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         value={examQuestionCount}
@@ -1016,7 +1042,7 @@ export default function App() {
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => startExam('full')}
                   className="p-4 sm:p-5 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
                 >
@@ -1024,10 +1050,10 @@ export default function App() {
                     <Database size={24} />
                   </div>
                   <div className="font-bold text-lg text-purple-900">题库全量测试</div>
-                  <div className="text-sm text-purple-600/70">包含题库所有题目，深度练习</div>
+                  <div className="text-sm text-purple-600/70">包含题库所有题目,深度练习</div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => startExam('mistakes')}
                   className="p-4 sm:p-5 bg-rose-50 rounded-2xl border-2 border-rose-100 hover:border-rose-300 transition-all text-left group"
                 >
@@ -1035,17 +1061,17 @@ export default function App() {
                     <History size={24} />
                   </div>
                   <div className="font-bold text-lg text-rose-900">进入错题练习</div>
-                  <div className="text-sm text-rose-600/70">针对薄弱环节，连续对 3 次即消除</div>
+                  <div className="text-sm text-rose-600/70">针对薄弱环节,连续对 3 次即消除</div>
                   <div className="mt-2 inline-block px-2 py-0.5 bg-rose-200 text-rose-700 text-xs font-bold rounded-full">
                     当前错题: {mistakeRecords.length}
                   </div>
                 </button>
 
-                <button 
+                <button
                   onClick={() => startExam('favorites')}
                   className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
-                    favoriteIds.length === 0 
-                      ? 'bg-slate-50 border-slate-200 opacity-60' 
+                    favoriteIds.length === 0
+                      ? 'bg-slate-50 border-slate-200 opacity-60'
                       : 'bg-amber-50 border-amber-100 hover:border-amber-300'
                   }`}
                 >
@@ -1066,7 +1092,7 @@ export default function App() {
                   )}
                 </button>
 
-                <button 
+                <button
                   onClick={() => {
                     setIsImportModalOpen(true);
                   }}
@@ -1084,7 +1110,7 @@ export default function App() {
                   </div>
                   <div className={`font-bold text-lg ${currentUser ? 'text-indigo-900' : 'text-slate-400'}`}>导入新增题目</div>
                   <div className={`text-sm ${currentUser ? 'text-indigo-600/70' : 'text-slate-400'}`}>
-                    {currentUser ? '支持 Word/PDF/粘贴，AI 智能解析' : '登录后可使用'}
+                    {currentUser ? '支持 Word/PDF/粘贴,AI 智能解析' : '登录后可使用'}
                   </div>
                 </button>
               </div>
@@ -1093,10 +1119,10 @@ export default function App() {
               {(mistakeRecords.length === 0 && favoriteIds.length === 0) && (
                 <div className="mt-4 p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
                   <p className="text-sm text-blue-600">
-                    💡 开始练习后，做错的题目会自动进入错题本
+                    💡 开始练习后,做错的题目会自动进入错题本
                   </p>
                   <p className="text-xs text-blue-400 mt-1">
-                    点击⭐收藏题目，可随时复习重点内容
+                    点击⭐收藏题目,可随时复习重点内容
                   </p>
                 </div>
               )}
@@ -1110,7 +1136,7 @@ export default function App() {
           )}
 
           {status === 'exam' && (
-            <motion.div 
+            <motion.div
               key={currentIndex}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1119,7 +1145,7 @@ export default function App() {
             >
               {/* Progress Bar */}
               <div className="w-full bg-slate-200 h-1.5 sm:h-2 rounded-full overflow-hidden">
-                <motion.div 
+                <motion.div
                   className="h-full bg-blue-600"
                   initial={{ width: 0 }}
                   animate={{ width: `${((currentIndex + 1) / examQuestions.length) * 100}%` }}
@@ -1130,7 +1156,7 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-3">
-                      <button 
+                      <button
                         onClick={() => setStatus('welcome')}
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         title="返回上一级"
@@ -1156,10 +1182,10 @@ export default function App() {
                             const record = mistakeRecords.find(r => r.questionId === currentQuestion.id);
                             const count = record?.consecutiveCorrect || 0;
                             return (
-                              <Star 
-                                key={star} 
-                                size={12} 
-                                className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-300"} 
+                              <Star
+                                key={star}
+                                size={12}
+                                className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-300"}
                               />
                             );
                           })}
@@ -1178,13 +1204,13 @@ export default function App() {
                         </span>
                         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 ml-2">
                           {isSearchOpen ? (
-                            <motion.div 
+                            <motion.div
                               initial={{ width: 0, opacity: 0 }}
                               animate={{ width: 'auto', opacity: 1 }}
                               className="flex items-center gap-1 px-2"
                             >
                               <Search size={14} className="text-slate-400" />
-                              <input 
+                              <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1197,7 +1223,7 @@ export default function App() {
                               </button>
                             </motion.div>
                           ) : (
-                            <button 
+                            <button
                               onClick={() => setIsSearchOpen(true)}
                               className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
                               title="搜索题目"
@@ -1206,15 +1232,15 @@ export default function App() {
                             </button>
                           )}
                         </div>
-                        
+
                         {confirmingDeduplicate ? (
                           <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
-                            <span className="text-[10px] font-bold text-amber-700">确认去重？</span>
+                            <span className="text-[10px] font-bold text-amber-700">确认去重?</span>
                             <button onClick={deduplicateBank} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
                             <button onClick={() => setConfirmingDeduplicate(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
                           </div>
                         ) : (
-                          <button 
+                          <button
                             onClick={() => setConfirmingDeduplicate(true)}
                             className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
                             title="一键去重"
@@ -1225,12 +1251,12 @@ export default function App() {
 
                         {confirmingFilter ? (
                           <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
-                            <span className="text-[10px] font-bold text-amber-700">确认仅客观题？</span>
+                            <span className="text-[10px] font-bold text-amber-700">确认仅客观题?</span>
                             <button onClick={filterObjectiveOnly} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
                             <button onClick={() => setConfirmingFilter(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
                           </div>
                         ) : (
-                          <button 
+                          <button
                             onClick={() => setConfirmingFilter(true)}
                             className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
                             title="仅保留选择/判断"
@@ -1243,22 +1269,22 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     {confirmingDelete ? (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 rounded-2xl shadow-lg shadow-rose-100/50">
                         <div className="flex items-center justify-center w-8 h-8 bg-rose-100 rounded-full">
                           <AlertTriangle size={16} className="text-rose-600" />
                         </div>
-                        <span className="text-xs font-bold text-rose-700">确认剔除此题？</span>
+                        <span className="text-xs font-bold text-rose-700">确认剔除此题?</span>
                         <div className="flex items-center gap-2">
-                          <button 
+                          <button
                             onClick={() => removeQuestion(currentQuestion.id)}
                             className="px-3 py-1.5 bg-gradient-to-b from-rose-500 to-rose-600 text-white text-[11px] font-bold rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all shadow-md shadow-rose-200 active:scale-95"
                           >
                             确定剔除
                           </button>
-                          <button 
+                          <button
                             onClick={() => setConfirmingDelete(false)}
                             className="px-3 py-1.5 bg-white text-slate-600 text-[11px] font-bold rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
                           >
@@ -1268,16 +1294,16 @@ export default function App() {
                       </motion.div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <button 
+                        <button
                           onClick={() => toggleFavorite(currentQuestion.id)}
                           className={`flex items-center gap-1.5 transition-colors text-xs font-bold uppercase ${favoriteIds.includes(currentQuestion.id) ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
                         >
                           <Star size={14} fill={favoriteIds.includes(currentQuestion.id) ? "currentColor" : "none"} />
                           {favoriteIds.includes(currentQuestion.id) ? '已收藏' : '收藏'}
                         </button>
-                        {/* 剔除功能仅在 全量练习、错题强化 中显示，随机练习、正式考试、收藏复习中隐藏 */}
+                        {/* 剔除功能仅在 全量练习、错题强化 中显示,随机练习、正式考试、收藏复习中隐藏 */}
                         {(isFullMode || isMistakeMode) && (
-                          <button 
+                          <button
                             onClick={() => setConfirmingDelete(true)}
                             className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors text-xs font-bold uppercase"
                           >
@@ -1295,7 +1321,7 @@ export default function App() {
 
                 {isFullMode && searchQuery && (
                   <div className="mb-6 space-y-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">搜索结果：</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">搜索结果:</div>
                     <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1">
                       {examQuestions.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
                         examQuestions.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((q, idx) => (
@@ -1307,8 +1333,8 @@ export default function App() {
                               setShowFeedback(false);
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                              currentQuestion.id === q.id 
-                                ? 'bg-blue-600 text-white font-bold' 
+                              currentQuestion.id === q.id
+                                ? 'bg-blue-600 text-white font-bold'
                                 : 'hover:bg-slate-50 text-slate-600'
                             }`}
                           >
@@ -1334,7 +1360,7 @@ export default function App() {
                         className="w-full h-48 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all resize-none"
                       />
                       {!showFeedback && isRandomMode && (
-                        <button 
+                        <button
                           onClick={checkProgrammingAnswer}
                           className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
                         >
@@ -1347,17 +1373,17 @@ export default function App() {
                       {currentQuestion.options?.map((option, i) => {
                         const userAns = userAnswers[currentQuestion.id];
                         const qAns = currentQuestion.answer;
-                        
-                        const isSelected = currentQuestion.type === 'single' 
+
+                        const isSelected = currentQuestion.type === 'single'
                           ? (typeof userAns === 'string' && typeof option === 'string' ? userAns.trim() === option.trim() : userAns === option)
                           : (Array.isArray(userAns) ? userAns.map(s => s.trim()).includes(option.trim()) : false);
-                        
+
                         // Check if this specific option is correct
                         let isCorrect = false;
                         if (currentQuestion.type === 'single') {
                           const optTrim = option.trim();
                           const ansTrim = typeof qAns === 'string' ? qAns.trim() : String(qAns);
-                          
+
                           if (optTrim === ansTrim) {
                             isCorrect = true;
                           } else if (/^[A-Z]$/.test(ansTrim.toUpperCase())) {
@@ -1367,7 +1393,7 @@ export default function App() {
                         } else if (currentQuestion.type === 'multiple') {
                           const optTrim = option.trim();
                           const targetAns = Array.isArray(qAns) ? qAns.map(s => s.trim()) : [String(qAns).trim()];
-                          
+
                           if (targetAns.includes(optTrim)) {
                             isCorrect = true;
                           } else {
@@ -1396,12 +1422,12 @@ export default function App() {
                             dotClass = 'bg-rose-500 text-white';
                           }
                         }
-                        
+
                         return (
                           <button
                             key={i}
                             disabled={showFeedback && (isMistakeMode || isFullMode || isRandomMode)}
-                            onClick={() => currentQuestion.type === 'single' 
+                            onClick={() => currentQuestion.type === 'single'
                               ? handleAnswerChange(currentQuestion.id, option)
                               : toggleMultipleAnswer(currentQuestion.id, option)
                             }
@@ -1422,9 +1448,9 @@ export default function App() {
                           </button>
                         );
                       })}
-                      
+
                       {currentQuestion.type === 'multiple' && !showFeedback && isRandomMode && (
-                        <button 
+                        <button
                           onClick={() => setShowFeedback(true)}
                           className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all mt-4"
                         >
@@ -1436,7 +1462,7 @@ export default function App() {
                 </div>
 
                 {showFeedback && (isMistakeMode || isFullMode || isRandomMode) && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6 p-5 bg-slate-50 rounded-2xl border border-slate-100"
@@ -1446,12 +1472,12 @@ export default function App() {
                       <span className="font-bold text-slate-700">答案解析</span>
                     </div>
                     <p className="text-slate-600 text-sm leading-relaxed">
-                      正确答案：<span className="font-bold text-emerald-600">
+                      正确答案:<span className="font-bold text-emerald-600">
                         {Array.isArray(currentQuestion.answer) ? currentQuestion.answer.join('、') : currentQuestion.answer}
                       </span>
                     </p>
                     <p className="text-slate-500 text-sm mt-2 leading-relaxed italic">
-                      {currentQuestion.explanation || '暂无详细解析，请牢记正确答案。'}
+                      {currentQuestion.explanation || '暂无详细解析,请牢记正确答案。'}
                     </p>
                   </motion.div>
                 )}
@@ -1509,7 +1535,7 @@ export default function App() {
           )}
 
           {status === 'result' && finalResult && (
-            <motion.div 
+            <motion.div
               key="result"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1517,14 +1543,14 @@ export default function App() {
             >
               <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
-                
+
                 <div className="relative z-10">
                   <h2 className="text-2xl font-bold text-slate-400 mb-2 uppercase tracking-widest">考试结果</h2>
                   <div className="text-7xl font-black text-slate-900 mb-4 tabular-nums">
                     {finalResult.score}
                     <span className="text-2xl text-slate-300 font-bold ml-2">/ 100</span>
                   </div>
-                  
+
                   <div className="flex justify-center gap-8 mb-8">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-emerald-500">
@@ -1547,13 +1573,13 @@ export default function App() {
                   </div>
 
                   <p className="text-slate-500 max-w-sm mx-auto mb-5 sm:mb-6 text-sm">
-                    {finalResult.score >= 90 ? "太棒了！错题已更新，继续保持。" : 
-                     finalResult.score >= 60 ? "表现不错！错题已加入错题本，记得复习。" : 
-                     "别灰心，错题本会帮你记录薄弱点，多练几次！"}
+                    {finalResult.score >= 90 ? "太棒了!错题已更新,继续保持。" :
+                     finalResult.score >= 60 ? "表现不错!错题已加入错题本,记得复习。" :
+                     "别灰心,错题本会帮你记录薄弱点,多练几次!"}
                   </p>
-                  
+
                   <div className="flex flex-col items-center gap-4 sm:gap-5">
-                    <button 
+                    <button
                       onClick={() => setStatus('welcome')}
                       className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
                     >
@@ -1568,9 +1594,9 @@ export default function App() {
                 {examQuestions.map((q, idx) => {
                   const isCorrect = finalResult.correctness[q.id];
                   const mistakeRecord = mistakeRecords.find(r => r.questionId === q.id);
-                  
+
                   return (
-                    <div 
+                    <div
                       key={q.id}
                       className={`bg-white rounded-2xl p-4 sm:p-5 border-l-4 shadow-sm ${
                         isCorrect ? 'border-emerald-500' : 'border-rose-500'
@@ -1600,10 +1626,10 @@ export default function App() {
                                   const record = mistakeRecords.find(r => r.questionId === q.id);
                                   const count = record?.consecutiveCorrect || 0;
                                   return (
-                                    <Star 
-                                      key={star} 
-                                      size={10} 
-                                      className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-200"} 
+                                    <Star
+                                      key={star}
+                                      size={10}
+                                      className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-200"}
                                     />
                                   );
                                 })}
@@ -1623,8 +1649,8 @@ export default function App() {
                         <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl text-sm">
                           <span className="text-slate-400 font-bold mr-2">你的回答:</span>
                           <span className={isCorrect ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>
-                            {Array.isArray(finalResult.answers[q.id]) 
-                              ? (finalResult.answers[q.id] as string[]).join(', ') 
+                            {Array.isArray(finalResult.answers[q.id])
+                              ? (finalResult.answers[q.id] as string[]).join(', ')
                               : (finalResult.answers[q.id] as string) || '(未回答)'}
                           </span>
                         </div>
@@ -1666,14 +1692,18 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <ImportModal 
-        isOpen={isImportModalOpen} 
-        onClose={() => setIsImportModalOpen(false)} 
-        onImport={handleImport}
-        allSubjects={allSubjects}
-        currentSubjectId={currentSubjectId}
-        authUser={authUser}
-      />
+      {isImportModalOpen && (
+        <div>
+          {console.log('ImportModal should render')}
+          <ImportModal
+            onClose={() => setIsImportModalOpen(false)} 
+            onImport={handleImport}
+            allSubjects={allSubjects}
+            currentSubjectId={currentSubjectId}
+            authUser={authUser}
+          />
+        </div>
+      )}
 
       <LoginModal
         isOpen={isModalOpen}
@@ -1696,22 +1726,28 @@ export default function App() {
         onJoined={() => window.location.reload()}
       />
 
-      <StudentManagementModal
-        isOpen={isStudentManagementOpen}
-        onClose={() => setIsStudentManagementOpen(false)}
-      />
+      {isStudentManagementOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">加载中...</div>}>
+          <StudentManagementModal
+            onClose={() => setIsStudentManagementOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <StudentSelectorModal
-        subjectId={studentSelectorSubject?.id || ''}
-        subjectName={studentSelectorSubject?.name || ''}
-        isOpen={!!studentSelectorSubject}
-        onClose={() => setStudentSelectorSubject(null)}
-        onStudentIdsChange={async (studentIds) => {
-          if (studentSelectorSubject && currentUser) {
-            await subjectApi.update(studentSelectorSubject.id, { shareScope: 'students', studentIds });
-          }
-        }}
-      />
+      {!!studentSelectorSubject && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">加载中...</div>}>
+          <StudentSelectorModal
+            subjectId={studentSelectorSubject?.id || ''}
+            subjectName={studentSelectorSubject?.name || ''}
+            onClose={() => setStudentSelectorSubject(null)}
+            onStudentIdsChange={async (studentIds) => {
+              if (studentSelectorSubject && currentUser) {
+                await subjectApi.update(studentSelectorSubject.id, { shareScope: 'students', studentIds });
+              }
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 用户管理模态框 */}
       {showUserManagement && (
@@ -1722,14 +1758,14 @@ export default function App() {
                 <Users size={20} className="text-purple-600" />
                 用户管理
               </h3>
-              <button 
+              <button
                 onClick={() => setShowUserManagement(false)}
                 className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
-            
+
             {/* 用户列表 */}
             <div className="flex-1 overflow-y-auto mb-4">
               <div className="space-y-3">
@@ -1794,7 +1830,7 @@ export default function App() {
                           {user.role === 'student' && user.teacherName && (
                             <span className="flex items-center gap-1 text-emerald-600">
                               <GraduationCap size={12} />
-                              老师：{user.teacherName}
+                              老师:{user.teacherName}
                             </span>
                           )}
                         </div>
@@ -1910,8 +1946,8 @@ export default function App() {
         title={userActionConfirm?.type === 'delete' ? '删除用户' : '清除密码'}
         message={
           userActionConfirm?.type === 'delete'
-            ? `确定要删除用户 "${userActionConfirm?.username}" 吗？此操作不可恢复。`
-            : `确定要清除用户 "${userActionConfirm?.username}" 的密码吗？该用户下次登录时需要设置新密码。`
+            ? `确定要删除用户 "${userActionConfirm?.username}" 吗?此操作不可恢复。`
+            : `确定要清除用户 "${userActionConfirm?.username}" 的密码吗?该用户下次登录时需要设置新密码。`
         }
         confirmText={userActionConfirm?.type === 'delete' ? '确认删除' : '确认清除'}
         cancelText="取消"
@@ -1924,7 +1960,7 @@ export default function App() {
       <ConfirmModal
         isOpen={showLogoutConfirm}
         title="退出登录"
-        message={`确定要退出 ${currentUser} 登录吗？退出后将无法使用题库管理和科目管理功能。`}
+        message={`确定要退出 ${currentUser} 登录吗?退出后将无法使用题库管理和科目管理功能。`}
         confirmText="确定退出"
         cancelText="取消"
         type="warning"
@@ -1939,7 +1975,7 @@ export default function App() {
       <ConfirmModal
         isOpen={showDeleteAccountConfirm}
         title="确认注销账号"
-        message={`确定要注销 ${currentUser} 吗？此操作将永久删除您的账号及所有关联数据（题库、科目、错题记录等），不可恢复。`}
+        message={`确定要注销 ${currentUser} 吗?此操作将永久删除您的账号及所有关联数据(题库、科目、错题记录等),不可恢复。`}
         confirmText={isDeletingAccount ? '注销中...' : '确认注销'}
         cancelText="取消"
         type="danger"
@@ -1951,7 +1987,7 @@ export default function App() {
             logout();
             setDeleteAccountResult('success');
           } catch (err: any) {
-            setDeleteAccountError(err.message || '注销失败，请稍后重试');
+            setDeleteAccountError(err.message || '注销失败,请稍后重试');
             setDeleteAccountResult('error');
           } finally {
             setIsDeletingAccount(false);
@@ -1974,7 +2010,7 @@ export default function App() {
                   <CheckCircle2 size={32} className="text-green-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">账号已成功注销</h3>
-                <p className="text-sm text-slate-500 mb-6">感谢您的使用，欢迎随时回来注册新账号。</p>
+                <p className="text-sm text-slate-500 mb-6">感谢您的使用,欢迎随时回来注册新账号。</p>
               </>
             ) : (
               <>
@@ -1995,6 +2031,112 @@ export default function App() {
             >
               知道了
             </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 修改密码弹窗 */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-200"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Key size={20} className="text-blue-600" />
+                修改密码
+              </h3>
+              <button
+                onClick={() => { setShowChangePasswordModal(false); setChangePasswordError(''); setChangePasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' }); }}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">当前密码</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={changePasswordForm.oldPassword}
+                  onChange={(e) => setChangePasswordForm(prev => ({ ...prev, oldPassword: e.target.value }))}
+                  placeholder="请输入当前密码"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">新密码</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={changePasswordForm.newPassword}
+                  onChange={(e) => setChangePasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="至少6位字符"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">确认新密码</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={changePasswordForm.confirmPassword}
+                  onChange={(e) => setChangePasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="再次输入新密码"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-all"
+                />
+              </div>
+              {changePasswordError && (
+                <p className="text-sm text-red-500 flex items-center gap-1">
+                  <AlertTriangle size={14} />
+                  {changePasswordError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowChangePasswordModal(false); setChangePasswordError(''); setChangePasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' }); }}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={async () => {
+                  if (!changePasswordForm.oldPassword) {
+                    setChangePasswordError('请输入当前密码');
+                    return;
+                  }
+                  if (changePasswordForm.newPassword.length < 6) {
+                    setChangePasswordError('新密码至少6位');
+                    return;
+                  }
+                  if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+                    setChangePasswordError('两次输入的新密码不一致');
+                    return;
+                  }
+                  setIsChangingPassword(true);
+                  setChangePasswordError('');
+                  const result = await changePassword(changePasswordForm.oldPassword, changePasswordForm.newPassword);
+                  setIsChangingPassword(false);
+                  if (result.success) {
+                    setShowChangePasswordModal(false);
+                    setChangePasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                    setShowToast('密码修改成功');
+                  } else {
+                    setChangePasswordError(result.error || '修改失败');
+                  }
+                }}
+                disabled={isChangingPassword}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {isChangingPassword ? '修改中...' : '确认修改'}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
@@ -2023,22 +2165,22 @@ export default function App() {
                 <RefreshCcw size={20} className="text-blue-600" />
                 系统初始化
               </h3>
-              <button 
+              <button
                 onClick={() => setShowInitModal(false)}
                 className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
-            
+
             <div className="mb-6">
               <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-                选择要初始化的科目。初始化后将：<br/>
-                • 清空所选科目的所有题目（包括默认题库）<br/>
+                选择要初始化的科目。初始化后将:<br/>
+                • 清空所选科目的所有题目(包括默认题库)<br/>
                 • 清空错题记录、收藏夹和自定义题目<br/>
                 • 系统变为真正的空题库状态
               </p>
-              
+
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer group" onClick={() => {
                   if (selectedInitSubjects.length === allSubjects.length) {
@@ -2052,7 +2194,7 @@ export default function App() {
                   </div>
                   <span className="font-medium text-slate-700">全选所有科目</span>
                 </label>
-                
+
                 <div className="pl-6 space-y-2">
                   {allSubjects.map(subject => (
                     <label key={subject.id} className="flex items-center gap-2 cursor-pointer group select-none" onClick={() => {
@@ -2062,7 +2204,7 @@ export default function App() {
                         setSelectedInitSubjects(prev => [...prev, subject.id]);
                       }
                     }}>
-                      <div 
+                      <div
                         className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${selectedInitSubjects.includes(subject.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300 group-hover:border-slate-400'}`}
                       >
                         {selectedInitSubjects.includes(subject.id) && <Check size={12} className="text-white" />}
@@ -2076,7 +2218,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowInitModal(false)}
@@ -2087,70 +2229,70 @@ export default function App() {
               <button
                 onClick={() => {
                   if (selectedInitSubjects.length === 0) {
-                    alert('请至少选择一个科目进行初始化！');
+                    alert('请至少选择一个科目进行初始化!');
                     return;
                   }
-                  
-                  // 获取要隐藏的题目ID（根据科目筛选）
+
+                  // 获取要隐藏的题目ID(根据科目筛选)
                   const initialBankIdsToHide = INITIAL_BANK
                     .filter(q => selectedInitSubjects.includes(q.subject))
                     .map(q => q.id);
-                  
+
                   // 计算自定义题目中属于选中科目的题目ID
                   const customQuestionIdsToRemove = customQuestions
                     .filter(q => selectedInitSubjects.includes(q.subject))
                     .map(q => q.id);
-                  
-                  // 合并新的removedIds（追加，而不是替换）
+
+                  // 合并新的removedIds(追加,而不是替换)
                   const newRemovedIds = [...new Set([...removedIds, ...initialBankIdsToHide, ...customQuestionIdsToRemove])];
-                  
+
                   // 过滤掉选中科目的自定义题目
                   const remainingCustomQuestions = customQuestions.filter(
                     q => !selectedInitSubjects.includes(q.subject)
                   );
-                  
-                  // 过滤掉选中科目的错题记录（通过关联的题目ID）
+
+                  // 过滤掉选中科目的错题记录(通过关联的题目ID)
                   const allRemovedIdsSet = new Set(newRemovedIds);
                   const remainingMistakeRecords = mistakeRecords.filter(
                     r => !allRemovedIdsSet.has(r.questionId)
                   );
-                  
-                  // 过滤掉选中科目的收藏（通过关联的题目ID）
+
+                  // 过滤掉选中科目的收藏(通过关联的题目ID)
                   const remainingFavoriteIds = favoriteIds.filter(
                     id => !allRemovedIdsSet.has(id)
                   );
-                  
+
                   // 移除了 localStorage 更新
-                  
-                  // 同步删除到 API
+
+                  // 同步删除到 API(只删除实际存在的题目)
                   if (currentUser) {
                     for (const sid of selectedInitSubjects) {
                       subjectApi.delete(sid).catch(() => {});
                     }
-                    for (const q of customQuestions.filter(q => selectedInitSubjects.includes(q.subject))) {
+                    for (const q of customQuestions.filter(q => selectedInitSubjects.includes(q.subject_id || q.subject))) {
                       questionApi.delete(q.id).catch(() => {});
                     }
                   }
-                  
-                  // 如果包含当前科目，重置为第一个可用科目
+
+                  // 如果包含当前科目,重置为第一个可用科目
                   if (selectedInitSubjects.includes(currentSubjectId)) {
                     const remainingSubjects = allSubjects.filter(s => !selectedInitSubjects.includes(s.id));
                     setCurrentSubjectId(remainingSubjects[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
                   }
-                  
+
                   // 重置所有状态
                   setCustomQuestions(remainingCustomQuestions);
                   setMistakeRecords(remainingMistakeRecords);
                   setFavoriteIds(remainingFavoriteIds);
                   setRemovedIds(newRemovedIds);
-                  
+
                   // 关闭模态框并显示提示
                   setShowInitModal(false);
-                  
+
                   if (selectedInitSubjects.length === allSubjects.length) {
-                    setShowToast('✅ 系统已完全初始化！现在是真正的空题库状态。');
+                    setShowToast('✅ 系统已完全初始化!现在是真正的空题库状态。');
                   } else {
-                    setShowToast(`✅ 已初始化科目: ${selectedInitSubjects.map(id => allSubjects.find(s => s.id === id)?.name || id).join(', ')}！`);
+                    setShowToast(`✅ 已初始化科目: ${selectedInitSubjects.map(id => allSubjects.find(s => s.id === id)?.name || id).join(', ')}!`);
                   }
                 }}
                 disabled={selectedInitSubjects.length === 0}
@@ -2173,7 +2315,7 @@ export default function App() {
                 <Settings size={20} className="text-blue-600" />
                 科目管理
               </h3>
-              <button 
+              <button
                 onClick={() => {
                   setShowSubjectModal(false);
                   setEditingSubject(null);
@@ -2184,14 +2326,14 @@ export default function App() {
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
-            
+
             {/* 科目列表模式 */}
             {!editingSubject && (
               <div className="space-y-3">
                 <p className="text-sm text-slate-500 mb-4">
-                  管理科目列表（所有科目均可编辑，至少保留1个科目）
+                  管理科目列表(所有科目均可编辑,至少保留1个科目)
                 </p>
-                
+
                 {/* 统一科目列表 */}
                 {allSubjects.length > 0 && (
                   <div className="space-y-2">
@@ -2255,7 +2397,7 @@ export default function App() {
                                 <ChevronDown size={10} className={`transition-transform ${expandedShareSubject === subject.id ? 'rotate-180' : ''}`} />
                               </button>
                             )}
-                            {/* 非拥有者的共享科目只能退订（管理员除外） */}
+                            {/* 非拥有者的共享科目只能退订(管理员除外) */}
                             {(isAdmin || !subject.isSubscribed || subject.isOwner) && (
                               <>
                                 <button
@@ -2281,7 +2423,7 @@ export default function App() {
                             {subject.isSubscribed && !subject.isOwner && (
                               <button
                                 onClick={async () => {
-                                  if (confirm(`确定要退订科目「${subject.name}」吗？退订后该科目将不再显示。`)) {
+                                  if (confirm(`确定要退订科目「${subject.name}」吗?退订后该科目将不再显示。`)) {
                                     try {
                                       await subjectApi.leave(subject.id);
                                       window.location.reload();
@@ -2359,7 +2501,7 @@ export default function App() {
                                 />
                                 <div>
                                   <div className="text-sm font-medium text-indigo-700">仅共享给学生</div>
-                                  <div className="text-xs text-slate-400">你的学生可直接访问，也可生成邀请码</div>
+                                  <div className="text-xs text-slate-400">你的学生可直接访问,也可生成邀请码</div>
                                 </div>
                               </label>
                               <label className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
@@ -2392,7 +2534,7 @@ export default function App() {
                                 </div>
                               </label>
                             </div>
-                            {/* 学生选择按钮（仅 students 模式） */}
+                            {/* 学生选择按钮(仅 students 模式) */}
                             {subject.shareScope === 'students' && (
                               <div className="mt-2">
                                 <button
@@ -2411,7 +2553,7 @@ export default function App() {
                                 </button>
                               </div>
                             )}
-                            {/* 邀请码区域（students 和 all 模式都显示） */}
+                            {/* 邀请码区域(students 和 all 模式都显示) */}
                             {(subject.shareScope === 'students' || subject.shareScope === 'all') && (
                               <div className="mt-3 pt-3 border-t border-slate-200">
                                 <div className="flex items-center gap-2 mb-2">
@@ -2433,7 +2575,7 @@ export default function App() {
                     ))}
                   </div>
                 )}
-                
+
                 {/* 添加新科目按钮 */}
                 {ownSubjectCount < MAX_OWN_SUBJECTS ? (
                   <button
@@ -2451,18 +2593,18 @@ export default function App() {
                     className="w-full mt-4 px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-medium hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 border-2 border-dashed border-indigo-200"
                   >
                     <PlusCircle size={18} />
-                    添加新科目（{ownSubjectCount}/{MAX_OWN_SUBJECTS}）
+                    添加新科目({ownSubjectCount}/{MAX_OWN_SUBJECTS})
                   </button>
                 ) : (
                   <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
                     <p className="text-sm text-amber-700">
-                      已达到自有科目最大数量（{MAX_OWN_SUBJECTS}个），如需添加请先删除现有科目
+                      已达到自有科目最大数量({MAX_OWN_SUBJECTS}个),如需添加请先删除现有科目
                     </p>
                   </div>
                 )}
               </div>
             )}
-            
+
             {/* 编辑表单模式 */}
             {editingSubject && (
               <div className="space-y-4">
@@ -2480,7 +2622,7 @@ export default function App() {
                     {isAddingNewSubject ? '添加新科目' : `编辑「${editingSubject.name}」`}
                   </h4>
                 </div>
-                
+
                 {/* 名称 */}
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">科目名称</label>
@@ -2492,8 +2634,8 @@ export default function App() {
                       if (isAddingNewSubject) {
                         const suggestion = suggestSubject(newName);
                         if (suggestion) {
-                          setEditingSubject({ 
-                            ...editingSubject, 
+                          setEditingSubject({
+                            ...editingSubject,
                             name: newName,
                             icon: suggestion.icon,
                             welcomeTitle: suggestion.welcomeTitle,
@@ -2517,15 +2659,15 @@ export default function App() {
                         }
                       }
                     }}
-                    placeholder="例如：物理、化学..."
+                    placeholder="例如:物理、化学..."
                     className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-colors"
                     maxLength={20}
                   />
                   {editingSubject.name.trim() && suggestSubject(editingSubject.name) && (
-                    <p className="text-xs text-blue-500 mt-1">已根据科目名称自动推荐图标和描述，可自行修改</p>
+                    <p className="text-xs text-blue-500 mt-1">已根据科目名称自动推荐图标和描述,可自行修改</p>
                   )}
                 </div>
-                
+
                 {/* 图标选择 - 分类显示 */}
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-2">选择图标</label>
@@ -2539,8 +2681,8 @@ export default function App() {
                               key={icon}
                               onClick={() => setEditingSubject({ ...editingSubject, icon })}
                               className={`w-9 h-9 text-lg rounded-lg flex items-center justify-center transition-all ${
-                                editingSubject.icon === icon 
-                                  ? 'bg-blue-600 text-white scale-110 shadow-md ring-2 ring-blue-400' 
+                                editingSubject.icon === icon
+                                  ? 'bg-blue-600 text-white scale-110 shadow-md ring-2 ring-blue-400'
                                   : 'bg-white hover:bg-blue-50 hover:scale-105 shadow-sm'
                               }`}
                               title={icon}
@@ -2554,13 +2696,13 @@ export default function App() {
                   </div>
                   {/* 当前选中的图标预览 */}
                   <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                    <span>当前选择：</span>
+                    <span>当前选择:</span>
                     <span className="text-2xl bg-blue-50 w-10 h-10 rounded-lg flex items-center justify-center border border-blue-100">
                       {editingSubject.icon}
                     </span>
                   </div>
                 </div>
-                
+
                 {/* 欢迎标题 */}
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">欢迎标题</label>
@@ -2568,12 +2710,12 @@ export default function App() {
                     type="text"
                     value={editingSubject.welcomeTitle}
                     onChange={(e) => setEditingSubject({ ...editingSubject, welcomeTitle: e.target.value })}
-                    placeholder="例如：化学知识小测"
+                    placeholder="例如:化学知识小测"
                     className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl focus:border-blue-500 outline-none transition-colors"
                     maxLength={30}
                   />
                 </div>
-                
+
                 {/* 欢迎描述 */}
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1">科目描述</label>
@@ -2590,7 +2732,7 @@ export default function App() {
 {/* 共享设置暂时移除 - 简化初次创建流程 */}
               </div>
             )}
-            
+
             {/* 操作按钮 - 仅在编辑模式显示 */}
             {editingSubject && (
               <div className="flex gap-3 mt-6">
@@ -2609,7 +2751,7 @@ export default function App() {
                       setShowToast('请输入科目名称');
                       return;
                     }
-                    
+
                     if (isAddingNewSubject) {
                       // 添加新科目
                       if (ownSubjectCount >= MAX_OWN_SUBJECTS) {
@@ -2630,8 +2772,8 @@ export default function App() {
                       }
                       setShowToast(`已添加科目「${newSubject.name}」`);
                     } else {
-                      // 更新科目（所有科目统一在customSubjects中管理）
-                      setCustomSubjects(customSubjects.map(s => 
+                      // 更新科目(所有科目统一在customSubjects中管理)
+                      setCustomSubjects(customSubjects.map(s =>
                         s.id === editingSubject.id ? editingSubject : s
                       ));
                       // 同步到 API
@@ -2646,7 +2788,7 @@ export default function App() {
                       }
                       setShowToast(`已更新科目「${editingSubject.name}」`);
                     }
-                    
+
                     setEditingSubject(null);
                     setIsAddingNewSubject(false);
                     setIsSubjectPendingCreation(false);
@@ -2687,7 +2829,7 @@ export default function App() {
                 </div>
                 <h3 className="text-xl font-bold text-white">确认删除</h3>
               </div>
-              
+
               {/* 内容区域 */}
               <div className="p-6 text-center">
                 <p className="text-slate-600 mb-2">
@@ -2705,7 +2847,7 @@ export default function App() {
                   此操作无法撤销
                 </p>
               </div>
-              
+
               {/* 按钮区域 */}
               <div className="px-6 pb-6 flex gap-3">
                 <button
@@ -2728,19 +2870,17 @@ export default function App() {
                       const fallback = newCustomSubjects[0] || DEFAULT_SUBJECTS[0];
                       setCurrentSubjectId(fallback?.id || 'chinese');
                     }
+                    // 先同步删除科目到 API(后端会级联删除关联题目)
+                    if (currentUser) {
+                      subjectApi.delete(subjectToDelete.id).catch(() => {});
+                    }
+                    // 前端状态清理:使用 subject_id 字段匹配
                     const customQuestionIds = customQuestions
-                      .filter(q => q.subject === subjectToDelete.id)
+                      .filter(q => q.subject_id === subjectToDelete.id || q.subject === subjectToDelete.id)
                       .map(q => q.id);
                     const newRemovedIds = [...new Set([...removedIds, ...customQuestionIds])];
                     setRemovedIds(newRemovedIds);
-                    setCustomQuestions(prev => prev.filter(q => q.subject !== subjectToDelete.id));
-                    // 同步删除到 API
-                    if (currentUser) {
-                      subjectApi.delete(subjectToDelete.id).catch(() => {});
-                      for (const qid of customQuestionIds) {
-                        questionApi.delete(qid).catch(() => {});
-                      }
-                    }
+                    setCustomQuestions(prev => prev.filter(q => q.subject_id !== subjectToDelete.id && q.subject !== subjectToDelete.id));
                     setShowToast(`已删除科目「${subjectToDelete.name}」及相关题目`);
                     setSubjectToDelete(null);
                   }}

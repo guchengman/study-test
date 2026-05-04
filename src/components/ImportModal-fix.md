@@ -40,7 +40,7 @@ const [forceUpdate, setForceUpdate] = useState(false);
 ```tsx
 // 修改现有的按钮禁用逻辑
 const canGenerate = promptInput.trim().length > 0 || 
-                   (text.trim().length > 0 && selectedModel !== 'gemini-2.0-flash');
+                   (text.trim().length > 0 && selectedModel !== 'gemini-3-flash-preview');
 
 <button
   onClick={handleGenerateFromPrompt}
