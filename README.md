@@ -75,38 +75,51 @@
 
 ## 💻 一键安装
 
-### Windows 一键安装（推荐）
+### Linux/macOS 一键安装（推荐）
 
-1. **下载项目**
-   ```bash
-   git clone https://github.com/guchengman/study-test.git
-   cd study-test
-   ```
+```bash
+# 克隆项目
+git clone https://github.com/guchengman/study-test.git
+cd study-test
 
-2. **运行安装脚本**
-   ```bash
-   # 方式1：双击运行
-   install.bat
-   
-   # 方式2：PowerShell 运行
-   .\install.ps1
-   
-   # 方式3：跳过 MySQL 检查（已有 MySQL）
-   .\install.ps1 -SkipMySQLCheck
-   
-   # 方式4：自动生成随机数据库密码
-   .\install.ps1 -AutoDBPassword
-   ```
+# 运行一键安装脚本
+sudo bash install.sh
+
+# 或使用英文版本（避免编码问题）
+sudo bash install-english.sh
+```
+
+**可选参数：**
+```bash
+sudo bash install.sh --no-prompt           # 非交互模式
+sudo bash install.sh --skip-node-check      # 跳过 Node.js 检查
+sudo bash install.sh --skip-mysql-check     # 跳过 MySQL 检查
+sudo bash install.sh --auto-db-password     # 自动生成随机密码
+sudo bash install.sh --db-host=localhost    # 指定数据库地址
+```
+
+### Windows 一键安装
+
+```bash
+# 克隆项目
+git clone https://github.com/guchengman/study-test.git
+cd study-test
+
+# 运行安装脚本
+install.bat
+```
 
 ### 一键安装脚本功能
 
 | 功能 | 说明 |
 |------|------|
-| ✅ 环境检查 | 自动检测 Node.js、MySQL 是否安装 |
+| ✅ 环境检查 | 自动检测 Node.js、MySQL、npm、Git、curl、OpenSSL |
+| ✅ 服务检测 | 自动检测并停止运行中的旧服务（PM2、端口占用） |
+| ✅ 覆盖安装 | 支持删除旧安装重新克隆，或保留现有安装仅更新代码 |
 | ✅ 下载代码 | 从 GitHub 克隆最新代码 |
 | ✅ 安装依赖 | 自动执行 npm install |
 | ✅ 配置环境 | 自动生成 .env 文件 |
-| ✅ 创建数据库 | 自动创建 MySQL 数据库 |
+| ✅ 数据库检测 | 智能检测已有数据库，提供删除重建/保留更新/跳过等选项 |
 | ✅ 初始化表 | 自动执行 SQL 迁移脚本 |
 | ✅ 启动服务 | 可选开发/生产模式启动 |
 
