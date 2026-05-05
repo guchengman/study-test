@@ -13,9 +13,40 @@ dotenv.config({ path: envPath });
 
 import express from 'express';
 import cors from 'cors';
+import axios from 'axios';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
+const BAIDU_API_KEY = process.env.BAIDU_API_KEY || '';
+const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || '';
+
+// 百度 OCR Token 缓存
+let baiduAccessToken = '';
+
+// 获取百度 access_token
+async function getBaiduAccessToken() {
+  if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
+    console.warn('百度 OCR 未配置 BAIDU_API_KEY / BAIDU_SECRET_KEY');
+    return null;
+  }
+  try {
+    const res = await axios.post(
+      'https://aip.baidubce.com/oauth/2.0/token',
+      null,
+      { params: { grant_type: 'client_credentials', client_id: BAIDU_API_KEY, client_secret: BAIDU_SECRET_KEY } }
+    );
+    baiduAccessToken = res.data.access_token;
+    console.log('百度 OCR token 获取成功:', baiduAccessToken ? '已获取' : '为空');
+    return baiduAccessToken;
+  } catch (err) {
+    console.error('百度 OCR token 获取失败:', err.message);
+    return null;
+  }
+}
+
+// 定时刷新 token
+getBaiduAccessToken();
+setInterval(getBaiduAccessToken, 86400 * 1000 * 29);
 
 // 中间件
 app.use(cors({
@@ -44,6 +75,28 @@ app.use('/api/practice', practiceRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/invite-codes', inviteCodeRoutes);
 app.use('/api/students', studentRoutes);
+
+// 百度高精度 OCR 接口（必须在 express.json() 之后）
+app.post('/api/ocr/baidu', async (req, res) => {
+  if (!baiduAccessToken) {
+    await getBaiduAccessToken();
+  }
+  if (!baiduAccessToken) {
+    return res.status(500).json({ error: '百度 OCR Token 未配置或获取失败' });
+  }
+  try {
+    const { image } = req.body;
+    const result = await axios.post(
+      `https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic`,
+      { image },
+      { params: { access_token: baiduAccessToken }, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    );
+    res.json(result.data);
+  } catch (err) {
+    console.error('百度 OCR 请求失败:', err.message);
+    res.status(500).json({ error: '识别失败' });
+  }
+});
 
 // 健康检查
 app.get('/api/health', (req, res) => {

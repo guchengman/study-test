@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
-import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Zap, Maximize2 } from 'lucide-react';
-import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc } from '../services/fileService';
-import { parseQuestionsWithAI, generateQuestionsFromPrompt, parseQuestionsWithFile } from '../services/geminiService';
+import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Maximize2, ScanText, ExternalLink } from 'lucide-react';
+import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR } from '../services/fileService';
+import { parseQuestionsWithAI, generateQuestionsFromPrompt } from '../services/geminiService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
 import { authApi, type AuthUser } from '../services/api';
 import { SettingsModal } from './SettingsModal';
@@ -92,7 +92,7 @@ interface ImportModalProps {
 
 export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImport, allSubjects, currentSubjectId, authUser }) => {
   const [text, setText] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('last_selected_model') || 'deepseek-v4-flash');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,10 +104,20 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [selectedTargetSubject, setSelectedTargetSubject] = useState<SubjectId>('python');
   // 已登录用户从服务端加载的AI设置
   const [serverSettings, setServerSettings] = useState<AISettings | null>(null);
-  // AI直连提取选项：选中后上传文件直接进入AI解析流程
-  const [directAIExtract, setDirectAIExtract] = useState(false);
   // 上传中的文件名显示
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
+  // OCR 相关状态
+  const [showOcrDialog, setShowOcrDialog] = useState(false);
+  const [ocrPendingFile, setOcrPendingFile] = useState<File | null>(null);
+  const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState({ current: 0, total: 0, status: '' });
+  // OCR 模式: 'none' = 直接解析, 'offline' = 离线OCR, 'online' = 在线OCR
+  const [ocrMode, setOcrMode] = useState<'none' | 'offline' | 'online'>('offline');
+  // PaddleOCR API 设置对话框
+  const [showPaddleOcrSettings, setShowPaddleOcrSettings] = useState(false);
+  const [paddleOcrApiKey, setPaddleOcrApiKey] = useState(() => localStorage.getItem('paddle_ocr_api_key') || '97f310b23dcf2639d3a2f29ce5140c8eb4591587');
+  const [paddleOcrApiUrl, setPaddleOcrApiUrl] = useState(() => localStorage.getItem('paddle_ocr_api_url') || '');
+  
   useEffect(() => {
     // Modal is controlled by parent, so we always try to fetch settings when mounted
     if (!authUser) {
@@ -139,6 +149,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // 清除 input value，允许重复上传同一文件
+    e.target.value = '';
 
     setUploadingFileName(file.name);
     setIsParsing(true);
@@ -150,7 +162,20 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       console.log(`开始解析文件: ${file.name}, 大小: ${fileSize} KB`);
       
       if (file.name.endsWith('.pdf')) {
-        extractedText = await extractTextFromPDF(file);
+        try {
+          // 尝试正常解析
+          const result = await extractTextFromPDF(file);
+          extractedText = result.text;
+        } catch (err: any) {
+          // 检测到可能是扫描件，弹出 OCR 确认框
+          if (err.isOcrNeeded) {
+            setOcrPendingFile(file);
+            setShowOcrDialog(true);
+            setIsParsing(false);
+            return;
+          }
+          throw err;
+        }
       } else if (file.name.endsWith('.docx')) {
         extractedText = await extractTextFromDocx(file);
       } else if (file.name.endsWith('.doc')) {
@@ -159,8 +184,69 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         extractedText = await extractTextFromTxt(file);
       } else if (file.name.endsWith('.md')) {
         extractedText = await extractTextFromMd(file);
+      } else if (file.name.endsWith('.csv')) {
+        // CSV 文件直接解析为题目，跳过 AI 解析步骤
+        const parsedQuestions = await parseCSV(file);
+        
+        const convertedQuestions: Question[] = parsedQuestions.map((pq, idx) => {
+          const tempId = -Date.now() - idx;
+          return {
+            id: tempId,
+            subject: currentSubjectId || 'python' as any,
+            type: pq.type as any,
+            title: pq.title,
+            code: pq.code,
+            options: pq.options,
+            answer: pq.answer,
+            explanation: pq.explanation,
+            points: pq.points || 5,
+            input: pq.input
+          };
+        });
+        
+        console.log(`CSV 解析成功，共 ${convertedQuestions.length} 道题目`);
+        setPreview(convertedQuestions);
+        setIsParsing(false);
+        setUploadingFileName(null);
+        return;
+      } else if (file.name.endsWith('.json')) {
+        // JSON 文件直接解析为题目
+        const text = await file.text();
+        let jsonData: any;
+        try {
+          jsonData = JSON.parse(text);
+        } catch {
+          throw new Error('JSON 文件格式错误，无法解析');
+        }
+        
+        const questions = Array.isArray(jsonData) ? jsonData : jsonData.questions;
+        if (!questions || !Array.isArray(questions)) {
+          throw new Error('JSON 文件中未找到 questions 数组');
+        }
+        
+        const convertedQuestions: Question[] = questions.map((item: any, idx: number) => {
+          const tempId = -Date.now() - idx;
+          return {
+            id: tempId,
+            subject: currentSubjectId || 'python' as any,
+            type: (item.type || 'single') as any,
+            title: item.title || item.title || '',
+            code: item.code,
+            options: item.options || [],
+            answer: item.answer || '',
+            explanation: item.explanation || '',
+            points: item.points || 5,
+            input: item.input
+          };
+        }).filter((q: Question) => q.title.trim());
+        
+        console.log(`JSON 解析成功，共 ${convertedQuestions.length} 道题目`);
+        setPreview(convertedQuestions);
+        setIsParsing(false);
+        setUploadingFileName(null);
+        return;
       } else {
-        throw new Error('不支持的文件格式,请上传 PDF/DOCX/DOC/TXT/MD 文件。');
+        throw new Error('不支持的文件格式,请上传 PDF/DOCX/DOC/TXT/MD/CSV/JSON 文件。');
       }
       
       console.log(`文件解析成功，提取文字: ${extractedText.length} 字符`);
@@ -169,33 +255,127 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
         throw new Error('文件中没有找到可用的文字内容');
       }
       
-      if (directAIExtract) {
-        // AI直连提取模式：直接以附件方式上传文件给AI解析
-        console.log('AI直连提取模式：直接上传文件到AI...');
-        
-        // 显示提示信息
-        setError(null);
-        
-        try {
-          // 直接调用AI解析（以附件方式上传文件）
-          const parsed = await parseQuestionsWithFile(file, selectedModel, serverSettings || undefined);
-          setPreview(parsed);
-        } catch (err: any) {
-          // 如果附件上传失败，回退到文本提取方式
-          console.warn('附件上传失败，回退到文本提取方式:', err.message);
-          setError(`AI直连提取失败 (${err.message})，已回退到文本提取模式`);
-          setText(extractedText);
-        }
-      } else {
-        // 普通模式：将文件内容填充到 AI 生成题目的提示词输入框
-        setPromptInput(extractedText);
-      }
+      // 将文件内容填充到 AI 生成题目的提示词输入框
+      setPromptInput(extractedText);
     } catch (err: any) {
       console.error('文件解析失败:', err);
       setError(err.message || '文件读取失败');
     } finally {
       setIsParsing(false);
       setUploadingFileName(null);
+    }
+  };
+  
+  // 处理 OCR 确认
+  const handleOcrConfirm = async () => {
+    if (!ocrPendingFile) return;
+    
+    setShowOcrDialog(false);
+    setIsOcrProcessing(true);
+    setError(null);
+    
+    try {
+      const result = await extractTextFromPDFWithOCR(ocrPendingFile, (progress) => {
+        setOcrProgress(progress);
+      });
+      
+      console.log(`OCR 识别完成，提取文字: ${result.text.length} 字符`);
+      
+      if (!result.text.trim()) {
+        throw new Error('OCR 未能识别出任何文字内容');
+      }
+      
+      setPromptInput(result.text);
+      setOcrPendingFile(null);
+    } catch (err: any) {
+      console.error('OCR 识别失败:', err);
+      setError(err.message || 'OCR 识别失败');
+      setOcrPendingFile(null); // 清除待处理文件，允许重新上传
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress({ current: 0, total: 0, status: '' });
+    }
+  };
+  
+  // 取消 OCR
+  const handleOcrCancel = () => {
+    setShowOcrDialog(false);
+    setOcrPendingFile(null);
+    setOcrProgress({ current: 0, total: 0, status: '' });
+    setError('已取消 OCR 识别。请使用其他格式的文件。');
+  };
+  
+  // 处理直接解析（不经过 OCR）
+  const handleDirectParse = async () => {
+    if (!ocrPendingFile) return;
+    
+    setShowOcrDialog(false);
+    setIsOcrProcessing(true);
+    setOcrProgress({ current: 0, total: 0, status: '正在提取文字...' });
+    setError(null);
+    
+    try {
+      // 直接使用普通 PDF 解析，不进行 OCR
+      const result = await extractTextFromPDF(ocrPendingFile);
+      
+      console.log(`直接解析完成，提取文字: ${result.text?.length || 0} 字符, hasOcrResult: ${result.hasOcrResult}`);
+      
+      if (!result.text?.trim()) {
+        throw new Error('此 PDF 为扫描件/图片型，无法直接提取文字，请使用 OCR 识别');
+      }
+      
+      // 如果提取的文字很少，提示用户建议使用 OCR
+      if (result.text.trim().length < 50) {
+        // 仍然填入提取到的文字，但给出提示
+        setPromptInput(result.text + '\n\n[提示：提取到的文字很少，该PDF可能是扫描件，建议使用OCR识别以获取完整内容]');
+      } else {
+        setPromptInput(result.text);
+      }
+      setOcrPendingFile(null);
+    } catch (err: any) {
+      console.error('直接解析失败:', err);
+      // 如果是扫描件检测错误，给出友好提示并建议 OCR
+      if (err.isOcrNeeded || err.message === 'PDF_SCAN_DETECTED') {
+        setError('此 PDF 为扫描件/图片型，无法直接提取文字。请关闭此提示后选择"离线OCR"或"在线OCR"进行识别。');
+      } else {
+        setError(err.message || '直接解析失败');
+      }
+      setOcrPendingFile(null); // 清除待处理文件，允许重新上传
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress({ current: 0, total: 0, status: '' });
+    }
+  };
+  
+  // 处理在线 OCR 开始（使用 OCR.Space，无需 API Key）
+  const handleOnlineOcrStart = async () => {
+    if (!ocrPendingFile) return;
+    
+    setShowOcrDialog(false);
+    setIsOcrProcessing(true);
+    setError(null);
+    
+    try {
+      // 智能解析：先文本提取，空则自动走 OCR.Space
+      const result = await parsePdfSmartOCR(ocrPendingFile, (progress) => {
+        setOcrProgress(progress);
+      });
+      
+      console.log(`在线 OCR 识别完成，${result.useOCR ? '通过 OCR' : '直接提取'}文字: ${result.content.length} 字符`);
+      
+      if (!result.content?.trim()) {
+        throw new Error('OCR 未能识别出任何文字内容');
+      }
+      
+      setPromptInput(result.content);
+      setOcrPendingFile(null);
+    } catch (err: any) {
+      console.error('在线 OCR 识别失败:', err);
+      setError(err.message || '在线 OCR 识别失败');
+      setOcrPendingFile(null); // 清除待处理文件，允许重新上传
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress({ current: 0, total: 0, status: '' });
     }
   };
 
@@ -383,7 +563,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
               <Upload className="text-blue-600" size={24} />
               导入题目到题库
             </h2>
-            <p className="text-sm text-slate-500 mt-1">支持 Word、PDF、TXT、MD 或直接粘贴文本</p>
+            <p className="text-sm text-slate-500 mt-1">支持 Word、PDF、TXT、MD、CSV、JSON 或直接粘贴文本</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -420,36 +600,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                     <label className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer transition-all border border-slate-200 hover:border-purple-300">
                       <Upload size={13} />
                       <span>上传文件</span>
-                      <span className="text-[9px] text-slate-400">PDF/DOCX/DOC/TXT/MD</span>
-                      <input type="file" className="hidden" accept=".pdf,.docx,.doc,.txt,.md" onChange={handleFileChange} />
-                    </label>
-                    {/* AI直连提取选项 */}
-                    <label 
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-lg cursor-pointer transition-all duration-200 border-2 select-none ${
-                        directAIExtract 
-                          ? 'text-amber-800 bg-amber-200 border-amber-500 shadow-md scale-105' 
-                          : 'text-amber-600 hover:text-amber-700 hover:bg-amber-100 border-amber-300 hover:border-amber-400 bg-amber-50 active:scale-95'
-                      }`}
-                      style={{
-                        boxShadow: directAIExtract ? '0 2px 8px rgba(245, 158, 11, 0.4)' : 'none'
-                      }}
-                    >
-                      <input 
-                        type="checkbox" 
-                        checked={directAIExtract} 
-                        onChange={(e) => setDirectAIExtract(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-amber-600 cursor-pointer"
-                      />
-                      <Zap 
-                        size={14} 
-                        className={`transition-all duration-200 ${directAIExtract ? 'fill-amber-600 text-amber-700 animate-bounce' : 'text-amber-500'}`} 
-                      />
-                      <span className={`${directAIExtract ? 'font-bold' : 'font-medium'}`}>AI直连提取</span>
-                      {directAIExtract && (
-                        <span className="ml-0.5 text-[10px] bg-amber-600 text-white px-1 py-0 rounded-full">
-                          ✓
-                        </span>
-                      )}
+                      <span className="text-[9px] text-slate-400">PDF/DOCX/DOC/TXT/MD/CSV/JSON</span>
+                      <input type="file" className="hidden" accept=".pdf,.docx,.doc,.txt,.md,.csv,.json" onChange={handleFileChange} />
                     </label>
                     {uploadingFileName && (
                       <span className="text-[10px] text-purple-600 animate-pulse">
@@ -593,11 +745,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   <div className="text-[11px] text-purple-700 leading-relaxed">
                     <span className="font-bold">提示:</span>
                     输入详细的提示词来生成题目,如"生成5道Python编程题,难度适中,包含函数和循环"。
-                    {directAIExtract ? (
-                      <span className="block mt-1 text-amber-700">✓ 已开启 AI直连提取：上传文件后将直接AI解析，无需额外操作。</span>
-                    ) : (
-                      <span className="block mt-1 text-slate-500">勾选"AI直连提取"可实现上传后自动解析，一步完成。</span>
-                    )}
+                    <span className="block mt-1 text-slate-500">上传文件后，文字内容将自动填充到提示词输入框中。</span>
                   </div>
                 </div>
               </div>
@@ -612,7 +760,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   <div className="flex items-center gap-2">
                     <Cpu size={16} className="text-blue-600" /> 选择 AI 解析模型
                   </div>
-                  {!localStorage.getItem('ai_settings') && selectedModel !== 'gemini-3-flash-preview' && (
+                  {!localStorage.getItem('ai_settings') && selectedModel !== 'deepseek-v4-flash' && (
                     <span className="text-[10px] text-rose-500 font-bold animate-pulse">
                       需配置 API Key
                     </span>
@@ -622,7 +770,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   {MODELS.map(model => (
                     <button
                       key={model.id}
-                      onClick={() => setSelectedModel(model.id)}
+                      onClick={() => { setSelectedModel(model.id); localStorage.setItem('last_selected_model', model.id); }}
                       className={`p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between ${
                         selectedModel === model.id
                           ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-50'
@@ -931,6 +1079,289 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           </motion.div>
         </div>,
         document.body
+      )}
+
+      {/* OCR Processing Modal */}
+      {isOcrProcessing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+          >
+            <div className="text-center">
+              {/* OCR Icon */}
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                ocrMode === 'offline' 
+                  ? 'bg-gradient-to-br from-amber-400 to-orange-500' 
+                  : 'bg-gradient-to-br from-blue-400 to-indigo-500'
+              }`}>
+                <ScanText size={32} className="text-white" />
+              </div>
+              
+              <h3 className="text-lg font-bold text-slate-800 mb-2">
+                正在 {ocrMode === 'none' ? '直接解析' : (ocrMode === 'offline' ? '离线' : '在线')} OCR 识别
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">{ocrPendingFile?.name}</p>
+              
+              {/* Progress Bar */}
+              <div className="mb-2">
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${
+                      ocrMode === 'offline' 
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500' 
+                        : 'bg-gradient-to-r from-blue-400 to-indigo-500'
+                    }`}
+                    style={{ 
+                      width: ocrProgress.total > 0 ? `${(ocrProgress.current / ocrProgress.total) * 100}%` : '0%' 
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* Progress Text */}
+              <p className="text-xs text-slate-500">
+                {ocrProgress.status || '正在初始化...'}
+                {ocrProgress.total > 0 && ` (${ocrProgress.current}/${ocrProgress.total})`}
+              </p>
+              
+              {/* Tips */}
+              <div className={`mt-4 p-3 rounded-lg text-left ${
+                ocrMode === 'none' ? 'bg-green-50' : (ocrMode === 'offline' ? 'bg-amber-50' : 'bg-blue-50')
+              }`}>
+                <p className={`text-xs ${
+                  ocrMode === 'none' ? 'text-green-700' : (ocrMode === 'offline' ? 'text-amber-700' : 'text-blue-700')
+                }`}>
+                  <span className="font-bold">提示：</span>
+                  {ocrMode === 'none'
+                    ? '直接解析会尝试提取 PDF 中已有的文字内容，速度最快。'
+                    : ocrMode === 'offline' 
+                      ? '离线 OCR 使用本地 Tesseract 引擎，识别速度取决于文件大小，请耐心等待。'
+                      : '在线 OCR 使用 PaddleOCR PP-OCRv5，支持直接上传 PDF，识别速度快、精度高，结果将自动填入输入框。'
+                  }
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* OCR Confirm Dialog */}
+      {showOcrDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+          >
+            <div className="text-center">
+              {/* Warning Icon */}
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                <ScanText size={32} className="text-white" />
+              </div>
+              
+              <h3 className="text-lg font-bold text-slate-800 mb-2">检测到扫描件 PDF</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                此 PDF 似乎不包含可提取的文字，可能是扫描件或图片型 PDF。
+              </p>
+              
+              {/* Options */}
+              <div className="bg-slate-50 rounded-xl p-4 mb-4 text-left space-y-3">
+                <p className="text-sm font-bold text-slate-700">请选择处理方式：</p>
+
+                {/* Option 1: Offline OCR */}
+                <div 
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    ocrMode === 'offline' 
+                      ? 'border-amber-500 bg-amber-50' 
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                  onClick={() => setOcrMode('offline')}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    ocrMode === 'offline' ? 'border-amber-500 bg-amber-500' : 'border-slate-300'
+                  }`}>
+                    {ocrMode === 'offline' && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-700">启用离线OCR文字识别</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">默认</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">使用本地 Tesseract 引擎识别文字，支持中英文，无需网络</p>
+                  </div>
+                </div>
+                
+                {/* Option 2: Online OCR */}
+                <div
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    ocrMode === 'online'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                  onClick={() => setOcrMode('online')}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    ocrMode === 'online' ? 'border-blue-500 bg-blue-500' : 'border-slate-300'
+                  }`}>
+                    {ocrMode === 'online' && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-700">启用在线OCR文字识别</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-bold">默认</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">使用百度 OCR 高精度识别（通用文字识别），每月免费 5 万次，支持中英文混合</p>
+                    <div className="mt-2 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                      <p className="text-[11px] font-medium text-slate-600 mb-1.5">⚙️ API 配置（需管理员设置）</p>
+                      <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-slate-500">
+                        <li>访问 <a href="https://cloud.baidu.com/doc/OCR/s/dk3iqnq51" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">百度智能云 OCR 控制台</a> 创建应用</li>
+                        <li>获取 <code className="bg-slate-200 px-1 rounded text-[10px]">API Key</code> 和 <code className="bg-slate-200 px-1 rounded text-[10px]">Secret Key</code></li>
+                        <li>在服务器 <code className="bg-slate-200 px-1 rounded text-[10px]">server/.env</code> 中填入密钥后重启服务</li>
+                      </ol>
+                      <a href="https://cloud.baidu.com/product/ocr.html" target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline font-medium">
+                        <ExternalLink size={10} />
+                        前往申请百度 OCR API →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleOcrCancel}
+                  className="flex-1 px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={ocrMode === 'offline' ? handleOcrConfirm : handleOnlineOcrStart}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
+                    ocrMode === 'offline'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-amber-100'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-blue-100'
+                  }`}
+                >
+                  <ScanText size={16} />
+                  {ocrMode === 'offline' ? '开始离线识别' : '开始在线识别'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      
+      {/* PaddleOCR API Settings Dialog */}
+      {showPaddleOcrSettings && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Cpu size={20} className="text-blue-600" />
+                PaddleOCR API 设置
+              </h3>
+              <button 
+                onClick={() => setShowPaddleOcrSettings(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-all"
+              >
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-slate-600 mb-4">
+              PaddleOCR PP-OCRv5 是百度开源的最新一代文字识别引擎，支持中英日文识别，精度比 v4 提升 13%。
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  AI Studio 访问令牌 (Access Token)
+                </label>
+                <input
+                  type="password"
+                  value={paddleOcrApiKey}
+                  onChange={(e) => setPaddleOcrApiKey(e.target.value)}
+                  placeholder="请输入 AI Studio Access Token"
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none text-sm transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  在 AI Studio 个人中心 → 访问令牌 页面获取
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  API 地址（可选）
+                </label>
+                <input
+                  type="text"
+                  value={paddleOcrApiUrl}
+                  onChange={(e) => setPaddleOcrApiUrl(e.target.value)}
+                  placeholder="留空则使用默认地址"
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none text-sm transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  在 PaddleOCR 任务页面获取 API 调用地址，留空则使用官方默认地址
+                </p>
+              </div>
+              
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <div className="text-sm text-blue-700">
+                  <p className="font-medium mb-2">配置步骤：</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <li>访问 <a href="https://aistudio.baidu.com/paddleocr/task" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">PaddleOCR 任务页面</a></li>
+                    <li>登录 AI Studio 账号</li>
+                    <li>在 <a href="https://aistudio.baidu.com/usercenter/token" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">个人中心</a> 获取访问令牌</li>
+                    <li>在任务页面获取 API 调用地址（填入上方"API 地址"）</li>
+                    <li>将令牌和地址填入上方输入框，点击保存</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowPaddleOcrSettings(false)}
+                className="flex-1 px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-all"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('paddle_ocr_api_key', paddleOcrApiKey);
+                  localStorage.setItem('paddle_ocr_api_url', paddleOcrApiUrl);
+                  setShowPaddleOcrSettings(false);
+                }}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+              >
+                保存
+              </button>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <a 
+                href="https://aistudio.baidu.com/paddleocr/task" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                <ScanText size={16} />
+                点击此处前往 PaddleOCR 任务页面
+              </a>
+            </div>
+          </motion.div>
+        </div>
       )}
     </>
   );
