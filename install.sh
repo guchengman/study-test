@@ -493,6 +493,9 @@ EOF
     # ============================================
     ui_stage "创建数据库"
 
+    local DB_EXISTS=false
+    local TABLE_COUNT=0
+
     ui_info "尝试连接 MySQL..."
     if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" ${DB_PASSWORD:+-p"$DB_PASSWORD"} -e "SELECT 1" 2>/dev/null; then
         ui_success "MySQL 连接成功"
@@ -505,19 +508,62 @@ EOF
         echo -e "${WARN}    CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;${NC}"
     fi
 
-    # 创建数据库
+    # 检查数据库是否已存在
     if [[ -z "$DB_PASSWORD" ]]; then
-        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null; then
-            ui_success "数据库创建成功"
-        else
-            ui_warn "数据库可能已存在或创建失败"
+        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "USE $DB_NAME" 2>/dev/null; then
+            DB_EXISTS=true
+            TABLE_COUNT=$(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D "$DB_NAME" -e "SHOW TABLES" 2>/dev/null | wc -l)
+            ((TABLE_COUNT--))
         fi
     else
-        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null; then
-            ui_success "数据库创建成功"
-        else
-            ui_warn "数据库可能已存在或创建失败"
+        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
+            DB_EXISTS=true
+            TABLE_COUNT=$(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -D "$DB_NAME" -e "SHOW TABLES" 2>/dev/null | wc -l)
+            ((TABLE_COUNT--))
         fi
+    fi
+
+    if [[ "$DB_EXISTS" == "true" ]]; then
+        ui_warn "数据库 '$DB_NAME' 已存在，包含 $TABLE_COUNT 个表"
+        
+        if [[ "$TABLE_COUNT" -gt 0 ]]; then
+            echo ""
+            echo -e "${ACCENT}请选择数据库处理方式:${NC}"
+            echo "  1. 删除数据库并重建（数据将丢失）"
+            echo "  2. 保留数据库，仅更新表结构"
+            echo "  3. 保留数据库和表结构，跳过初始化"
+            read -p "请输入选项 [2]: " -n 1 -r
+            echo
+
+            case "$REPLY" in
+                "1")
+                    ui_info "删除并重建数据库..."
+                    if [[ -z "$DB_PASSWORD" ]]; then
+                        run_quiet_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                    else
+                        run_quiet_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                    fi
+                    ui_success "数据库重建成功"
+                    ;;
+                "3")
+                    ui_info "跳过数据库初始化"
+                    SKIP_MIGRATION=true
+                    ;;
+                *)
+                    ui_info "保留数据库，准备更新表结构..."
+                    ;;
+            esac
+        else
+            ui_info "数据库为空，继续创建表结构..."
+        fi
+    else
+        ui_info "创建数据库..."
+        if [[ -z "$DB_PASSWORD" ]]; then
+            run_quiet_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        else
+            run_quiet_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        fi
+        ui_success "数据库创建成功"
     fi
 
     # ============================================
@@ -525,25 +571,29 @@ EOF
     # ============================================
     ui_stage "初始化数据库表结构"
 
-    MIGRATIONS_DIR="$APP_DIR/server/migrations"
-    if [[ -d "$MIGRATIONS_DIR" ]]; then
-        ui_info "执行数据库迁移脚本..."
-        JS_FILES=$(ls "$MIGRATIONS_DIR"/*.js 2>/dev/null | sort)
-        if [[ -n "$JS_FILES" ]]; then
-            for JS_FILE in $JS_FILES; do
-                ui_info "执行: $(basename "$JS_FILE")"
-                if node "$JS_FILE" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" 2>&1; then
-                    ui_success "  完成"
-                else
-                    ui_warn "  跳过 (可能已存在)"
-                fi
-            done
-            ui_success "数据库表结构初始化完成"
-        else
-            ui_warn "未找到迁移脚本"
-        fi
+    if [[ "$SKIP_MIGRATION" == "true" ]]; then
+        ui_info "跳过表结构初始化"
     else
-        ui_warn "未找到迁移脚本目录"
+        MIGRATIONS_DIR="$APP_DIR/server/migrations"
+        if [[ -d "$MIGRATIONS_DIR" ]]; then
+            ui_info "执行数据库迁移脚本..."
+            JS_FILES=$(ls "$MIGRATIONS_DIR"/*.js 2>/dev/null | sort)
+            if [[ -n "$JS_FILES" ]]; then
+                for JS_FILE in $JS_FILES; do
+                    ui_info "执行: $(basename "$JS_FILE")"
+                    if node "$JS_FILE" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" 2>&1; then
+                        ui_success "  完成"
+                    else
+                        ui_warn "  跳过 (可能已存在或结构不同)"
+                    fi
+                done
+                ui_success "数据库表结构初始化完成"
+            else
+                ui_warn "未找到迁移脚本"
+            fi
+        else
+            ui_warn "未找到迁移脚本目录"
+        fi
     fi
 
     # ============================================
