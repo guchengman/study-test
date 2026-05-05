@@ -29,7 +29,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 APP_NAME="study-test"
 APP_DIR="$SCRIPT_DIR/$APP_NAME"
 TMPFILES=()
-INSTALL_STAGE_TOTAL=7
+INSTALL_STAGE_TOTAL=8
 INSTALL_STAGE_CURRENT=0
 TAGLINE="智能题库系统，轻松学习每一天"
 
@@ -366,14 +366,65 @@ main() {
     fi
 
     # ============================================
-    # 2. 下载程序
+    # 2. 检测并停止旧服务
+    # ============================================
+    ui_stage "检测并停止旧服务"
+
+    local SERVICE_RUNNING=false
+
+    # 检查 PM2 服务
+    if command -v pm2 &>/dev/null; then
+        if pm2 list 2>/dev/null | grep -q "study-server"; then
+            ui_warn "检测到 PM2 服务 'study-server' 正在运行"
+            SERVICE_RUNNING=true
+        fi
+    fi
+
+    # 检查端口占用
+    if lsof -i :3000 -i :3100 2>/dev/null | grep -q LISTEN; then
+        ui_warn "检测到端口 3000 或 3100 被占用"
+        SERVICE_RUNNING=true
+    fi
+
+    if [[ "$SERVICE_RUNNING" == "true" ]]; then
+        if confirm_action "是否停止现有服务？"; then
+            ui_info "正在停止服务..."
+            
+            # 停止 PM2 服务
+            if command -v pm2 &>/dev/null; then
+                run_quiet_step "停止 PM2 服务" pm2 stop study-server 2>/dev/null || true
+                run_quiet_step "删除 PM2 服务" pm2 delete study-server 2>/dev/null || true
+            fi
+
+            # 强制杀死端口占用进程
+            ui_info "释放端口..."
+            lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
+            lsof -ti:3100 | xargs -r kill -9 2>/dev/null || true
+
+            ui_success "服务已停止"
+        else
+            ui_error "请手动停止服务后再安装"
+            exit 1
+        fi
+    else
+        ui_success "未检测到运行中的服务"
+    fi
+
+    # ============================================
+    # 3. 下载程序
     # ============================================
     ui_stage "下载程序"
 
     if [[ -d "$APP_DIR" ]]; then
         ui_warn "检测到已有安装目录: $APP_DIR"
-        if confirm_action "是否更新现有安装？"; then
-            ui_info "正在更新代码..."
+        if confirm_action "是否覆盖现有安装？"; then
+            ui_info "正在删除旧安装..."
+            run_quiet_step "删除旧安装" rm -rf "$APP_DIR"
+            ui_info "从 GitHub 克隆项目..."
+            run_quiet_step "克隆项目" git clone https://github.com/guchengman/study-test.git "$APP_DIR"
+            ui_success "代码下载完成"
+        else
+            ui_info "保留现有安装，仅更新代码..."
             cd "$APP_DIR"
             run_quiet_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
             cd "$SCRIPT_DIR"
@@ -385,7 +436,7 @@ main() {
     fi
 
     # ============================================
-    # 3. 安装依赖
+    # 4. 安装依赖
     # ============================================
     ui_stage "安装依赖"
 
@@ -401,7 +452,7 @@ main() {
     ui_success "后端依赖安装完成"
 
     # ============================================
-    # 4. 配置环境变量
+    # 5. 配置环境变量
     # ============================================
     ui_stage "配置环境变量"
 
@@ -438,7 +489,7 @@ EOF
     fi
 
     # ============================================
-    # 5. 创建数据库
+    # 6. 创建数据库
     # ============================================
     ui_stage "创建数据库"
 
@@ -470,7 +521,7 @@ EOF
     fi
 
     # ============================================
-    # 6. 初始化数据库表结构
+    # 7. 初始化数据库表结构
     # ============================================
     ui_stage "初始化数据库表结构"
 
@@ -496,7 +547,7 @@ EOF
     fi
 
     # ============================================
-    # 7. 启动服务
+    # 8. 启动服务
     # ============================================
     ui_stage "启动服务"
 
