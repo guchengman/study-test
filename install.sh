@@ -299,10 +299,27 @@ main() {
         fi
     fi
 
-    # 1.3 检查 Git
+    # 1.3 检查 npm
+    ui_info "检查 npm..."
+    if command -v npm &>/dev/null; then
+        NPM_VERSION=$(npm --version)
+        ui_success "npm 已安装: v$NPM_VERSION"
+    else
+        ui_warn "npm 未安装"
+        require_sudo
+        if is_root; then
+            run_quiet_step "安装 npm" apt-get install -y npm
+        else
+            run_quiet_step "安装 npm" sudo apt-get install -y npm
+        fi
+        ui_success "npm 安装完成"
+    fi
+
+    # 1.4 检查 Git
     ui_info "检查 Git..."
     if command -v git &>/dev/null; then
-        ui_success "Git 已安装"
+        GIT_VERSION=$(git --version | cut -d' ' -f3)
+        ui_success "Git 已安装: v$GIT_VERSION"
     else
         ui_warn "Git 未安装"
         require_sudo
@@ -312,6 +329,22 @@ main() {
             run_quiet_step "安装 Git" sudo apt-get install -y git
         fi
         ui_success "Git 安装完成"
+    fi
+
+    # 1.5 检查 OpenSSL
+    ui_info "检查 OpenSSL..."
+    if command -v openssl &>/dev/null; then
+        OPENSSL_VERSION=$(openssl version | cut -d' ' -f2)
+        ui_success "OpenSSL 已安装: v$OPENSSL_VERSION"
+    else
+        ui_warn "OpenSSL 未安装"
+        require_sudo
+        if is_root; then
+            run_quiet_step "安装 OpenSSL" apt-get install -y openssl
+        else
+            run_quiet_step "安装 OpenSSL" sudo apt-get install -y openssl
+        fi
+        ui_success "OpenSSL 安装完成"
     fi
 
     # ============================================
