@@ -1,9 +1,13 @@
 #!/bin/bash
+# -*- coding: utf-8 -*-
 # Study-Test 一键安装脚本 (Linux)
 # Usage: curl -fsSL https://example.com/install.sh | bash
 # or: sudo bash install.sh
 
 set -euo pipefail
+
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
 
 # ============================================
 # 颜色定义
@@ -293,29 +297,43 @@ main() {
                     run_quiet_step "安装 MySQL" bash -c "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mysql-server && sudo systemctl start mysql && sudo systemctl enable mysql"
                 fi
                 ui_success "MySQL 安装完成"
+                ui_info "配置 MySQL root 用户认证方式..."
+                if is_root; then
+                    run_quiet_step "配置 MySQL 认证" mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
+                else
+                    run_quiet_step "配置 MySQL 认证" sudo mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
+                fi
+                ui_success "MySQL 认证配置完成"
             else
                 ui_warn "跳过 MySQL 安装，请手动安装后配置"
             fi
         fi
     fi
 
-    # 1.3 检查 npm
+    # 1.3 检查 curl（安装 Node.js 需要）
+    ui_info "检查 curl..."
+    if command -v curl &>/dev/null; then
+        ui_success "curl 已安装"
+    else
+        ui_warn "curl 未安装"
+        require_sudo
+        if is_root; then
+            run_quiet_step "安装 curl" apt-get install -y curl
+        else
+            run_quiet_step "安装 curl" sudo apt-get install -y curl
+        fi
+        ui_success "curl 安装完成"
+    fi
+    # 1.4 检查 npm（Node.js 安装时已包含）
     ui_info "检查 npm..."
     if command -v npm &>/dev/null; then
         NPM_VERSION=$(npm --version)
         ui_success "npm 已安装: v$NPM_VERSION"
     else
-        ui_warn "npm 未安装"
-        require_sudo
-        if is_root; then
-            run_quiet_step "安装 npm" apt-get install -y npm
-        else
-            run_quiet_step "安装 npm" sudo apt-get install -y npm
-        fi
-        ui_success "npm 安装完成"
+        ui_warn "npm 未找到，请确保 Node.js 安装正确"
     fi
 
-    # 1.4 检查 Git
+    # 1.5 检查 Git
     ui_info "检查 Git..."
     if command -v git &>/dev/null; then
         GIT_VERSION=$(git --version | cut -d' ' -f3)
@@ -331,7 +349,7 @@ main() {
         ui_success "Git 安装完成"
     fi
 
-    # 1.5 检查 OpenSSL
+    # 1.6 检查 OpenSSL
     ui_info "检查 OpenSSL..."
     if command -v openssl &>/dev/null; then
         OPENSSL_VERSION=$(openssl version | cut -d' ' -f2)
