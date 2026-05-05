@@ -145,7 +145,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Study API 运行在 http://127.0.0.1:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Study API 运行在 http://0.0.0.0:${PORT}`);
   console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
 });
