@@ -71,6 +71,7 @@ debug-*.js
 # 允许安装脚本（但排除其他脚本）
 !install.ps1
 !install.bat
+!install.sh
 install-*.ps1
 install-*.bat
 
