@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   BookOpen,
@@ -43,7 +43,9 @@ import {
   HelpCircle,
   CloudOff,
   Loader2,
-  Cloud
+  Cloud,
+  Upload,
+  Download
 } from 'lucide-react';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
 import { Question, ExamResult, SubjectId, Subject, DEFAULT_SUBJECTS, SUBJECT_ICONS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, MAX_SHARED_SUBJECTS, suggestSubject } from './types';
@@ -56,11 +58,10 @@ import { VisitCounter } from './components/VisitCounter';
 import { useAuth } from './hooks/useAuth';
 import { questionApi, subjectApi, practiceApi, syncApi, inviteCodeApi, authApi, getToken, type AuthUser } from './services/api';
 
-// 懒加载大型弹窗组件
-const StudentManagementModal = React.lazy(() => import('./components/StudentManagementModal').then(module => ({ default: module.StudentManagementModal })));
-const HelpModal = React.lazy(() => import('./components/HelpModal').then(module => ({ default: module.HelpModal })));
-const SubjectShareCode = React.lazy(() => import('./components/SubjectShareCode').then(module => ({ default: module.SubjectShareCode })));
-const StudentSelectorModal = React.lazy(() => import('./components/StudentSelectorModal').then(module => ({ default: module.StudentSelectorModal })));
+import { StudentManagementModal } from './components/StudentManagementModal';
+import { HelpModal } from './components/HelpModal';
+import { SubjectShareCode } from './components/SubjectShareCode';
+import { StudentSelectorModal } from './components/StudentSelectorModal';
 
 interface MistakeRecord {
   questionId: number;
@@ -120,6 +121,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [currentSubjectId, setCurrentSubjectId] = useState<SubjectId>(DEFAULT_SUBJECTS[0]?.id || 'chinese');
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('json');
 
   // 初始化模态框状态
   const [showInitModal, setShowInitModal] = useState(false);
@@ -198,14 +200,14 @@ export default function App() {
         // 错题
         if (mistakesRes.status === 'fulfilled') {
           const ms = mistakesRes.value.mistakes.map((m: any) => ({
-            questionId: m.questionId, consecutiveCorrect: m.consecutiveCorrect,
+            questionId: m.question_id, consecutiveCorrect: m.consecutive_correct,
           }));
           setMistakeRecords(ms);
         }
 
         // 收藏
         if (favoritesRes.status === 'fulfilled') {
-          const fs = favoritesRes.value.favorites.map((f: any) => f.questionId);
+          const fs = favoritesRes.value.favorites.map((f: any) => f.id);
           setFavoriteIds(fs);
         }
 
@@ -309,6 +311,86 @@ export default function App() {
     setConfirmingFilter(false);
   };
 
+  // 导出题库为 CSV 或 JSON 格式
+  const exportQuestionBank = () => {
+    const date = new Date().toLocaleDateString().replace(/\//g, '-');
+    const name = currentSubject?.name || currentSubjectId;
+
+    if (exportFormat === 'json') {
+      const exportData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        subject: name,
+        subjectId: currentSubjectId,
+        totalQuestions: currentBank.length,
+        questions: currentBank.map((q, idx) => ({
+          index: idx + 1,
+          type: q.type,
+          title: q.title,
+          code: q.code || undefined,
+          options: q.options || [],
+          answer: q.answer,
+          explanation: q.explanation || '',
+          points: q.points || 5,
+        })),
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${name}_题库_${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setShowToast(`题库已导出为 JSON 文件，共 ${currentBank.length} 题`);
+      return;
+    }
+
+    const headers = ['题目ID', '科目', '题型', '题目内容', '选项A', '选项B', '选项C', '选项D', '正确答案', '解析', '分值'];
+    const rows = currentBank.map((q, idx) => [
+      idx + 1,
+      currentSubject?.name || currentSubjectId,
+      q.type === 'single' ? '单选题' : q.type === 'multiple' ? '多选题' : '编程题',
+      q.title,
+      q.options?.[0] || '',
+      q.options?.[1] || '',
+      q.options?.[2] || '',
+      q.options?.[3] || '',
+      Array.isArray(q.answer) ? q.answer.join(',') : q.answer,
+      q.explanation || '',
+      q.points || 5
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        const str = String(cell);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+      }).join(','))
+    ].join('\n');
+
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${name}_题库_${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setShowToast(`题库已导出为 CSV 文件，共 ${currentBank.length} 题`);
+  };
+
+  // 导入题库（打开导入弹窗）
+  const openImportModal = () => {
+    setIsImportModalOpen(true);
+  };
+
   useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => setShowToast(null), 2000);
@@ -323,6 +405,11 @@ export default function App() {
 
   // Filtered bank (excluding removed questions)
   const currentBank = useMemo(() => fullBank.filter(q => !removedIds.includes(q.id)), [fullBank, removedIds]);
+
+  // Current subject favorites count
+  const currentSubjectFavoriteCount = useMemo(() =>
+    currentBank.filter(q => favoriteIds.includes(q.id)).length
+  , [currentBank, favoriteIds]);
 
   // Automatically remove mistake records for questions that are no longer in the bank
   useEffect(() => {
@@ -352,6 +439,12 @@ export default function App() {
     setIsFullMode(mode === 'full');
     setIsRandomMode(mode === 'random');
 
+    // 全量测试模式允许空题库进入，以便用户导入题目
+    // 但题库完全为空时，所有模式都不允许进入
+    if (currentBank.length === 0) {
+      setShowToast('当前题库为空，请先导入题目');
+      return;
+    }
     if (mode === 'mistakes') {
       const mistakeIds = mistakeRecords.map(r => r.questionId);
       const uniqueMistakeIds = Array.from(new Set(mistakeIds));
@@ -367,9 +460,8 @@ export default function App() {
         setShowToast('收藏夹目前是空的哦!');
         return;
       }
-    }
-
-    if (source.length === 0) {
+    } else if (mode !== 'full' && source.length === 0) {
+      // 全量测试模式允许空题库进入，以便用户导入题目
       setShowToast('当前题库中没有符合条件的题目');
       return;
     }
@@ -498,10 +590,7 @@ export default function App() {
       // 答错时:如果不在错题本中则添加,已存在则重置计数
       if (!currentRecord) {
         setMistakeRecords(prev => [...prev, { questionId, consecutiveCorrect: 0 }]);
-        if (currentUser) {
-          const q = [...INITIAL_BANK, ...customQuestions].find(q => q.id === questionId);
-          if (q) practiceApi.addMistake(questionId, q.subject).catch(() => {});
-        }
+        if (currentUser) practiceApi.addMistake(questionId, false).catch(() => {});
       } else {
         setMistakeRecords(prev =>
           prev.map(r => r.questionId === questionId ? { ...r, consecutiveCorrect: 0 } : r)
@@ -1070,24 +1159,24 @@ export default function App() {
                 <button
                   onClick={() => startExam('favorites')}
                   className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
-                    favoriteIds.length === 0
+                    currentSubjectFavoriteCount === 0
                       ? 'bg-slate-50 border-slate-200 opacity-60'
                       : 'bg-amber-50 border-amber-100 hover:border-amber-300'
                   }`}
                 >
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
-                    favoriteIds.length === 0 ? 'bg-slate-400 text-white' : 'bg-amber-500 text-white'
+                    currentSubjectFavoriteCount === 0 ? 'bg-slate-400 text-white' : 'bg-amber-500 text-white'
                   }`}>
-                    <Star size={24} fill={favoriteIds.length > 0 ? "currentColor" : "none"} />
+                    <Star size={24} fill={currentSubjectFavoriteCount > 0 ? "currentColor" : "none"} />
                   </div>
-                  <div className={`font-bold text-lg ${favoriteIds.length === 0 ? 'text-slate-500' : 'text-amber-900'}`}>
-                    {favoriteIds.length === 0 ? '暂无收藏题目' : '我的收藏题库'}
+                  <div className={`font-bold text-lg ${currentSubjectFavoriteCount === 0 ? 'text-slate-500' : 'text-amber-900'}`}>
+                    {currentSubjectFavoriteCount === 0 ? '暂无收藏题目' : '我的收藏题库'}
                   </div>
                   <div className="text-sm text-amber-600/70">复习您标记的重点题目</div>
                   <div className="mt-2 inline-block px-2 py-0.5 bg-amber-200 text-amber-700 text-xs font-bold rounded-full">
-                    收藏总数: {favoriteIds.length}
+                    收藏总数: {currentSubjectFavoriteCount}
                   </div>
-                  {favoriteIds.length === 0 && (
+                  {currentSubjectFavoriteCount === 0 && (
                     <div className="mt-2 text-xs text-slate-400">练习时点击⭐收藏题目</div>
                   )}
                 </button>
@@ -1136,6 +1225,37 @@ export default function App() {
           )}
 
           {status === 'exam' && (
+            examQuestions.length === 0 ? (
+              /* 空题库状态 */
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
+              >
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Database size={40} className="text-slate-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-700 mb-2">题库为空</h3>
+                <p className="text-slate-500 mb-6">当前科目还没有题目，快去导入一些吧！</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setStatus('welcome');
+                      setIsImportModalOpen(true);
+                    }}
+                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                  >
+                    <Upload size={18} /> 导入题目
+                  </button>
+                  <button
+                    onClick={() => setStatus('welcome')}
+                    className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                  >
+                    返回首页
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
             <motion.div
               key={currentIndex}
               initial={{ opacity: 0, x: 20 }}
@@ -1264,6 +1384,40 @@ export default function App() {
                             <Filter size={12} /> 仅客观题
                           </button>
                         )}
+
+                        <div className="w-px h-4 bg-slate-200" />
+
+                        <button
+                          onClick={openImportModal}
+                          disabled={!currentUser}
+                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${
+                            currentUser
+                              ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          }`}
+                          title="导入题库"
+                        >
+                          <Upload size={12} /> 导入
+                        </button>
+
+                        <div className="flex items-center rounded-md overflow-hidden border border-green-200">
+                          <select
+                            value={exportFormat}
+                            onChange={e => setExportFormat(e.target.value as 'csv' | 'json')}
+                            className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-1 outline-none cursor-pointer hover:bg-green-100 transition-colors"
+                            title="导出格式"
+                          >
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                          </select>
+                          <button
+                            onClick={exportQuestionBank}
+                            className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 text-[10px] font-bold hover:bg-green-200 transition-colors"
+                            title="导出题库"
+                          >
+                            <Download size={12} /> 导出
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1532,6 +1686,7 @@ export default function App() {
                 )}
               </div>
             </motion.div>
+            )
           )}
 
           {status === 'result' && finalResult && (
@@ -1727,15 +1882,12 @@ export default function App() {
       />
 
       {isStudentManagementOpen && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">加载中...</div>}>
           <StudentManagementModal
             onClose={() => setIsStudentManagementOpen(false)}
           />
-        </Suspense>
       )}
 
       {!!studentSelectorSubject && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">加载中...</div>}>
           <StudentSelectorModal
             subjectId={studentSelectorSubject?.id || ''}
             subjectName={studentSelectorSubject?.name || ''}
@@ -1746,7 +1898,6 @@ export default function App() {
               }
             }}
           />
-        </Suspense>
       )}
 
       {/* 用户管理模态框 */}

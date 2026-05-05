@@ -1,0 +1,11 @@
+type,title,options,answer,explanation,points
+single,"以下哪个是Python的输出函数？","print,input,open,sys","print","print()是Python的标准输出函数，用于在控制台打印内容",5
+single,"Python中，用于导入模块的关键字是？","import,include,using,require","import","import关键字用于导入Python模块",5
+multiple,"以下哪些是Python的数据类型？","int,str,float,boolean","int,str,float","Python支持多种数据类型",5
+single,"下列代码的输出是什么？\nprint(2 ** 3)","6,8,9,16","8","** 是Python的幂运算符，2**3=8",5
+single,"哪个不是Python的循环语句？","for,while,loop,do-while","loop","Python只有for和while两种循环",5
+multiple,"以下哪些是Python中可变的容器类型？","list,dict,tuple,set","list,dict,set","list、dict、set是可变的，tuple是不可变的",5
+single,"执行 print(type([])) 的结果是？","<class 'list'>','<class 'dict'>',<class 'tuple'>,'<class 'array'>","空列表的类型是list",5
+single,"Python中，字符串可以用什么包裹？","单引号,双引号,三引号,以上都可以","以上都可以","Python字符串可以用单引号、双引号、三引号包裹",5
+multiple,"Python中，哪些方法可以向列表添加元素？","append,insert,extend,remove","append,insert,extend","append追加、insert插入、extend扩展列表",5
+single,"哪个关键字用于定义函数？","def,function,func,define","def","def是Python中定义函数的关键字",5
