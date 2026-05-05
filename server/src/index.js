@@ -54,6 +54,7 @@ app.use(cors({
     'https://www.xiaoyue.shop',
     'https://xiaoyue.shop',
     'http://localhost:3000',
+    'http://localhost:5173',
   ],
   credentials: true,
 }));
@@ -97,6 +98,41 @@ app.post('/api/ocr/baidu', async (req, res) => {
     res.status(500).json({ error: '识别失败' });
   }
 });
+
+// 静态文件服务（必须在 API 路由之后）
+const distPath = path.join(__dirname, '../../dist');
+console.log('Serving static files from:', distPath);
+if (existsSync(distPath)) {
+  app.use(express.static(distPath, {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (path.endsWith('.json')) {
+        res.setHeader('Content-Type', 'application/json');
+      } else if (path.endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html');
+      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/png');
+      } else if (path.endsWith('.svg')) {
+        res.setHeader('Content-Type', 'image/svg+xml');
+      }
+    },
+  }));
+
+  // 处理 SPA 路由（必须在所有路由最后）
+  app.get('*', (req, res) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send('Not found');
+    }
+  });
+} else {
+  console.warn('dist directory not found, static files not served');
+}
 
 // 健康检查
 app.get('/api/health', (req, res) => {
