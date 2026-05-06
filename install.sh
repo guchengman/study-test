@@ -50,9 +50,11 @@ APP_NAME="study-test"
 if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
     # 在线安装模式：使用 /opt 目录
     APP_DIR="/opt/$APP_NAME"
+    ONLINE_INSTALL=true
 else
-    # 本地安装模式：使用脚本所在目录
-    APP_DIR="$SCRIPT_DIR/$APP_NAME"
+    # 本地安装模式：使用脚本所在目录的父目录（即项目根目录）
+    APP_DIR="$SCRIPT_DIR"
+    ONLINE_INSTALL=false
 fi
 TMPFILES=()
 INSTALL_STAGE_TOTAL=8
@@ -746,8 +748,7 @@ main() {
     fi
 
     if [[ "$SERVICE_RUNNING" == "true" ]]; then
-        # 判断是否为在线安装模式
-        if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
+        if [[ "$ONLINE_INSTALL" == "true" ]]; then
             # 在线安装模式：自动停止服务
             ui_info "在线安装模式，自动停止现有服务..."
             
@@ -794,36 +795,20 @@ main() {
     # ============================================
     ui_stage "下载程序"
 
-    if [[ -d "$APP_DIR" ]]; then
-        ui_warn "检测到已有安装目录: $APP_DIR"
-        
-        # 判断是否为在线安装模式
-        if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
-            # 在线安装模式：自动覆盖
+    if [[ "$ONLINE_INSTALL" == "true" ]]; then
+        # 在线安装模式：从 GitHub 拉取代码
+        if [[ -d "$APP_DIR" ]]; then
+            ui_warn "检测到已有安装目录: $APP_DIR"
             ui_info "在线安装模式，自动覆盖现有安装..."
             run_step "删除旧安装" rm -rf "$APP_DIR"
-            ui_info "克隆项目..."
-            run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
-            ui_success "代码下载完成"
-        else
-            # 本地安装模式：询问用户
-            if confirm_action "是否覆盖现有安装？"; then
-                ui_info "正在删除旧安装..."
-                run_step "删除旧安装" rm -rf "$APP_DIR"
-                ui_info "克隆项目..."
-                run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
-                ui_success "代码下载完成"
-            else
-                ui_info "保留现有安装，仅更新代码..."
-                cd "$APP_DIR"
-                run_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
-                cd "$SCRIPT_DIR"
-            fi
         fi
-    else
         ui_info "克隆项目..."
         run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
         ui_success "代码下载完成"
+    else
+        # 本地安装模式：直接使用当前目录的代码，无需克隆
+        ui_info "本地安装模式，直接使用当前目录代码"
+        ui_success "跳过代码下载"
     fi
 
     # ============================================
