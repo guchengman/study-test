@@ -56,7 +56,7 @@ INSTALL_STAGE_CURRENT=0
 TAGLINE="智能题库系统，轻松学习每一天"
 
 # 镜像配置
-USE_CN_MIRROR=false
+USE_CN_MIRROR=true
 NPM_REGISTRY="https://registry.npmmirror.com"
 GIT_REPO_CN="https://gitee.com/guchengman/study-test.git"
 GIT_REPO_ORIGINAL="https://github.com/guchengman/study-test.git"
