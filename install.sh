@@ -442,26 +442,90 @@ run_step_with_spinner() {
 run_npm_install() {
     local title="$1"
     local registry="${2:-}"
+    local timeout_minutes=30
+    local start_time=$(date +%s)
+    local last_output_time=$start_time
+    local no_output_timeout=180  # 3分钟无输出视为卡住
     
     echo -e "${INFO}${title}...${NC}"
     echo -e "${MUTED}----------------------------------------${NC}"
+    echo -e "${WARN}⏰ 安装可能需要几分钟时间，请耐心等待...${NC}"
+    echo ""
     
+    local npm_cmd="npm install --legacy-peer-deps"
     if [[ -n "$registry" ]]; then
-        npm install --registry "$registry" 2>&1 | while IFS= read -r line; do
-            echo -e "${INFO}  ${line}${NC}"
-        done
-    else
-        npm install 2>&1 | while IFS= read -r line; do
-            echo -e "${INFO}  ${line}${NC}"
-        done
+        npm_cmd="$npm_cmd --registry $registry"
     fi
     
-    local exit_code=${PIPESTATUS[0]}
+    # 创建临时日志文件
+    local log_file=$(mktemp)
+    local pid_file=$(mktemp)
     
+    # 后台执行 npm install
+    $npm_cmd >"$log_file" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$pid_file"
+    
+    # 监控循环
+    local spin='-\|/'
+    local i=0
+    local elapsed=0
+    
+    while kill -0 "$pid" 2>/dev/null; do
+        # 检查是否超时
+        local current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        
+        # 检查是否长时间无输出
+        if [[ -s "$log_file" ]]; then
+            local last_modified=$(stat -c %Y "$log_file" 2>/dev/null || stat -f %m "$log_file" 2>/dev/null || echo "$current_time")
+            if [[ $((current_time - last_modified)) -gt $no_output_timeout ]]; then
+                echo -e "\n${WARN}⚠️ 检测到长时间无输出，可能卡住了${NC}"
+                echo -e "${WARN}最近的输出：${NC}"
+                tail -n 5 "$log_file" | while IFS= read -r line; do
+                    echo -e "${INFO}  $line${NC}"
+                done
+                echo -e "${WARN}继续等待中... (已等待 $((elapsed/60)) 分钟)${NC}"
+                last_output_time=$current_time
+            fi
+        fi
+        
+        # 显示进度和时间
+        i=$(( (i+1) % 4 ))
+        printf "\r${INFO}${title} ${spin:$i:1} 已等待 %d 分 %d 秒${NC}" $((elapsed/60)) $((elapsed%60))
+        
+        # 检查总超时
+        if [[ $elapsed -gt $((timeout_minutes * 60)) ]]; then
+            echo -e "\n${ERROR}❌ 安装超时（超过 $timeout_minutes 分钟）${NC}"
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            echo -e "${ERROR}--- 最后日志 ---${NC}"
+            tail -n 20 "$log_file" >&2
+            echo -e "${ERROR}---------------${NC}"
+            rm -f "$log_file" "$pid_file"
+            return 1
+        fi
+        
+        sleep 1
+    done
+    
+    wait "$pid"
+    local exit_code=$?
+    
+    printf "\r${SUCCESS}${title} ✓ (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
     echo -e "${MUTED}----------------------------------------${NC}"
     
+    # 显示安装统计
+    if [[ -s "$log_file" ]]; then
+        local package_count=$(grep -c "added" "$log_file" | head -1 || echo "0")
+        if [[ -n "$package_count" && "$package_count" != "0" ]]; then
+            echo -e "${INFO}📦 安装了 $package_count 个依赖包${NC}"
+        fi
+    fi
+    
+    rm -f "$log_file" "$pid_file"
+    
     if [[ $exit_code -eq 0 ]]; then
-        echo -e "${SUCCESS}${title} ✓${NC}"
         return 0
     else
         echo -e "${ERROR}${title} ✗${NC}"
