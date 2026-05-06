@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      skip_build:
+        description: '跳过构建（仅重启服务）'
+        required: false
+        default: 'false'
+        type: boolean
 
 env:
   SERVER_HOST: 47.88.52.213
@@ -27,27 +33,24 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # 3. 安装前端依赖
-      - name: Install frontend dependencies
-        run: npm ci
-
-      # 4. 安装后端依赖
-      - name: Install backend dependencies
-        run: cd server && npm ci
-
-      # 5. 构建前端
-      - name: Build frontend
-        run: npm run build
+      # 3. 安装依赖 & 构建（可跳过）
+      - name: Install and Build
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        run: |
+          # 前端依赖
+          npm ci
+          # 后端依赖
+          cd server && npm ci && cd ..
+          # 构建前端
+          npm run build
         env:
           VITE_API_BASE_URL: /api
 
-      # 6. 配置SSH（传统方式，避免Node.js兼容性问题）
+      # 4. 配置 SSH
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          # 添加主机密钥
           ssh-keyscan -t rsa,ecdsa,ed25519 ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          # 配置SSH使用私钥
           cat > ~/.ssh/config << 'SSHCONF'
           Host server
             HostName ${{ env.SERVER_HOST }}
@@ -55,56 +58,99 @@ jobs:
             IdentityFile ~/.ssh/private_key
             StrictHostKeyChecking accept-new
           SSHCONF
-          # 写入私钥
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/private_key
           chmod 600 ~/.ssh/private_key
           chmod 700 ~/.ssh
 
-      # 7. 部署到服务器
+      # 5. 部署到服务器
       - name: Deploy to server
         run: |
-          # 创建临时目录用于传输
+          # 创建备份目录
           ssh server "mkdir -p ${{ env.SERVER_PATH }}/backup"
           
-          # 备份当前构建文件
-          ssh server "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_bak_$(date +%Y%m%d_%H%M%S) 2>/dev/null || true"
+          # 备份当前版本
+          BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
+          ssh server "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_$BACKUP_TIME 2>/dev/null || true"
+          ssh server "cp -r ${{ env.SERVER_PATH }}/server/src ${{ env.SERVER_PATH }}/backup/server_src_$BACKUP_TIME 2>/dev/null || true"
           
-          # 同步前端文件
+          # 同步前端构建产物
           rsync -avz --delete \
             --exclude='node_modules' \
             --exclude='.git' \
             --exclude='server' \
-            ./ server:${{ env.SERVER_PATH }}/
+            --exclude='*.log' \
+            ./dist/ server:${{ env.SERVER_PATH }}/dist/
           
-          # 同步后端文件
-          ssh server "rsync -avz --delete ./server/ ${{ env.SERVER_PATH }}/server/"
+          # 同步后端源码
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            ./server/src/ server:${{ env.SERVER_PATH }}/server/src/
+          
+          # 同步 package.json（用于依赖更新检测）
+          rsync -avz ./package.json server:${{ env.SERVER_PATH }}/package.json
+          rsync -avz ./server/package.json server:${{ env.SERVER_PATH }}/server/package.json
 
-      # 8. 重启服务
-      - name: Restart services
+      # 6. 更新 .env 文件（从 Secrets 生成）
+      - name: Update environment files
         run: |
           ssh server << 'EOF'
+            cat > ${{ env.SERVER_PATH }}/server/.env << 'ENVFILE'
+          PORT=3100
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}
+          BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}
+          DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
+          ENVFILE
+            chmod 600 ${{ env.SERVER_PATH }}/server/.env
+          EOF
+
+      # 7. 安装依赖 & 重启服务
+      - name: Install dependencies and restart
+        run: |
+          ssh server << 'EOF'
+            set -e
             cd ${{ env.SERVER_PATH }}
             
-            # 安装后端依赖
+            echo "📦 安装后端依赖..."
             cd server
             npm ci --production 2>/dev/null || npm install --production
             
-            # 安装前端依赖
-            cd ..
-            npm ci --production 2>/dev/null || npm install --production
+            echo "🔄 重启 PM2..."
+            pm2 restart study-server 2>/dev/null || pm2 start src/index.js --name study-server
+            pm2 save
             
-            # 重启 PM2
-            pm2 restart study-server || pm2 start server/src/index.js --name study-server
-            
-            # 重启 nginx
+            echo "🔄 重启 Nginx..."
             sudo nginx -t && sudo nginx -s reload
             
-            echo "部署完成！"
-            echo "网站地址: https://www.xiaoyyue.shop"
+            echo "✅ 部署完成！"
           EOF
+
+      # 8. 健康检查
+      - name: Health check
+        run: |
+          echo "🏥 等待服务启动..."
+          sleep 5
+          
+          # 检查 API 健康端点
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://www.xiaoyue.shop/api/health || echo "000")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ API 健康检查通过"
+          else
+            echo "⚠️ API 返回状态码: $RESPONSE"
+            echo "请检查服务器日志: pm2 logs study-server"
+          fi
 
       # 9. 部署完成
       - name: Deploy completed
         run: |
           echo "✅ 部署完成！"
-          echo "🌐 网站地址: https://www.xiaoyyue.shop"
+          echo "🌐 网站地址: https://www.xiaoyue.shop"
+          echo "📊 PM2 状态: pm2 status"
+          echo "📋 查看日志: pm2 logs study-server"
