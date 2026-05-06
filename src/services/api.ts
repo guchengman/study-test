@@ -87,6 +87,13 @@ class ApiClient {
 
 const client = new ApiClient(API_BASE);
 
+/** 与 ApiClient 一致的基础路径（供 geminiService 等直接使用 fetch 的场景） */
+export function getApiBaseUrl(): string {
+  return import.meta.env.MODE === 'development'
+    ? '/api'
+    : (import.meta.env.VITE_API_BASE_URL || '/api');
+}
+
 // ─── 类型定义 ───────────────────────────────────────────────
 
 export type UserRole = 'admin' | 'teacher' | 'student' | 'independent';
@@ -264,7 +271,21 @@ export const questionApi = {
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return client.get<{ questions: QuestionItem[]; total: number }>(`/questions${qs ? '?' + qs : ''}`);
+    return client.get<{ questions: QuestionItem[]; total: number; page?: number; limit?: number }>(`/questions${qs ? '?' + qs : ''}`);
+  },
+  /** 按后端单页上限分页拉取，直到拿全该筛选条件下的题目（避免 limit=5000 被后端截断为 200） */
+  listAll: async (params?: { subject?: string; type?: string }) => {
+    const pageSize = 200;
+    const maxPages = 100;
+    const all: QuestionItem[] = [];
+    let total = 0;
+    for (let page = 1; page <= maxPages; page++) {
+      const res = await questionApi.list({ ...params, page, limit: pageSize });
+      total = res.total;
+      all.push(...res.questions);
+      if (all.length >= total || res.questions.length === 0) break;
+    }
+    return { questions: all, total };
   },
   create: (data: Partial<QuestionItem>) => client.post<{ message: string; id: number }>('/questions', data),
   batchImport: (questions: Partial<QuestionItem>[], subjectId?: string) =>

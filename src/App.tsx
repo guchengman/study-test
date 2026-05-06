@@ -6,49 +6,34 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  BookOpen,
-  CheckCircle2,
-  XCircle,
-  ChevronRight,
-  ChevronLeft,
-  Timer,
-  Award,
-  RefreshCcw,
-  ListChecks,
-  CircleDot,
-  Trash2,
-  History,
-  Database,
-  CopyCheck,
-  Filter,
-  Star,
-  Search,
-  X,
-  Check,
-  PlusCircle,
-  Settings,
-  Edit3,
-  Layers,
   AlertTriangle,
-  Users,
-  Key,
-  Shield,
-  Share2,
-  Copy,
-  Phone,
-  Mail,
-  GraduationCap,
+  Check,
+  CheckCircle2,
   ChevronDown,
-  Clock,
-  HelpCircle,
-  CloudOff,
-  Loader2,
-  Cloud,
-  Upload,
-  Download
+  ChevronLeft,
+  ChevronRight,
+  Edit3,
+  GraduationCap,
+  Key,
+  Mail,
+  Phone,
+  PlusCircle,
+  RefreshCcw,
+  Settings,
+  Share2,
+  Shield,
+  Trash2,
+  Users,
+  X,
+  XCircle,
 } from 'lucide-react';
 import { QUESTION_BANK as INITIAL_BANK } from './questionBank';
-import { Question, ExamResult, SubjectId, Subject, DEFAULT_SUBJECTS, SUBJECT_ICONS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, MAX_SHARED_SUBJECTS, suggestSubject } from './types';
+import { Question, ExamResult, SubjectId, Subject, DEFAULT_SUBJECTS, SUBJECT_ICONS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, MAX_SHARED_SUBJECTS, suggestSubject, type MistakeRecord } from './types';
+import { isAnswerCorrect } from './utils/examScoring';
+import { AppHeader } from './components/app/AppHeader';
+import { WelcomeScreen } from './components/app/WelcomeScreen';
+import { ExamScreen } from './components/app/ExamScreen';
+import { ResultScreen } from './components/app/ResultScreen';
 import { ImportModal } from './components/ImportModal';
 import { LoginModal } from './components/LoginModal';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -62,14 +47,6 @@ import { StudentManagementModal } from './components/StudentManagementModal';
 import { HelpModal } from './components/HelpModal';
 import { SubjectShareCode } from './components/SubjectShareCode';
 import { StudentSelectorModal } from './components/StudentSelectorModal';
-
-interface MistakeRecord {
-  questionId: number;
-  consecutiveCorrect: number;
-}
-
-
-
 
 
 export default function App() {
@@ -180,7 +157,7 @@ export default function App() {
         setQuestionsLoading(true);
         // 并行加载所有数据 - 按当前科目加载题目,避免全量查询问题
         const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
-          questionApi.list({ subject: currentSubjectId, limit: 5000 }),
+          questionApi.listAll({ subject: currentSubjectId }),
           practiceApi.getMistakes(),
           practiceApi.getFavorites(),
           subjectApi.list(),
@@ -600,49 +577,6 @@ export default function App() {
     }
   };
 
-  const isAnswerCorrect = (q: Question, userAns: any) => {
-    if (!userAns) return false;
-
-    if (q.type === 'single') {
-      const uAns = typeof userAns === 'string' ? userAns.trim() : String(userAns);
-      const qAns = typeof q.answer === 'string' ? q.answer.trim() : String(q.answer);
-
-      // 1. Direct match
-      if (uAns === qAns) return true;
-
-      // 2. Label match (e.g., answer is "A", user selected the text of option A)
-      if (q.options && /^[A-Z]$/.test(qAns.toUpperCase())) {
-        const labelIndex = qAns.toUpperCase().charCodeAt(0) - 65;
-        if (q.options[labelIndex]?.trim() === uAns) return true;
-      }
-
-      return false;
-    }
-
-    if (q.type === 'multiple') {
-      const sortedUser = Array.isArray(userAns) ? [...userAns].map(s => s.trim()).sort() : [];
-      const qAns = q.answer;
-
-      // If answer is labels like ["A", "B"]
-      let targetAns = Array.isArray(qAns) ? [...qAns].map(s => s.trim()).sort() : [];
-      if (q.options && targetAns.every(a => /^[A-Z]$/.test(a.toUpperCase()))) {
-        targetAns = targetAns.map(label => {
-          const idx = label.toUpperCase().charCodeAt(0) - 65;
-          return q.options![idx]?.trim() || label;
-        }).sort();
-      }
-
-      return sortedUser.length > 0 && JSON.stringify(sortedUser) === JSON.stringify(targetAns);
-    }
-
-    if (q.type === 'programming') {
-      const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
-      return normalize(userAns as string) === normalize(q.answer as string);
-    }
-
-    return false;
-  };
-
   const checkMultipleAnswer = () => {
     const q = examQuestions[currentIndex];
     const userAns = userAnswers[q.id] || [];
@@ -700,12 +634,6 @@ export default function App() {
       correctness
     });
     setStatus('result');
-  };
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   // 移除了待同步题目功能,所有操作直接通过 API 完成
@@ -772,1057 +700,111 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans selection:bg-blue-100">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setStatus('welcome')}>
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                  <span className="text-xl">{currentSubject.icon}</span>
-                </div>
-                <h1 className="font-bold text-lg tracking-tight hidden sm:block">{currentSubject.name}</h1>
-              </div>
-
-              {/* 初始化按钮 - 登录用户可用 */}
-              <button
-                onClick={(e) => {
-                  if (!currentUser) return;
-                  e.stopPropagation();
-                  setShowInitModal(true);
-                }}
-                className={`ml-2 sm:ml-4 px-2 sm:px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition-all flex items-center gap-1 ${
-                  currentUser
-                    ? 'bg-slate-300 text-slate-700 hover:bg-slate-400 cursor-pointer'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                }`}
-                title={currentUser ? '初始化考试科目和题库' : '登录后可使用'}
-                disabled={!currentUser}
-              >
-                <RefreshCcw size={12} className="sm:size-3.5" />
-                <span className="hidden xs:inline">重置</span>
-              </button>
-            </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            {/* 加入共享科目入口 */}
-            {currentUser && (
-              <button
-                onClick={() => setIsJoinSubjectOpen(true)}
-                className="px-2 sm:px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-100 transition-all flex items-center gap-1"
-                title="加入共享科目"
-              >
-                <Key size={14} />
-                <span className="hidden sm:inline">加入科目</span>
-              </button>
-            )}
-            {/* 管理员用户管理入口 */}
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  setShowUserManagement(true);
-                  getUserList().then(list => setUserList(list));
-                }}
-                className="px-2 sm:px-3 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-100 transition-all flex items-center gap-1"
-                title="管理用户"
-              >
-                <Shield size={14} />
-                <span className="hidden sm:inline">管理用户</span>
-              </button>
-            )}
-            {/* 老师学生管理入口 */}
-            {isTeacher && (
-              <button
-                onClick={() => setIsStudentManagementOpen(true)}
-                className="px-2 sm:px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-indigo-100 transition-all flex items-center gap-1"
-                title="学生管理"
-              >
-                <Users size={14} />
-                <span className="hidden sm:inline">学生管理</span>
-              </button>
-            )}
-            {/* 帮助按钮 - 始终可见 */}
-            <button
-              onClick={() => setIsHelpOpen(true)}
-              className="px-2.5 sm:px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center gap-1.5"
-              title="帮助手册"
-            >
-              <HelpCircle size={15} />
-              <span className="hidden sm:inline">帮助</span>
-            </button>
-
-            {/* 移除了待同步题目提示 */}
-
-            {/* 登录/登出按钮 */}
-            {currentUser ? (
-              <div className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg font-medium text-sm hover:bg-amber-100 transition-all flex items-center gap-2"
-                  title="用户菜单"
-                >
-                  <CheckCircle2 size={16} />
-                  <span>{currentUser}</span>
-                  {isAdmin && (
-                    <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
-                      管理员
-                    </span>
-                  )}
-                  {isTeacher && !isAdmin && (
-                    <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full font-bold">
-                      老师
-                    </span>
-                  )}
-                  {!isAdmin && !isTeacher && authUser?.role === 'independent' && (
-                    <span className="text-xs bg-slate-400 text-white px-2 py-0.5 rounded-full font-bold">
-                      独立
-                    </span>
-                  )}
-                  {!isAdmin && !isTeacher && authUser?.role === 'student' && (
-                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-bold">
-                      学生
-                    </span>
-                  )}
-                  <ChevronDown size={14} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
-                </button>
-                {showUserMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-50 min-w-[160px]">
-                      {!isAdmin && (
-                        <button
-                          onClick={() => { setShowUserMenu(false); setShowDeleteAccountConfirm(true); }}
-                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-500"
-                        >
-                          <Trash2 size={15} className="text-slate-400" />
-                          注销账号
-                        </button>
-                      )}
-                      {!isAdmin && (
-                        <button
-                          onClick={() => { setShowUserMenu(false); setShowRoleSwitch(true); }}
-                          className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
-                        >
-                          <Users size={15} className="text-indigo-500" />
-                          切换身份
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { setShowUserMenu(false); setShowChangePasswordModal(true); }}
-                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-slate-700"
-                      >
-                        <Key size={15} className="text-blue-500" />
-                        修改密码
-                      </button>
-                      <button
-                        onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }}
-                        className="w-full px-4 py-2.5 text-sm text-left hover:bg-slate-50 flex items-center gap-2.5 text-red-600 border-t border-slate-50 mt-1 pt-1.5"
-                      >
-                        <XCircle size={15} />
-                        退出登录
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-3 py-2 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-sm hover:bg-blue-100 transition-all flex items-center gap-2"
-                title="登录"
-              >
-                <Settings size={16} />
-                <span>登录</span>
-              </button>
-            )}
-
-            {status === 'exam' && (
-              <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 rounded-full text-slate-600 font-medium text-sm">
-                <Timer size={16} />
-                <span>{formatTime(elapsedTime)}</span>
-              </div>
-              <div className="text-sm font-medium text-slate-500">
-                题目 {currentIndex + 1} / {examQuestions.length}
-              </div>
-            </div>
-          )}
-
-          {(status === 'result' || status === 'mistakes') && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setStatus('welcome')}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-all"
-              >
-                <ChevronLeft size={22} />
-                <span>返回上一级</span>
-              </button>
-            </div>
-          )}
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        currentSubject={currentSubject}
+        onGoWelcome={() => setStatus('welcome')}
+        currentUser={currentUser}
+        authUser={authUser}
+        isAdmin={isAdmin}
+        isTeacher={isTeacher}
+        status={status}
+        elapsedTime={elapsedTime}
+        currentIndex={currentIndex}
+        examTotal={examQuestions.length}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+        setShowInitModal={setShowInitModal}
+        setIsJoinSubjectOpen={setIsJoinSubjectOpen}
+        getUserList={getUserList}
+        setUserList={setUserList}
+        setShowUserManagement={setShowUserManagement}
+        setIsStudentManagementOpen={setIsStudentManagementOpen}
+        setIsHelpOpen={setIsHelpOpen}
+        setShowDeleteAccountConfirm={setShowDeleteAccountConfirm}
+        setShowRoleSwitch={setShowRoleSwitch}
+        setShowChangePasswordModal={setShowChangePasswordModal}
+        setShowLogoutConfirm={setShowLogoutConfirm}
+        setIsModalOpen={setIsModalOpen}
+      />
 
       <main className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
         <AnimatePresence mode="wait">
           {status === 'welcome' && (
-            <motion.div
-              key="welcome"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
-            >
-              {/* Subject Selection */}
-              <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mb-5 sm:mb-6 relative">
-                {allSubjects.map((subject) => {
-                  const isPending = subject.subscriptionStatus === 'pending';
-                  const isApprovedShared = subject.isSubscribed && !subject.isOwner && !isPending;
-                  return (
-                  <div key={subject.id} className="relative group">
-                    <button
-                      onClick={() => !isPending && setCurrentSubjectId(subject.id)}
-                      disabled={questionsLoading}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all ${
-                        questionsLoading
-                          ? 'opacity-60 cursor-wait'
-                          : isPending
-                            ? 'bg-amber-50 text-amber-500 cursor-not-allowed opacity-70 border-2 border-amber-200 border-dashed'
-                            : currentSubjectId === subject.id
-                              ? isApprovedShared
-                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-105'
-                                : 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                              : isApprovedShared
-                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-2 border-emerald-300 border-dashed'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {questionsLoading && currentSubjectId === subject.id ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <span>{subject.icon}</span>
-                      )}
-                      <span>{subject.name}</span>
-                      {isPending && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 bg-amber-200 text-amber-700">
-                          <Clock size={9} />待审核
-                        </span>
-                      )}
-                      {isApprovedShared && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${
-                          currentSubjectId === subject.id
-                            ? 'bg-emerald-400/30 text-white'
-                            : 'bg-emerald-200 text-emerald-800'
-                        }`}>
-                          <Share2 size={9} />
-                          共享{subject.creatorName ? `·${subject.creatorName}` : ''}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                  );
-                })}
-                {/* 科目管理入口 - 登录用户可用 */}
-                <button
-                  onClick={() => {
-                    if (!currentUser) return;
-                    setEditingSubject(null);
-                    setIsAddingNewSubject(false);
-                    setShowSubjectModal(true);
-                  }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl font-medium transition-all text-sm ${
-                    currentUser
-                      ? 'bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer'
-                      : 'bg-slate-50 text-slate-300 cursor-not-allowed'
-                  }`}
-                  title={currentUser ? '管理科目' : '登录后可使用'}
-                  disabled={!currentUser}
-                >
-                  <Layers size={14} />
-                  <span>管理</span>
-                </button>
-              </div>
-
-
-
-              <h2 className="text-2xl sm:text-3xl font-bold mb-3">{currentSubject.welcomeTitle}</h2>
-              <p className="text-slate-500 mb-5 sm:mb-6 max-w-md mx-auto leading-relaxed text-sm sm:text-base">
-                {currentSubject.welcomeDesc} (题库共 {currentBank.length} 题)
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 text-left">
-                <button
-                  onClick={() => startExam('random')}
-                  className="p-4 sm:p-5 bg-emerald-50 rounded-2xl border-2 border-emerald-100 hover:border-emerald-300 transition-all text-left group"
-                >
-                  <div className="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <RefreshCcw size={24} />
-                  </div>
-                  <div className="font-bold text-lg text-emerald-900">随机练习模式</div>
-                  <div className="text-sm text-emerald-600/70">即时反馈,自定义题数</div>
-                  <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="relative group/input">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={examQuestionCount}
-                        placeholder="10"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '' || /^\d+$/.test(val)) {
-                            setExamQuestionCount(val);
-                          }
-                        }}
-                        onBlur={() => {
-                          const val = parseInt(examQuestionCount);
-                          if (isNaN(val) || val <= 0 || val > currentBank.length) {
-                            setExamQuestionCount("10");
-                            setShowToast(`题数已重置为默认值 (1-${currentBank.length} 之间)`);
-                          }
-                        }}
-                        className="w-20 px-3 py-1.5 bg-white/80 border-2 border-emerald-200 rounded-xl text-sm font-bold text-emerald-600 outline-none focus:border-emerald-500 focus:bg-white transition-all text-center"
-                      />
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-tighter">
-                      范围: 1-{currentBank.length}
-                    </span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => startExam('normal')}
-                  className="p-4 sm:p-5 bg-blue-50 rounded-2xl border-2 border-blue-100 hover:border-blue-300 transition-all text-left group"
-                >
-                  <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <BookOpen size={24} />
-                  </div>
-                  <div className="font-bold text-lg text-blue-900">开始正式考试</div>
-                  <div className="text-sm text-blue-600/70">随机抽取 {examQuestionCount || '...'} 题,全面检测</div>
-                  <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="relative group/input">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={examQuestionCount}
-                        placeholder="20"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === '' || /^\d+$/.test(val)) {
-                            setExamQuestionCount(val);
-                          }
-                        }}
-                        onBlur={() => {
-                          const val = parseInt(examQuestionCount);
-                          if (isNaN(val) || val <= 0 || val > currentBank.length) {
-                            setExamQuestionCount("20");
-                            setShowToast(`题数已重置为默认值 (1-${currentBank.length} 之间)`);
-                          }
-                        }}
-                        className="w-20 px-3 py-1.5 bg-white/80 border-2 border-blue-200 rounded-xl text-sm font-bold text-blue-600 outline-none focus:border-blue-500 focus:bg-white transition-all text-center"
-                      />
-                      <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-md font-black shadow-sm opacity-0 group-hover/input:opacity-100 transition-opacity pointer-events-none">
-                        修改题数
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-tighter">
-                      范围: 1-{currentBank.length}
-                    </span>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => startExam('full')}
-                  className="p-4 sm:p-5 bg-purple-50 rounded-2xl border-2 border-purple-100 hover:border-purple-300 transition-all text-left group"
-                >
-                  <div className="w-12 h-12 bg-purple-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Database size={24} />
-                  </div>
-                  <div className="font-bold text-lg text-purple-900">题库全量测试</div>
-                  <div className="text-sm text-purple-600/70">包含题库所有题目,深度练习</div>
-                </button>
-
-                <button
-                  onClick={() => startExam('mistakes')}
-                  className="p-4 sm:p-5 bg-rose-50 rounded-2xl border-2 border-rose-100 hover:border-rose-300 transition-all text-left group"
-                >
-                  <div className="w-12 h-12 bg-rose-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <History size={24} />
-                  </div>
-                  <div className="font-bold text-lg text-rose-900">进入错题练习</div>
-                  <div className="text-sm text-rose-600/70">针对薄弱环节,连续对 3 次即消除</div>
-                  <div className="mt-2 inline-block px-2 py-0.5 bg-rose-200 text-rose-700 text-xs font-bold rounded-full">
-                    当前错题: {mistakeRecords.length}
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => startExam('favorites')}
-                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
-                    currentSubjectFavoriteCount === 0
-                      ? 'bg-slate-50 border-slate-200 opacity-60'
-                      : 'bg-amber-50 border-amber-100 hover:border-amber-300'
-                  }`}
-                >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
-                    currentSubjectFavoriteCount === 0 ? 'bg-slate-400 text-white' : 'bg-amber-500 text-white'
-                  }`}>
-                    <Star size={24} fill={currentSubjectFavoriteCount > 0 ? "currentColor" : "none"} />
-                  </div>
-                  <div className={`font-bold text-lg ${currentSubjectFavoriteCount === 0 ? 'text-slate-500' : 'text-amber-900'}`}>
-                    {currentSubjectFavoriteCount === 0 ? '暂无收藏题目' : '我的收藏题库'}
-                  </div>
-                  <div className="text-sm text-amber-600/70">复习您标记的重点题目</div>
-                  <div className="mt-2 inline-block px-2 py-0.5 bg-amber-200 text-amber-700 text-xs font-bold rounded-full">
-                    收藏总数: {currentSubjectFavoriteCount}
-                  </div>
-                  {currentSubjectFavoriteCount === 0 && (
-                    <div className="mt-2 text-xs text-slate-400">练习时点击⭐收藏题目</div>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setIsImportModalOpen(true);
-                  }}
-                  disabled={!currentUser}
-                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all text-left group ${
-                    currentUser
-                      ? 'bg-indigo-50 border-indigo-100 hover:border-indigo-300'
-                      : 'bg-slate-50 border-slate-100 cursor-not-allowed'
-                  }`}
-                >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform ${
-                    currentUser ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-500'
-                  }`}>
-                    <PlusCircle size={24} />
-                  </div>
-                  <div className={`font-bold text-lg ${currentUser ? 'text-indigo-900' : 'text-slate-400'}`}>导入新增题目</div>
-                  <div className={`text-sm ${currentUser ? 'text-indigo-600/70' : 'text-slate-400'}`}>
-                    {currentUser ? '支持 Word/PDF/粘贴,AI 智能解析' : '登录后可使用'}
-                  </div>
-                </button>
-              </div>
-
-              {/* 空状态引导 */}
-              {(mistakeRecords.length === 0 && favoriteIds.length === 0) && (
-                <div className="mt-4 p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
-                  <p className="text-sm text-blue-600">
-                    💡 开始练习后,做错的题目会自动进入错题本
-                  </p>
-                  <p className="text-xs text-blue-400 mt-1">
-                    点击⭐收藏题目,可随时复习重点内容
-                  </p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-slate-400 text-xs sm:text-sm mt-4">
-                <div className="flex items-center gap-1"><CircleDot size={16} /> 单选题</div>
-                <div className="flex items-center gap-1"><ListChecks size={16} /> 多选题</div>
-                <div className="flex items-center gap-1"><Trash2 size={16} /> 题库剔除功能</div>
-              </div>
-            </motion.div>
+            <WelcomeScreen
+              allSubjects={allSubjects}
+              currentSubjectId={currentSubjectId}
+              setCurrentSubjectId={setCurrentSubjectId}
+              questionsLoading={questionsLoading}
+              currentSubject={currentSubject}
+              currentBankLength={currentBank.length}
+              examQuestionCount={examQuestionCount}
+              setExamQuestionCount={setExamQuestionCount}
+              setShowToast={setShowToast}
+              startExam={startExam}
+              mistakeRecordsLength={mistakeRecords.length}
+              currentSubjectFavoriteCount={currentSubjectFavoriteCount}
+              setIsImportModalOpen={setIsImportModalOpen}
+              currentUser={currentUser}
+              setEditingSubject={setEditingSubject}
+              setIsAddingNewSubject={setIsAddingNewSubject}
+              setShowSubjectModal={setShowSubjectModal}
+              mistakeRecordsEmpty={mistakeRecords.length === 0}
+              favoriteIdsEmpty={favoriteIds.length === 0}
+            />
           )}
 
           {status === 'exam' && (
-            examQuestions.length === 0 ? (
-              /* 空题库状态 */
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 text-center"
-              >
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Database size={40} className="text-slate-400" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-700 mb-2">题库为空</h3>
-                <p className="text-slate-500 mb-6">当前科目还没有题目，快去导入一些吧！</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      setStatus('welcome');
-                      setIsImportModalOpen(true);
-                    }}
-                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                  >
-                    <Upload size={18} /> 导入题目
-                  </button>
-                  <button
-                    onClick={() => setStatus('welcome')}
-                    className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-                  >
-                    返回首页
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4 sm:space-y-5"
-            >
-              {/* Progress Bar */}
-              <div className="w-full bg-slate-200 h-1.5 sm:h-2 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-blue-600"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${((currentIndex + 1) / examQuestions.length) * 100}%` }}
-                />
-              </div>
-
-              <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setStatus('welcome')}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        title="返回上一级"
-                      >
-                        <ChevronLeft size={22} />
-                      </button>
-                    </div>
-                    <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full uppercase tracking-wider">
-                      {currentQuestion.type === 'single' && currentQuestion.options?.length === 2 && ['正确','错误'].every(o => currentQuestion.options!.includes(o)) ? '判断题' : currentQuestion.type === 'single' ? '单选题' : currentQuestion.type === 'multiple' ? '多选题' : '编程题'}
-                    </span>
-                    {isRandomMode && (
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full">
-                        随机练习
-                      </span>
-                    )}
-                    {isMistakeMode && (
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-rose-50 text-rose-600 text-xs font-bold rounded-full">
-                          错题强化
-                        </span>
-                        <div className="flex items-center gap-0.5 bg-slate-100 px-2 py-1 rounded-full">
-                          {[1, 2, 3].map((star) => {
-                            const record = mistakeRecords.find(r => r.questionId === currentQuestion.id);
-                            const count = record?.consecutiveCorrect || 0;
-                            return (
-                              <Star
-                                key={star}
-                                size={12}
-                                className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-300"}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {examQuestions.length > 0 && examQuestions.every(eq => favoriteIds.includes(eq.id)) && (
-                      <span className="px-3 py-1 bg-amber-50 text-amber-600 text-xs font-bold rounded-full">
-                        收藏复习
-                      </span>
-                    )}
-                    {isFullMode && (
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-purple-50 text-purple-600 text-xs font-bold rounded-full">
-                          全量练习
-                        </span>
-                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 ml-2">
-                          {isSearchOpen ? (
-                            <motion.div
-                              initial={{ width: 0, opacity: 0 }}
-                              animate={{ width: 'auto', opacity: 1 }}
-                              className="flex items-center gap-1 px-2"
-                            >
-                              <Search size={14} className="text-slate-400" />
-                              <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="搜索题目..."
-                                className="bg-transparent border-none outline-none text-xs w-24 sm:w-40 py-1"
-                                autoFocus
-                              />
-                              <button onClick={() => { setSearchQuery(""); setIsSearchOpen(false); }}>
-                                <X size={14} className="text-slate-400 hover:text-rose-500" />
-                              </button>
-                            </motion.div>
-                          ) : (
-                            <button
-                              onClick={() => setIsSearchOpen(true)}
-                              className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
-                              title="搜索题目"
-                            >
-                              <Search size={16} />
-                            </button>
-                          )}
-                        </div>
-
-                        {confirmingDeduplicate ? (
-                          <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
-                            <span className="text-[10px] font-bold text-amber-700">确认去重?</span>
-                            <button onClick={deduplicateBank} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
-                            <button onClick={() => setConfirmingDeduplicate(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmingDeduplicate(true)}
-                            className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
-                            title="一键去重"
-                          >
-                            <CopyCheck size={12} /> 去重
-                          </button>
-                        )}
-
-                        {confirmingFilter ? (
-                          <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
-                            <span className="text-[10px] font-bold text-amber-700">确认仅客观题?</span>
-                            <button onClick={filterObjectiveOnly} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">是</button>
-                            <button onClick={() => setConfirmingFilter(false)} className="text-[10px] font-black text-slate-400 hover:text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100">否</button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmingFilter(true)}
-                            className="flex items-center gap-1 px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md hover:bg-slate-200 transition-colors"
-                            title="仅保留选择/判断"
-                          >
-                            <Filter size={12} /> 仅客观题
-                          </button>
-                        )}
-
-                        <div className="w-px h-4 bg-slate-200" />
-
-                        <button
-                          onClick={openImportModal}
-                          disabled={!currentUser}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${
-                            currentUser
-                              ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
-                              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          }`}
-                          title="导入题库"
-                        >
-                          <Upload size={12} /> 导入
-                        </button>
-
-                        <div className="flex items-center rounded-md overflow-hidden border border-green-200">
-                          <select
-                            value={exportFormat}
-                            onChange={e => setExportFormat(e.target.value as 'csv' | 'json')}
-                            className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-1 outline-none cursor-pointer hover:bg-green-100 transition-colors"
-                            title="导出格式"
-                          >
-                            <option value="csv">CSV</option>
-                            <option value="json">JSON</option>
-                          </select>
-                          <button
-                            onClick={exportQuestionBank}
-                            className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 text-[10px] font-bold hover:bg-green-200 transition-colors"
-                            title="导出题库"
-                          >
-                            <Download size={12} /> 导出
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {confirmingDelete ? (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 rounded-2xl shadow-lg shadow-rose-100/50">
-                        <div className="flex items-center justify-center w-8 h-8 bg-rose-100 rounded-full">
-                          <AlertTriangle size={16} className="text-rose-600" />
-                        </div>
-                        <span className="text-xs font-bold text-rose-700">确认剔除此题?</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => removeQuestion(currentQuestion.id)}
-                            className="px-3 py-1.5 bg-gradient-to-b from-rose-500 to-rose-600 text-white text-[11px] font-bold rounded-lg hover:from-rose-600 hover:to-rose-700 transition-all shadow-md shadow-rose-200 active:scale-95"
-                          >
-                            确定剔除
-                          </button>
-                          <button
-                            onClick={() => setConfirmingDelete(false)}
-                            className="px-3 py-1.5 bg-white text-slate-600 text-[11px] font-bold rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => toggleFavorite(currentQuestion.id)}
-                          className={`flex items-center gap-1.5 transition-colors text-xs font-bold uppercase ${favoriteIds.includes(currentQuestion.id) ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
-                        >
-                          <Star size={14} fill={favoriteIds.includes(currentQuestion.id) ? "currentColor" : "none"} />
-                          {favoriteIds.includes(currentQuestion.id) ? '已收藏' : '收藏'}
-                        </button>
-                        {/* 剔除功能仅在 全量练习、错题强化 中显示,随机练习、正式考试、收藏复习中隐藏 */}
-                        {(isFullMode || isMistakeMode) && (
-                          <button
-                            onClick={() => setConfirmingDelete(true)}
-                            className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors text-xs font-bold uppercase"
-                          >
-                            <Trash2 size={14} /> 剔除此题
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold mb-6 leading-snug">
-                  {currentQuestion.title}
-                </h3>
-
-                {isFullMode && searchQuery && (
-                  <div className="mb-6 space-y-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">搜索结果:</div>
-                    <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1">
-                      {examQuestions.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
-                        examQuestions.filter(q => q.title.toLowerCase().includes(searchQuery.toLowerCase())).map((q, idx) => (
-                          <button
-                            key={q.id}
-                            onClick={() => {
-                              const newIndex = examQuestions.findIndex(eq => eq.id === q.id);
-                              setCurrentIndex(newIndex);
-                              setShowFeedback(false);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                              currentQuestion.id === q.id
-                                ? 'bg-blue-600 text-white font-bold'
-                                : 'hover:bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className="opacity-50 mr-2">#{examQuestions.findIndex(eq => eq.id === q.id) + 1}</span>
-                            {q.title.length > 50 ? q.title.substring(0, 50) + '...' : q.title}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="text-center py-4 text-slate-400 text-xs">未找到匹配题目</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {currentQuestion.type === 'programming' ? (
-                    <div className="space-y-4">
-                      <textarea
-                        disabled={showFeedback && (isMistakeMode || isFullMode || isRandomMode)}
-                        value={(userAnswers[currentQuestion.id] as string) || ''}
-                        onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                        placeholder="在此输入你的 Python 代码..."
-                        className="w-full h-48 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all resize-none"
-                      />
-                      {!showFeedback && isRandomMode && (
-                        <button
-                          onClick={checkProgrammingAnswer}
-                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
-                        >
-                          提交并查看解析
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {currentQuestion.options?.map((option, i) => {
-                        const userAns = userAnswers[currentQuestion.id];
-                        const qAns = currentQuestion.answer;
-
-                        const isSelected = currentQuestion.type === 'single'
-                          ? (typeof userAns === 'string' && typeof option === 'string' ? userAns.trim() === option.trim() : userAns === option)
-                          : (Array.isArray(userAns) ? userAns.map(s => s.trim()).includes(option.trim()) : false);
-
-                        // Check if this specific option is correct
-                        let isCorrect = false;
-                        if (currentQuestion.type === 'single') {
-                          const optTrim = option.trim();
-                          const ansTrim = typeof qAns === 'string' ? qAns.trim() : String(qAns);
-
-                          if (optTrim === ansTrim) {
-                            isCorrect = true;
-                          } else if (/^[A-Z]$/.test(ansTrim.toUpperCase())) {
-                            const labelIndex = ansTrim.toUpperCase().charCodeAt(0) - 65;
-                            if (labelIndex === i) isCorrect = true;
-                          }
-                        } else if (currentQuestion.type === 'multiple') {
-                          const optTrim = option.trim();
-                          const targetAns = Array.isArray(qAns) ? qAns.map(s => s.trim()) : [String(qAns).trim()];
-
-                          if (targetAns.includes(optTrim)) {
-                            isCorrect = true;
-                          } else {
-                            // Check if targetAns contains labels like ["A", "B"]
-                            const labelIndices = targetAns
-                              .filter(a => /^[A-Z]$/.test(a.toUpperCase()))
-                              .map(a => a.toUpperCase().charCodeAt(0) - 65);
-                            if (labelIndices.includes(i)) isCorrect = true;
-                          }
-                        }
-
-                        let borderClass = 'border-slate-100 hover:border-slate-200 hover:bg-slate-50';
-                        let dotClass = 'bg-slate-100 text-slate-400 group-hover:bg-slate-200';
-
-                        if (isSelected) {
-                          borderClass = 'border-blue-600 bg-blue-50/50';
-                          dotClass = 'bg-blue-600 text-white';
-                        }
-
-                        if (showFeedback && (isMistakeMode || isFullMode || isRandomMode)) {
-                          if (isCorrect) {
-                            borderClass = 'border-emerald-500 bg-emerald-50/50';
-                            dotClass = 'bg-emerald-500 text-white';
-                          } else if (isSelected) {
-                            borderClass = 'border-rose-500 bg-rose-50/50';
-                            dotClass = 'bg-rose-500 text-white';
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={i}
-                            disabled={showFeedback && (isMistakeMode || isFullMode || isRandomMode)}
-                            onClick={() => currentQuestion.type === 'single'
-                              ? handleAnswerChange(currentQuestion.id, option)
-                              : toggleMultipleAnswer(currentQuestion.id, option)
-                            }
-                            className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center gap-4 group ${borderClass}`}
-                          >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${dotClass}`}>
-                              {String.fromCharCode(65 + i)}
-                            </div>
-                            <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-600'}`}>
-                              {option}
-                            </span>
-                            {showFeedback && (isMistakeMode || isFullMode || isRandomMode) && isCorrect && (
-                              <CheckCircle2 size={20} className="ml-auto text-emerald-500" />
-                            )}
-                            {showFeedback && (isMistakeMode || isFullMode || isRandomMode) && isSelected && !isCorrect && (
-                              <XCircle size={20} className="ml-auto text-rose-500" />
-                            )}
-                          </button>
-                        );
-                      })}
-
-                      {currentQuestion.type === 'multiple' && !showFeedback && isRandomMode && (
-                        <button
-                          onClick={() => setShowFeedback(true)}
-                          className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all mt-4"
-                        >
-                          确认选择并查看解析
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {showFeedback && (isMistakeMode || isFullMode || isRandomMode) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 p-5 bg-slate-50 rounded-2xl border border-slate-100"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <BookOpen size={18} className="text-blue-600" />
-                      <span className="font-bold text-slate-700">答案解析</span>
-                    </div>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                      正确答案:<span className="font-bold text-emerald-600">
-                        {Array.isArray(currentQuestion.answer) ? currentQuestion.answer.join('、') : currentQuestion.answer}
-                      </span>
-                    </p>
-                    <p className="text-slate-500 text-sm mt-2 leading-relaxed italic">
-                      {currentQuestion.explanation || '暂无详细解析,请牢记正确答案。'}
-                    </p>
-                  </motion.div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-4">
-                <button
-                  disabled={currentIndex === 0 || ((isMistakeMode || isFullMode || isRandomMode) && showFeedback)}
-                  onClick={() => setCurrentIndex(prev => prev - 1)}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-slate-600 disabled:opacity-0 transition-all"
-                >
-                  <ChevronLeft size={20} /> 上一题
-                </button>
-
-                {(isMistakeMode || isFullMode || isRandomMode) && !showFeedback && currentQuestion.type === 'multiple' && (
-                  <button
-                    onClick={checkMultipleAnswer}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                  >
-                    确认答案
-                  </button>
-                )}
-
-                {(isMistakeMode || isFullMode || isRandomMode) && !showFeedback && currentQuestion.type === 'programming' && (
-                  <button
-                    onClick={checkProgrammingAnswer}
-                    className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                  >
-                    确认代码
-                  </button>
-                )}
-
-                {(isMistakeMode || isFullMode || isRandomMode ? showFeedback : true) && (
-                  currentIndex === examQuestions.length - 1 ? (
-                    <button
-                      onClick={calculateResult}
-                      className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
-                    >
-                      提交试卷
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setCurrentIndex(prev => prev + 1);
-                        setShowFeedback(false);
-                      }}
-                      className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                    >
-                      下一题 <ChevronRight size={20} />
-                    </button>
-                  )
-                )}
-              </div>
-            </motion.div>
-            )
+            <ExamScreen
+              examQuestions={examQuestions}
+              currentIndex={currentIndex}
+              setCurrentIndex={setCurrentIndex}
+              currentQuestion={currentQuestion}
+              userAnswers={userAnswers}
+              handleAnswerChange={handleAnswerChange}
+              toggleMultipleAnswer={toggleMultipleAnswer}
+              showFeedback={showFeedback}
+              setShowFeedback={setShowFeedback}
+              isRandomMode={isRandomMode}
+              isMistakeMode={isMistakeMode}
+              isFullMode={isFullMode}
+              favoriteIds={favoriteIds}
+              mistakeRecords={mistakeRecords}
+              toggleFavorite={toggleFavorite}
+              removeQuestion={removeQuestion}
+              confirmingDelete={confirmingDelete}
+              setConfirmingDelete={setConfirmingDelete}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isSearchOpen={isSearchOpen}
+              setIsSearchOpen={setIsSearchOpen}
+              confirmingDeduplicate={confirmingDeduplicate}
+              setConfirmingDeduplicate={setConfirmingDeduplicate}
+              deduplicateBank={deduplicateBank}
+              confirmingFilter={confirmingFilter}
+              setConfirmingFilter={setConfirmingFilter}
+              filterObjectiveOnly={filterObjectiveOnly}
+              currentUser={currentUser}
+              exportFormat={exportFormat}
+              setExportFormat={setExportFormat}
+              exportQuestionBank={exportQuestionBank}
+              openImportModal={openImportModal}
+              checkProgrammingAnswer={checkProgrammingAnswer}
+              checkMultipleAnswer={checkMultipleAnswer}
+              calculateResult={calculateResult}
+              setStatus={setStatus}
+              setIsImportModalOpen={setIsImportModalOpen}
+            />
           )}
 
           {status === 'result' && finalResult && (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="space-y-5 sm:space-y-6"
-            >
-              <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
-
-                <div className="relative z-10">
-                  <h2 className="text-2xl font-bold text-slate-400 mb-2 uppercase tracking-widest">考试结果</h2>
-                  <div className="text-7xl font-black text-slate-900 mb-4 tabular-nums">
-                    {finalResult.score}
-                    <span className="text-2xl text-slate-300 font-bold ml-2">/ 100</span>
-                  </div>
-
-                  <div className="flex justify-center gap-8 mb-8">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-emerald-500">
-                        {Object.values(finalResult.correctness).filter(Boolean).length}
-                      </div>
-                      <div className="text-xs text-slate-400 font-bold uppercase tracking-tighter">正确</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-rose-500">
-                        {Object.values(finalResult.correctness).filter(c => !c).length}
-                      </div>
-                      <div className="text-xs text-slate-400 font-bold uppercase tracking-tighter">错误</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-500">
-                        {formatTime(elapsedTime)}
-                      </div>
-                      <div className="text-xs text-slate-400 font-bold uppercase tracking-tighter">用时</div>
-                    </div>
-                  </div>
-
-                  <p className="text-slate-500 max-w-sm mx-auto mb-5 sm:mb-6 text-sm">
-                    {finalResult.score >= 90 ? "太棒了!错题已更新,继续保持。" :
-                     finalResult.score >= 60 ? "表现不错!错题已加入错题本,记得复习。" :
-                     "别灰心,错题本会帮你记录薄弱点,多练几次!"}
-                  </p>
-
-                  <div className="flex flex-col items-center gap-4 sm:gap-5">
-                    <button
-                      onClick={() => setStatus('welcome')}
-                      className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
-                    >
-                      <ChevronLeft size={22} /> 返回上一级
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <h3 className="text-lg sm:text-xl font-bold px-2">题目解析</h3>
-                {examQuestions.map((q, idx) => {
-                  const isCorrect = finalResult.correctness[q.id];
-                  const mistakeRecord = mistakeRecords.find(r => r.questionId === q.id);
-
-                  return (
-                    <div
-                      key={q.id}
-                      className={`bg-white rounded-2xl p-4 sm:p-5 border-l-4 shadow-sm ${
-                        isCorrect ? 'border-emerald-500' : 'border-rose-500'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-400">题目 {idx + 1}</span>
-                            {isCorrect ? (
-                              <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold">
-                                <CheckCircle2 size={14} /> 正确
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-rose-600 text-xs font-bold">
-                                <XCircle size={14} /> 错误
-                              </span>
-                            )}
-                            {mistakeRecord && isCorrect && (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase">
-                                连续对 {mistakeRecord.consecutiveCorrect} 次
-                              </span>
-                            )}
-                            {mistakeRecords.some(r => r.questionId === q.id) && (
-                              <div className="flex items-center gap-0.5 ml-1">
-                                {[1, 2, 3].map((star) => {
-                                  const record = mistakeRecords.find(r => r.questionId === q.id);
-                                  const count = record?.consecutiveCorrect || 0;
-                                  return (
-                                    <Star
-                                      key={star}
-                                      size={10}
-                                      className={star <= count ? "text-amber-500 fill-amber-500" : "text-slate-200"}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            )}
-                            {masteredIds.includes(q.id) && (
-                              <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1">
-                                <Award size={10} /> 已掌握
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="font-bold text-slate-800 leading-snug">{q.title}</h4>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 sm:space-y-3 text-sm">
-                        <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl text-sm">
-                          <span className="text-slate-400 font-bold mr-2">你的回答:</span>
-                          <span className={isCorrect ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>
-                            {Array.isArray(finalResult.answers[q.id])
-                              ? (finalResult.answers[q.id] as string[]).join(', ')
-                              : (finalResult.answers[q.id] as string) || '(未回答)'}
-                          </span>
-                        </div>
-                        {!isCorrect && (
-                          <div className="p-2.5 sm:p-3 bg-blue-50 rounded-xl text-sm">
-                            <span className="text-blue-400 font-bold mr-2">正确答案:</span>
-                            <span className="text-blue-700 font-medium">
-                              {Array.isArray(q.answer) ? q.answer.join(', ') : q.answer}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
+            <ResultScreen
+              finalResult={finalResult}
+              examQuestions={examQuestions}
+              mistakeRecords={mistakeRecords}
+              masteredIds={masteredIds}
+              elapsedTime={elapsedTime}
+              onBackWelcome={() => setStatus('welcome')}
+            />
           )}
         </AnimatePresence>
       </main>

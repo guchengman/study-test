@@ -6,6 +6,9 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  /** 生产构建不把任何 API Key 打进前端包；Gemini 可走服务端 /api/ai（环境变量 GEMINI_API_KEY），其它模型仍用用户在设置里填写的 Key */
+  const noKeyInBundle = mode === 'production';
+  const K = (name: string) => JSON.stringify(noKeyInBundle ? '' : (env[name] || ''));
   return {
     plugins: [
       react(), 
@@ -30,18 +33,18 @@ export default defineConfig(({mode}) => {
     ],
     base: './',
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-      'process.env.DEEPSEEK_API_KEY': JSON.stringify(env.DEEPSEEK_API_KEY || ''),
-      'process.env.QWEN_API_KEY': JSON.stringify(env.QWEN_API_KEY || ''),
-      'process.env.ZHIPU_API_KEY': JSON.stringify(env.ZHIPU_API_KEY || ''),
-      'process.env.MOONSHOT_API_KEY': JSON.stringify(env.MOONSHOT_API_KEY || ''),
-      'process.env.BAICHUAN_API_KEY': JSON.stringify(env.BAICHUAN_API_KEY || ''),
-      'process.env.HUNYUAN_API_KEY': JSON.stringify(env.HUNYUAN_API_KEY || ''),
-      'process.env.ERNIE_API_KEY': JSON.stringify(env.ERNIE_API_KEY || ''),
-      'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY || ''),
+      'process.env.GEMINI_API_KEY': K('GEMINI_API_KEY'),
+      'process.env.DEEPSEEK_API_KEY': K('DEEPSEEK_API_KEY'),
+      'process.env.QWEN_API_KEY': K('QWEN_API_KEY'),
+      'process.env.ZHIPU_API_KEY': K('ZHIPU_API_KEY'),
+      'process.env.MOONSHOT_API_KEY': K('MOONSHOT_API_KEY'),
+      'process.env.BAICHUAN_API_KEY': K('BAICHUAN_API_KEY'),
+      'process.env.HUNYUAN_API_KEY': K('HUNYUAN_API_KEY'),
+      'process.env.ERNIE_API_KEY': K('ERNIE_API_KEY'),
+      'process.env.OPENROUTER_API_KEY': K('OPENROUTER_API_KEY'),
       'process.env.DEFAULT_OPENROUTER_MODEL': JSON.stringify(env.DEFAULT_OPENROUTER_MODEL || 'openai/gpt-4o'),
-      'process.env.CUSTOM_API_ENDPOINT': JSON.stringify(env.CUSTOM_API_ENDPOINT || ''),
-      'process.env.CUSTOM_API_KEY': JSON.stringify(env.CUSTOM_API_KEY || ''),
+      'process.env.CUSTOM_API_ENDPOINT': JSON.stringify(noKeyInBundle ? '' : (env.CUSTOM_API_ENDPOINT || '')),
+      'process.env.CUSTOM_API_KEY': K('CUSTOM_API_KEY'),
       'process.env.DEFAULT_AI_MODEL': JSON.stringify(env.DEFAULT_AI_MODEL || 'deepseek'),
     },
     resolve: {

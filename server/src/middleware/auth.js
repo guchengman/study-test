@@ -1,9 +1,19 @@
 import jwt from 'jsonwebtoken';
 
+/** 开发环境可用占位密钥；生产环境由 index.js 启动前校验 JWT_SECRET，此处不应落到占位 */
+export function getJwtSecret() {
+  const s = process.env.JWT_SECRET;
+  if (s && String(s).trim().length > 0) return String(s).trim();
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return 'development-only-insecure-jwt-secret-change-me';
+}
+
 export function generateToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    process.env.JWT_SECRET || 'fallback_secret',
+    getJwtSecret(),
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
@@ -16,7 +26,7 @@ export function authMiddleware(req, res, next) {
 
   try {
     const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
     next();
   } catch {

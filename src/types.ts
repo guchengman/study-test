@@ -158,6 +158,12 @@ export interface ExamResult {
   correctness: Record<number, boolean>;
 }
 
+/** 错题练习连续答对计数（与 App / 练习 API 同步） */
+export interface MistakeRecord {
+  questionId: number;
+  consecutiveCorrect: number;
+}
+
 export interface AISettings {
   geminiKey?: string;
   deepseekKey?: string;

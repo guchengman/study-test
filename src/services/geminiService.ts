@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question, AISettings } from "../types";
 import { loadApiConfig } from "../config/apiConfig";
+import { getApiBaseUrl, getToken } from "./api";
 
 
 // 延迟初始化 AI 实例，仅在需要时创建
@@ -27,6 +28,44 @@ function getAIInstance(settingsOverride?: AISettings): GoogleGenAI {
     aiInstance = new GoogleGenAI({ apiKey: geminiKey });
   }
   return aiInstance;
+}
+
+/** 优先用户 Key；其次开发环境构建注入；否则走服务端代理（需登录且服务器配置 GEMINI_API_KEY） */
+async function runGeminiGenerateContent(
+  params: { model: string; contents: unknown; config?: Record<string, unknown> },
+  settingsOverride?: AISettings
+): Promise<{ text: string }> {
+  const userKey = getGeminiKey(settingsOverride);
+  if (userKey) {
+    const response = await getAIInstance(settingsOverride).models.generateContent(params as never);
+    return { text: response.text };
+  }
+  const devBundled = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '';
+  if (import.meta.env.DEV && devBundled) {
+    const ai = new GoogleGenAI({ apiKey: devBundled });
+    const response = await ai.models.generateContent(params as never);
+    return { text: response.text };
+  }
+  const token = getToken();
+  if (!token) {
+    throw new Error('使用服务器 Gemini 需先登录，或在设置中填写 Gemini API Key');
+  }
+  const res = await fetch(`${getApiBaseUrl()}/ai/gemini/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(params),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string; text?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `Gemini 请求失败 (${res.status})`);
+  }
+  if (data.text === undefined || data.text === null) {
+    throw new Error('服务器返回无效响应');
+  }
+  return { text: data.text };
 }
 
 // 根据题目内容推断科目
@@ -630,7 +669,7 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
   const prompt = `${SYSTEM_PROMPT}\n\n待解析文本（可能包含多达100道题目）：\n${text}`;
 
   try {
-    const response = await getAIInstance(settingsOverride).models.generateContent({
+    const response = await runGeminiGenerateContent({
       model: modelName,
       contents: prompt,
         config: {
@@ -654,7 +693,7 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
         },
         maxOutputTokens: text.length > 50000 ? 65536 : 32768
       }
-    });
+    }, settingsOverride);
 
     const result = JSON.parse(response.text);
     let questions = result as Question[];
@@ -813,14 +852,14 @@ export async function generateQuestionsFromPrompt(prompt: string, modelName: str
   const generationPrompt = `${GENERATE_PROMPT}\n\n用户提示词：\n${prompt}`;
 
   try {
-    const response = await getAIInstance(settingsOverride).models.generateContent({
+    const response = await runGeminiGenerateContent({
       model: modelName,
       contents: generationPrompt,
       config: {
         maxOutputTokens: 16384,
         temperature: 0.7
       }
-    });
+    }, settingsOverride);
 
     let content = response.text;
     content = content.replace(/```text\n?/, '').replace(/\n?```/, '').trim();
