@@ -14,7 +14,7 @@ on:
 
 env:
   SERVER_HOST: 47.88.52.213
-  SERVER_USER: zengxiao
+  SERVER_USER: root
   SERVER_PATH: /home/zengxiao/study-test
 
 jobs:
