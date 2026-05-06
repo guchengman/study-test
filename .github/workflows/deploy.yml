@@ -14,7 +14,7 @@ on:
 
 env:
   SERVER_HOST: <REDACTED_IP>
-  SERVER_USER: zengxiao
+  SERVER_USER: root
   SERVER_PATH: /home/zengxiao/study-test
 
 jobs:
