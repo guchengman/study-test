@@ -496,14 +496,15 @@ run_npm_install() {
         
         # 检查总超时
         if [[ $elapsed -gt $((timeout_minutes * 60)) ]]; then
-            echo -e "\n${ERROR}❌ 安装超时（超过 $timeout_minutes 分钟）${NC}"
+            echo -e "\n${WARN}⚠️ 安装超时（超过 $timeout_minutes 分钟），跳过继续${NC}"
             kill "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
-            echo -e "${ERROR}--- 最后日志 ---${NC}"
-            tail -n 20 "$log_file" >&2
-            echo -e "${ERROR}---------------${NC}"
+            echo -e "${WARN}--- 最后日志 ---${NC}"
+            tail -n 10 "$log_file" >&2
+            echo -e "${WARN}---------------${NC}"
             rm -f "$log_file" "$pid_file"
-            return 1
+            echo -e "${WARN}⚠️ ${title} 未完全安装，跳过继续...${NC}"
+            return 0  # 返回成功，继续后续步骤
         fi
         
         sleep 1
@@ -512,24 +513,43 @@ run_npm_install() {
     wait "$pid"
     local exit_code=$?
     
-    printf "\r${SUCCESS}${title} ✓ (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
-    echo -e "${MUTED}----------------------------------------${NC}"
-    
     # 显示安装统计
     if [[ -s "$log_file" ]]; then
         local package_count=$(grep -c "added" "$log_file" | head -1 || echo "0")
-        if [[ -n "$package_count" && "$package_count" != "0" ]]; then
-            echo -e "${INFO}📦 安装了 $package_count 个依赖包${NC}"
+        
+        if [[ $exit_code -eq 0 ]]; then
+            printf "\r${SUCCESS}${title} ✓ (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
+            echo -e "${MUTED}----------------------------------------${NC}"
+            if [[ -n "$package_count" && "$package_count" != "0" ]]; then
+                echo -e "${INFO}📦 安装了 $package_count 个依赖包${NC}"
+            fi
+            rm -f "$log_file" "$pid_file"
+            return 0
+        else
+            printf "\r${WARN}⚠️ ${title} 部分失败 (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
+            echo -e "${MUTED}----------------------------------------${NC}"
+            if [[ -n "$package_count" && "$package_count" != "0" ]]; then
+                echo -e "${INFO}📦 成功安装了 $package_count 个依赖包${NC}"
+            fi
+            echo -e "${WARN}--- 错误日志 ---${NC}"
+            tail -n 10 "$log_file" >&2
+            echo -e "${WARN}---------------${NC}"
+            rm -f "$log_file" "$pid_file"
+            echo -e "${WARN}⚠️ ${title} 部分依赖未安装成功，跳过继续...${NC}"
+            return 0  # 返回成功，继续后续步骤
         fi
-    fi
-    
-    rm -f "$log_file" "$pid_file"
-    
-    if [[ $exit_code -eq 0 ]]; then
-        return 0
     else
-        echo -e "${ERROR}${title} ✗${NC}"
-        return $exit_code
+        if [[ $exit_code -eq 0 ]]; then
+            printf "\r${SUCCESS}${title} ✓ (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
+        else
+            printf "\r${WARN}⚠️ ${title} 安装失败 (共耗时 %d 分 %d 秒)${NC}\n" $((elapsed/60)) $((elapsed%60))
+            echo -e "${WARN}--- 错误日志 ---${NC}"
+            tail -n 10 "$log_file" >&2
+            echo -e "${WARN}---------------${NC}"
+            echo -e "${WARN}⚠️ ${title} 未安装成功，跳过继续...${NC}"
+        fi
+        rm -f "$log_file" "$pid_file"
+        return 0  # 返回成功，继续后续步骤
     fi
 }
 
