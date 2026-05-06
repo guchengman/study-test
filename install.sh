@@ -39,7 +39,11 @@ NC='\033[0m' # No Color
 # ============================================
 # 全局变量
 # ============================================
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+if [[ -n "${BASH_SOURCE[0]-}" ]]; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+else
+    SCRIPT_DIR=""
+fi
 APP_NAME="study-test"
 
 # 判断是否为在线安装（通过 curl | bash 方式）
@@ -68,6 +72,7 @@ NODEJS_SETUP_ORIGINAL="https://deb.nodesource.com/setup_20.x"
 # ============================================
 SKIP_NODE_CHECK=false
 SKIP_MYSQL_CHECK=false
+SKIP_MIGRATION=false
 DB_HOST="localhost"
 DB_PORT="3306"
 DB_USER="root"
