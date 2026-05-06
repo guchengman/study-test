@@ -1,8 +1,22 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
-# Study-Test 一键安装脚本 (Linux)
-# Usage: curl -fsSL https://example.com/install.sh | bash
-# or: sudo bash install.sh
+# Study-Test 一键安装脚本
+# 
+# 在线安装方式：
+#   curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+# 
+# 本地安装方式：
+#   sudo bash install.sh
+# 
+# 可选参数：
+#   --no-prompt          # 非交互模式
+#   --verbose            # 详细输出模式
+#   --skip-node-check    # 跳过 Node.js 检查
+#   --skip-mysql-check   # 跳过 MySQL 检查
+#   --auto-db-password   # 自动生成数据库密码
+#   --db-host=xxx        # 指定数据库地址
+#   --db-user=xxx        # 指定数据库用户名
+#   --db-password=xxx    # 指定数据库密码
 
 set -euo pipefail
 
@@ -27,7 +41,15 @@ NC='\033[0m' # No Color
 # ============================================
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 APP_NAME="study-test"
-APP_DIR="$SCRIPT_DIR/$APP_NAME"
+
+# 判断是否为在线安装（通过 curl | bash 方式）
+if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
+    # 在线安装模式：使用 /opt 目录
+    APP_DIR="/opt/$APP_NAME"
+else
+    # 本地安装模式：使用脚本所在目录
+    APP_DIR="$SCRIPT_DIR/$APP_NAME"
+fi
 TMPFILES=()
 INSTALL_STAGE_TOTAL=8
 INSTALL_STAGE_CURRENT=0
