@@ -75,8 +75,21 @@
 
 ## 💻 一键安装
 
-### Linux/macOS 一键安装（推荐）
+### 🌐 在线安装（最快方式）
 
+**Linux / macOS / WSL2：**
+```bash
+curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+```
+
+**Windows (PowerShell)：**
+```powershell
+iwr -useb https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+```
+
+### 📁 本地安装
+
+**Linux/macOS：**
 ```bash
 # 克隆项目
 git clone https://github.com/guchengman/study-test.git
@@ -84,22 +97,9 @@ cd study-test
 
 # 运行一键安装脚本
 sudo bash install.sh
-
-# 或使用英文版本（避免编码问题）
-sudo bash install-english.sh
 ```
 
-**可选参数：**
-```bash
-sudo bash install.sh --no-prompt           # 非交互模式
-sudo bash install.sh --skip-node-check      # 跳过 Node.js 检查
-sudo bash install.sh --skip-mysql-check     # 跳过 MySQL 检查
-sudo bash install.sh --auto-db-password     # 自动生成随机密码
-sudo bash install.sh --db-host=localhost    # 指定数据库地址
-```
-
-### Windows 一键安装
-
+**Windows：**
 ```bash
 # 克隆项目
 git clone https://github.com/guchengman/study-test.git
@@ -109,19 +109,42 @@ cd study-test
 install.bat
 ```
 
+### 🎯 可选参数
+
+```bash
+# 非交互模式（适合自动化部署）
+curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash -s -- --no-prompt
+
+# 跳过检查
+--skip-node-check       # 跳过 Node.js 检查
+--skip-mysql-check      # 跳过 MySQL 检查
+
+# 数据库配置
+--auto-db-password      # 自动生成随机密码
+--db-host=localhost     # 指定数据库地址
+--db-user=root          # 指定数据库用户名
+--db-password=xxx       # 指定数据库密码
+
+# 输出模式
+--verbose               # 详细输出模式
+```
+
 ### 一键安装脚本功能
 
 | 功能 | 说明 |
 |------|------|
-| ✅ 环境检查 | 自动检测 Node.js、MySQL、npm、Git、curl、OpenSSL |
-| ✅ 服务检测 | 自动检测并停止运行中的旧服务（PM2、端口占用） |
-| ✅ 覆盖安装 | 支持删除旧安装重新克隆，或保留现有安装仅更新代码 |
-| ✅ 下载代码 | 从 GitHub 克隆最新代码 |
-| ✅ 安装依赖 | 自动执行 npm install |
-| ✅ 配置环境 | 自动生成 .env 文件 |
-| ✅ 数据库检测 | 智能检测已有数据库，提供删除重建/保留更新/跳过等选项 |
-| ✅ 初始化表 | 自动执行 SQL 迁移脚本 |
-| ✅ 启动服务 | 可选开发/生产模式启动 |
+| 🌐 **在线安装** | 支持 `curl | bash` 一键在线安装，无需手动克隆 |
+| 🌍 **网络检测** | 自动检测网络连接，智能切换国内镜像源 |
+| 📦 **环境检查** | 自动检测并安装 Node.js、MySQL、npm、Git、curl、OpenSSL |
+| 🔄 **服务检测** | 自动检测并停止运行中的旧服务（PM2、端口占用） |
+| 🔁 **覆盖安装** | 支持删除旧安装重新克隆，或保留现有安装仅更新代码 |
+| ⬇️ **下载代码** | 从 GitHub/Gitee 克隆最新代码（自动切换镜像） |
+| 📊 **实时进度** | npm 安装过程实时显示日志，不再黑屏等待 |
+| ⚡ **进度条** | 实时显示安装进度百分比 |
+| ✅ **配置环境** | 自动生成 .env 文件 |
+| 🗄️ **数据库检测** | 智能检测已有数据库，提供删除重建/保留更新/跳过等选项 |
+| 📋 **初始化表** | 自动执行 SQL 迁移脚本 |
+| 🚀 **启动服务** | 可选开发/生产模式启动 |
 
 ### 手动安装
 
