@@ -721,8 +721,10 @@ main() {
     fi
 
     if [[ "$SERVICE_RUNNING" == "true" ]]; then
-        if confirm_action "是否停止现有服务？"; then
-            ui_info "正在停止服务..."
+        # 判断是否为在线安装模式
+        if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
+            # 在线安装模式：自动停止服务
+            ui_info "在线安装模式，自动停止现有服务..."
             
             # 停止 PM2 服务
             if command -v pm2 &>/dev/null; then
@@ -737,8 +739,26 @@ main() {
 
             ui_success "服务已停止"
         else
-            ui_error "请手动停止服务后再安装"
-            exit 1
+            # 本地安装模式：询问用户
+            if confirm_action "是否停止现有服务？"; then
+                ui_info "正在停止服务..."
+                
+                # 停止 PM2 服务
+                if command -v pm2 &>/dev/null; then
+                    run_step "停止 PM2 服务" pm2 stop study-server 2>/dev/null || true
+                    run_step "删除 PM2 服务" pm2 delete study-server 2>/dev/null || true
+                fi
+
+                # 强制杀死端口占用进程
+                ui_info "释放端口..."
+                lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
+                lsof -ti:3100 | xargs -r kill -9 2>/dev/null || true
+
+                ui_success "服务已停止"
+            else
+                ui_error "请手动停止服务后再安装"
+                exit 1
+            fi
         fi
     else
         ui_success "未检测到运行中的服务"
@@ -751,17 +771,29 @@ main() {
 
     if [[ -d "$APP_DIR" ]]; then
         ui_warn "检测到已有安装目录: $APP_DIR"
-        if confirm_action "是否覆盖现有安装？"; then
-            ui_info "正在删除旧安装..."
+        
+        # 判断是否为在线安装模式
+        if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
+            # 在线安装模式：自动覆盖
+            ui_info "在线安装模式，自动覆盖现有安装..."
             run_step "删除旧安装" rm -rf "$APP_DIR"
             ui_info "克隆项目..."
             run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
             ui_success "代码下载完成"
         else
-            ui_info "保留现有安装，仅更新代码..."
-            cd "$APP_DIR"
-            run_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
-            cd "$SCRIPT_DIR"
+            # 本地安装模式：询问用户
+            if confirm_action "是否覆盖现有安装？"; then
+                ui_info "正在删除旧安装..."
+                run_step "删除旧安装" rm -rf "$APP_DIR"
+                ui_info "克隆项目..."
+                run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
+                ui_success "代码下载完成"
+            else
+                ui_info "保留现有安装，仅更新代码..."
+                cd "$APP_DIR"
+                run_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
+                cd "$SCRIPT_DIR"
+            fi
         fi
     else
         ui_info "克隆项目..."
