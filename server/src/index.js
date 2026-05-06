@@ -14,9 +14,29 @@ dotenv.config({ path: envPath });
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import authRoutes from './routes/auth.js';
+import questionRoutes from './routes/questions.js';
+import subjectRoutes from './routes/subjects.js';
+import practiceRoutes from './routes/practice.js';
+import syncRoutes from './routes/sync.js';
+import inviteCodeRoutes from './routes/invite-codes.js';
+import studentRoutes from './routes/students.js';
+import aiRoutes from './routes/ai.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
+
+if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
+if (process.env.NODE_ENV === 'production') {
+  const j = process.env.JWT_SECRET;
+  if (!j || String(j).trim().length < 16) {
+    console.error('FATAL: 生产环境必须在环境变量中设置 JWT_SECRET（建议≥32字符）');
+    process.exit(1);
+  }
+}
 const BAIDU_API_KEY = process.env.BAIDU_API_KEY || '';
 const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || '';
 
@@ -60,14 +80,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
-// 路由
-import authRoutes from './routes/auth.js';
-import questionRoutes from './routes/questions.js';
-import subjectRoutes from './routes/subjects.js';
-import practiceRoutes from './routes/practice.js';
-import syncRoutes from './routes/sync.js';
-import inviteCodeRoutes from './routes/invite-codes.js';
-import studentRoutes from './routes/students.js';
+// 须在 SPA 兜底路由之前注册，供监控与负载均衡探活
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date().toISOString() });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
@@ -76,6 +92,7 @@ app.use('/api/practice', practiceRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/invite-codes', inviteCodeRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 app.post('/api/ocr/baidu', async (req, res) => {
@@ -133,11 +150,6 @@ if (existsSync(distPath)) {
 } else {
   console.warn('dist directory not found, static files not served');
 }
-
-// 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
-});
 
 // 错误处理
 app.use((err, req, res, next) => {

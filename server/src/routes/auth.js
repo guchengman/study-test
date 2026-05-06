@@ -1,9 +1,19 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
+
+/** 登录/注册暴力破解防护（可按需在网关后再收紧） */
+const loginRegisterLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录/注册尝试过于频繁，请约 15 分钟后再试' },
+});
 
 // 访问计数（公开接口，无需登录）
 router.get('/visit', async (req, res) => {
@@ -17,7 +27,7 @@ router.get('/visit', async (req, res) => {
 });
 
 // 注册 — 支持三种角色
-router.post('/register', async (req, res) => {
+router.post('/register', loginRegisterLimiter, async (req, res) => {
   try {
     const { username, password, email, role = 'independent', phone, inviteCode, teacherPhone } = req.body;
 
@@ -198,7 +208,7 @@ router.post('/register', async (req, res) => {
 });
 
 // 登录
-router.post('/login', async (req, res) => {
+router.post('/login', loginRegisterLimiter, async (req, res) => {
   try {
     console.log('Login attempt:', req.body);
     const { username, password } = req.body;
