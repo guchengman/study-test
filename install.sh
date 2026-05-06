@@ -33,6 +33,14 @@ INSTALL_STAGE_TOTAL=8
 INSTALL_STAGE_CURRENT=0
 TAGLINE="智能题库系统，轻松学习每一天"
 
+# 镜像配置
+USE_CN_MIRROR=false
+NPM_REGISTRY="https://registry.npmmirror.com"
+GIT_REPO_CN="https://gitee.com/guchengman/study-test.git"
+GIT_REPO_ORIGINAL="https://github.com/guchengman/study-test.git"
+NODEJS_SETUP_CN="https://mirrors.tuna.tsinghua.edu.cn/nodejs-release/v20.x/setup_20.x"
+NODEJS_SETUP_ORIGINAL="https://deb.nodesource.com/setup_20.x"
+
 # ============================================
 # 参数解析
 # ============================================
@@ -117,6 +125,107 @@ detect_downloader() {
     exit 1
 }
 
+# 检测网络连接
+check_network() {
+    local timeout=5
+    ui_info "检测网络连接..."
+    
+    # 尝试访问 GitHub
+    if curl -s --connect-timeout $timeout https://github.com >/dev/null 2>&1; then
+        ui_success "网络连接正常"
+        return 0
+    fi
+    
+    # 尝试访问国内镜像
+    if curl -s --connect-timeout $timeout https://gitee.com >/dev/null 2>&1; then
+        ui_warn "检测到网络访问 GitHub 较慢，建议切换到国内镜像"
+        if confirm_action "是否自动切换到国内镜像源？"; then
+            switch_to_cn_mirror
+        fi
+        return 0
+    fi
+    
+    ui_error "网络连接失败，请检查网络设置"
+    return 1
+}
+
+# 切换到国内镜像
+switch_to_cn_mirror() {
+    USE_CN_MIRROR=true
+    ui_info "切换到国内镜像源..."
+    
+    # 设置 npm 镜像
+    npm config set registry "$NPM_REGISTRY" 2>/dev/null || true
+    
+    ui_success "已切换到国内镜像源"
+    ui_kv "npm 镜像" "$NPM_REGISTRY"
+    ui_kv "Git 仓库" "$GIT_REPO_CN"
+    ui_kv "Node.js 源" "$NODEJS_SETUP_CN"
+}
+
+# 获取当前 Git 仓库地址
+get_git_repo() {
+    if [[ "$USE_CN_MIRROR" == "true" ]]; then
+        echo "$GIT_REPO_CN"
+    else
+        echo "$GIT_REPO_ORIGINAL"
+    fi
+}
+
+# 获取当前 Node.js 安装脚本地址
+get_nodejs_setup() {
+    if [[ "$USE_CN_MIRROR" == "true" ]]; then
+        echo "$NODEJS_SETUP_CN"
+    else
+        echo "$NODEJS_SETUP_ORIGINAL"
+    fi
+}
+
+# 带重试和镜像切换的下载函数
+download_with_retry() {
+    local title="$1"
+    local url="$2"
+    local output="$3"
+    local max_retries=2
+    local retry_count=0
+    
+    while [[ $retry_count -lt $max_retries ]]; do
+        if [[ "$retry_count" -gt 0 ]]; then
+            ui_warn "第 $((retry_count + 1)) 次尝试..."
+        fi
+        
+        if [[ "$output" ]]; then
+            if curl -fsSL --connect-timeout 30 "$url" -o "$output"; then
+                return 0
+            fi
+        else
+            if curl -fsSL --connect-timeout 30 "$url"; then
+                return 0
+            fi
+        fi
+        
+        retry_count=$((retry_count + 1))
+        
+        if [[ $retry_count -lt $max_retries ]]; then
+            ui_warn "下载失败，尝试切换到国内镜像..."
+            USE_CN_MIRROR=true
+            npm config set registry "$NPM_REGISTRY" 2>/dev/null || true
+            # 更新 URL 使用国内镜像
+            case "$url" in
+                *github.com*)
+                    url=$(echo "$url" | sed 's|github.com|gitee.com|')
+                    ;;
+                *deb.nodesource.com*)
+                    url="$NODEJS_SETUP_CN"
+                    ;;
+            esac
+        fi
+    done
+    
+    ui_error "$title 失败"
+    return 1
+}
+
 # ============================================
 # UI 函数
 # ============================================
@@ -151,6 +260,7 @@ ui_stage() {
     local title="$1"
     INSTALL_STAGE_CURRENT=$((INSTALL_STAGE_CURRENT + 1))
     ui_section "[${INSTALL_STAGE_CURRENT}/${INSTALL_STAGE_TOTAL}] ${title}"
+    show_progress_bar $INSTALL_STAGE_CURRENT $INSTALL_STAGE_TOTAL
 }
 
 ui_kv() {
@@ -178,30 +288,163 @@ ui_celebrate() {
     echo -e "\n${SUCCESS}${BOLD}🎉 ${msg} 🎉${NC}"
 }
 
+show_progress_bar() {
+    local current=$1
+    local total=$2
+    local width=50
+    local percent=$((current * 100 / total))
+    local filled=$((current * width / total))
+    
+    printf "\r${INFO}["
+    for ((i=0; i<filled; i++)); do
+        printf "${SUCCESS}="
+    done
+    for ((i=filled; i<width; i++)); do
+        printf "${MUTED}-"
+    done
+    printf "${INFO}] ${percent}%% ${NC}"
+    if [[ $current -eq $total ]]; then
+        echo ""
+    fi
+}
+
+show_spinner() {
+    local pid=$1
+    local msg=$2
+    local spin='-\|/'
+    local i=0
+    
+    echo -ne "${INFO}${msg}...${NC}"
+    
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) % 4 ))
+        printf "\r${INFO}${msg} ${spin:$i:1}${NC}"
+        sleep 0.1
+    done
+    
+    wait $pid
+    local exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        printf "\r${SUCCESS}${msg} ✓${NC}\n"
+    else
+        printf "\r${ERROR}${msg} ✗${NC}\n"
+    fi
+    
+    return $exit_code
+}
+
 # ============================================
 # 运行命令（带日志）
 # ============================================
 
-run_quiet_step() {
+run_step() {
     local title="$1"
     shift
+    
     if [[ "$VERBOSE" == "true" ]]; then
         ui_info "执行: $*"
         "$@"
         return $?
     fi
+    
     local log
     log="$(mktempfile)"
+    
+    echo -ne "${INFO}${title}...${NC}"
+    
     if "$@" >"$log" 2>&1; then
+        printf "\r${SUCCESS}${title} ✓${NC}\n"
         return 0
+    else
+        printf "\r${ERROR}${title} ✗${NC}\n"
+        if [[ -s "$log" ]]; then
+            echo -e "${ERROR}--- 错误日志 ---${NC}"
+            tail -n 30 "$log" >&2
+            echo -e "${ERROR}---------------${NC}"
+        fi
+        return 1
     fi
-    ui_error "${title} 失败"
-    if [[ -s "$log" ]]; then
-        echo "--- 错误日志 ---"
-        tail -n 20 "$log" >&2
-        echo "---------------"
+}
+
+run_step_with_spinner() {
+    local title="$1"
+    shift
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        ui_info "执行: $*"
+        "$@"
+        return $?
     fi
-    return 1
+    
+    local log
+    log="$(mktempfile)"
+    local spin='-\|/'
+    local i=0
+    
+    echo -ne "${INFO}${title}...${NC}"
+    
+    "$@" >"$log" 2>&1 &
+    local pid=$!
+    
+    while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) % 4 ))
+        printf "\r${INFO}${title} ${spin:$i:1}${NC}"
+        sleep 0.2
+        
+        # 显示最近的日志行
+        if [[ -s "$log" ]]; then
+            local last_line=$(tail -n 1 "$log")
+            if [[ -n "$last_line" ]]; then
+                printf "\r${INFO}${title} ${spin:$i:1} ${last_line:0:40}${NC}"
+            fi
+        fi
+    done
+    
+    wait $pid
+    local exit_code=$?
+    
+    if [[ $exit_code -eq 0 ]]; then
+        printf "\r${SUCCESS}${title} ✓${NC}\n"
+        return 0
+    else
+        printf "\r${ERROR}${title} ✗${NC}\n"
+        if [[ -s "$log" ]]; then
+            echo -e "${ERROR}--- 错误日志 ---${NC}"
+            tail -n 30 "$log" >&2
+            echo -e "${ERROR}---------------${NC}"
+        fi
+        return $exit_code
+    fi
+}
+
+run_npm_install() {
+    local title="$1"
+    local registry="${2:-}"
+    
+    echo -e "${INFO}${title}...${NC}"
+    echo -e "${MUTED}----------------------------------------${NC}"
+    
+    if [[ -n "$registry" ]]; then
+        npm install --registry "$registry" 2>&1 | while IFS= read -r line; do
+            echo -e "${INFO}  ${line}${NC}"
+        done
+    else
+        npm install 2>&1 | while IFS= read -r line; do
+            echo -e "${INFO}  ${line}${NC}"
+        done
+    fi
+    
+    local exit_code=${PIPESTATUS[0]}
+    
+    echo -e "${MUTED}----------------------------------------${NC}"
+    
+    if [[ $exit_code -eq 0 ]]; then
+        echo -e "${SUCCESS}${title} ✓${NC}"
+        return 0
+    else
+        echo -e "${ERROR}${title} ✗${NC}"
+        return $exit_code
+    fi
 }
 
 confirm_action() {
@@ -242,6 +485,11 @@ main() {
     fi
     ui_success "检测到 Linux 系统"
 
+    # 检测网络连接
+    if ! check_network; then
+        exit 1
+    fi
+
     # 1.1 检查 Node.js
     if [[ "$SKIP_NODE_CHECK" != "true" ]]; then
         ui_info "检查 Node.js..."
@@ -255,9 +503,9 @@ main() {
                 if confirm_action "是否自动安装 Node.js 20.x？"; then
                     require_sudo
                     if is_root; then
-                        run_quiet_step "安装 Node.js" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs"
+                        run_step_with_spinner "安装 Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | bash - && apt-get install -y nodejs"
                     else
-                        run_quiet_step "安装 Node.js" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && sudo apt-get install -y nodejs"
+                        run_step_with_spinner "安装 Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | sudo bash - && sudo apt-get install -y nodejs"
                     fi
                     ui_success "Node.js 安装完成"
                 else
@@ -270,9 +518,9 @@ main() {
             if confirm_action "是否自动安装 Node.js 20.x？"; then
                 require_sudo
                 if is_root; then
-                    run_quiet_step "安装 Node.js" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs"
+                    run_step_with_spinner "安装 Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | bash - && apt-get install -y nodejs"
                 else
-                    run_quiet_step "安装 Node.js" bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash - && sudo apt-get install -y nodejs"
+                    run_step_with_spinner "安装 Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | sudo bash - && sudo apt-get install -y nodejs"
                 fi
                 ui_success "Node.js 安装完成"
             else
@@ -292,16 +540,16 @@ main() {
             if confirm_action "是否自动安装 MySQL？"; then
                 require_sudo
                 if is_root; then
-                    run_quiet_step "安装 MySQL" bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server && systemctl start mysql && systemctl enable mysql"
+                    run_step_with_spinner "安装 MySQL" bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server && systemctl start mysql && systemctl enable mysql"
                 else
-                    run_quiet_step "安装 MySQL" bash -c "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mysql-server && sudo systemctl start mysql && sudo systemctl enable mysql"
+                    run_step_with_spinner "安装 MySQL" bash -c "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mysql-server && sudo systemctl start mysql && sudo systemctl enable mysql"
                 fi
                 ui_success "MySQL 安装完成"
                 ui_info "配置 MySQL root 用户认证方式..."
                 if is_root; then
-                    run_quiet_step "配置 MySQL 认证" mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
+                    run_step "配置 MySQL 认证" mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
                 else
-                    run_quiet_step "配置 MySQL 认证" sudo mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
+                    run_step "配置 MySQL 认证" sudo mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL 认证配置可能已完成"
                 fi
                 ui_success "MySQL 认证配置完成"
             else
@@ -318,9 +566,9 @@ main() {
         ui_warn "curl 未安装"
         require_sudo
         if is_root; then
-            run_quiet_step "安装 curl" apt-get install -y curl
+            run_step "安装 curl" apt-get install -y curl
         else
-            run_quiet_step "安装 curl" sudo apt-get install -y curl
+            run_step "安装 curl" sudo apt-get install -y curl
         fi
         ui_success "curl 安装完成"
     fi
@@ -342,9 +590,9 @@ main() {
         ui_warn "Git 未安装"
         require_sudo
         if is_root; then
-            run_quiet_step "安装 Git" apt-get install -y git
+            run_step "安装 Git" apt-get install -y git
         else
-            run_quiet_step "安装 Git" sudo apt-get install -y git
+            run_step "安装 Git" sudo apt-get install -y git
         fi
         ui_success "Git 安装完成"
     fi
@@ -358,9 +606,9 @@ main() {
         ui_warn "OpenSSL 未安装"
         require_sudo
         if is_root; then
-            run_quiet_step "安装 OpenSSL" apt-get install -y openssl
+            run_step "安装 OpenSSL" apt-get install -y openssl
         else
-            run_quiet_step "安装 OpenSSL" sudo apt-get install -y openssl
+            run_step "安装 OpenSSL" sudo apt-get install -y openssl
         fi
         ui_success "OpenSSL 安装完成"
     fi
@@ -392,8 +640,8 @@ main() {
             
             # 停止 PM2 服务
             if command -v pm2 &>/dev/null; then
-                run_quiet_step "停止 PM2 服务" pm2 stop study-server 2>/dev/null || true
-                run_quiet_step "删除 PM2 服务" pm2 delete study-server 2>/dev/null || true
+                run_step "停止 PM2 服务" pm2 stop study-server 2>/dev/null || true
+                run_step "删除 PM2 服务" pm2 delete study-server 2>/dev/null || true
             fi
 
             # 强制杀死端口占用进程
@@ -419,19 +667,19 @@ main() {
         ui_warn "检测到已有安装目录: $APP_DIR"
         if confirm_action "是否覆盖现有安装？"; then
             ui_info "正在删除旧安装..."
-            run_quiet_step "删除旧安装" rm -rf "$APP_DIR"
-            ui_info "从 GitHub 克隆项目..."
-            run_quiet_step "克隆项目" git clone https://github.com/guchengman/study-test.git "$APP_DIR"
+            run_step "删除旧安装" rm -rf "$APP_DIR"
+            ui_info "克隆项目..."
+            run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
             ui_success "代码下载完成"
         else
             ui_info "保留现有安装，仅更新代码..."
             cd "$APP_DIR"
-            run_quiet_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
+            run_step "更新代码" git pull || ui_warn "Git 更新失败，保留现有代码"
             cd "$SCRIPT_DIR"
         fi
     else
-        ui_info "从 GitHub 克隆项目..."
-        run_quiet_step "克隆项目" git clone https://github.com/guchengman/study-test.git "$APP_DIR"
+        ui_info "克隆项目..."
+        run_step_with_spinner "克隆项目" git clone "$(get_git_repo)" "$APP_DIR"
         ui_success "代码下载完成"
     fi
 
@@ -442,14 +690,18 @@ main() {
 
     cd "$APP_DIR"
 
-    ui_info "安装前端 npm 依赖..."
-    run_quiet_step "安装前端依赖" npm install
-    ui_success "前端依赖安装完成"
+    if [[ "$USE_CN_MIRROR" == "true" ]]; then
+        run_npm_install "安装前端 npm 依赖" "$NPM_REGISTRY"
+    else
+        run_npm_install "安装前端 npm 依赖"
+    fi
 
-    ui_info "安装后端 npm 依赖..."
     cd server
-    run_quiet_step "安装后端依赖" npm install
-    ui_success "后端依赖安装完成"
+    if [[ "$USE_CN_MIRROR" == "true" ]]; then
+        run_npm_install "安装后端 npm 依赖" "$NPM_REGISTRY"
+    else
+        run_npm_install "安装后端 npm 依赖"
+    fi
 
     # ============================================
     # 5. 配置环境变量
@@ -539,9 +791,9 @@ EOF
                 "1")
                     ui_info "删除并重建数据库..."
                     if [[ -z "$DB_PASSWORD" ]]; then
-                        run_quiet_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                        run_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
                     else
-                        run_quiet_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+                        run_step "删除数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
                     fi
                     ui_success "数据库重建成功"
                     ;;
@@ -559,9 +811,9 @@ EOF
     else
         ui_info "创建数据库..."
         if [[ -z "$DB_PASSWORD" ]]; then
-            run_quiet_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            run_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
         else
-            run_quiet_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            run_step "创建数据库" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
         fi
         ui_success "数据库创建成功"
     fi
@@ -624,13 +876,13 @@ EOF
                 ;;
             "2")
                 ui_info "构建项目..."
-                run_quiet_step "构建项目" npm run build
+                run_step_with_spinner "构建项目" npm run build
                 ui_success "构建完成"
                 echo -e "\n${INFO}生产模式需要配置 nginx，请参考项目文档${NC}"
                 ;;
             "3")
                 ui_info "构建项目..."
-                run_quiet_step "构建项目" npm run build
+                run_step_with_spinner "构建项目" npm run build
                 ui_success "构建完成，输出在 dist/ 目录"
                 ;;
             *)
