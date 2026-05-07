@@ -1,0 +1,32 @@
+{
+  "description": "备份已移除的未使用依赖",
+  "date": "2026-05-07",
+  "frontend": {
+    "devDependencies": [
+      {
+        "name": "@capacitor/android",
+        "version": "^8.3.0",
+        "reason": "源代码中无Capacitor相关引用，用于构建移动应用"
+      },
+      {
+        "name": "@capacitor/cli",
+        "version": "^8.3.0",
+        "reason": "源代码中无Capacitor相关引用"
+      },
+      {
+        "name": "@capacitor/core",
+        "version": "^8.3.0",
+        "reason": "源代码中无Capacitor相关引用"
+      }
+    ]
+  },
+  "backend": {
+    "dependencies": [
+      {
+        "name": "ssh2",
+        "version": "^1.17.0",
+        "reason": "后端代码中无SSH功能引用"
+      }
+    ]
+  }
+}

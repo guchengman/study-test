@@ -43,10 +43,15 @@ const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || '';
 // 百度 OCR Token 缓存
 let baiduAccessToken = '';
 
+// 标记是否是首次获取 token
+let isFirstTokenFetch = true;
+
 // 获取百度 access_token
 async function getBaiduAccessToken() {
   if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
-    console.warn('百度 OCR 未配置 BAIDU_API_KEY / BAIDU_SECRET_KEY');
+    if (isFirstTokenFetch) {
+      console.warn('百度 OCR 未配置 BAIDU_API_KEY / BAIDU_SECRET_KEY');
+    }
     return null;
   }
   try {
@@ -56,7 +61,11 @@ async function getBaiduAccessToken() {
       { params: { grant_type: 'client_credentials', client_id: BAIDU_API_KEY, client_secret: BAIDU_SECRET_KEY } }
     );
     baiduAccessToken = res.data.access_token;
-    console.log('百度 OCR token 获取成功:', baiduAccessToken ? '已获取' : '为空');
+    // 只在首次获取时输出成功日志
+    if (isFirstTokenFetch) {
+      console.log('百度 OCR token 获取成功');
+    }
+    isFirstTokenFetch = false;
     return baiduAccessToken;
   } catch (err) {
     console.error('百度 OCR token 获取失败:', err.message);
@@ -64,9 +73,9 @@ async function getBaiduAccessToken() {
   }
 }
 
-// 定时刷新 token
+// 定时刷新 token（每24小时刷新一次）
 getBaiduAccessToken();
-setInterval(getBaiduAccessToken, 86400 * 1000 * 29);
+setInterval(getBaiduAccessToken, 86400 * 1000);
 
 // 中间件
 app.use(cors({
