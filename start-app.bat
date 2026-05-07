@@ -2,36 +2,36 @@
 cd /d "%~dp0"
 
 :: ========================================
-:: Study Quiz App 启动脚本
+:: Study Quiz App Start Script
 :: ========================================
 
-:: 检查 Node.js 是否已安装
+:: Check if Node.js is installed
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo 错误: 未找到 Node.js。请先安装 Node.js 18 或更高版本。
-    echo 下载地址: https://nodejs.org/
+    echo Error: Node.js not found. Please install Node.js 18 or higher.
+    echo Download: https://nodejs.org/
     pause
     exit /b 1
 )
 
-:: 检查前端依赖是否已安装
+:: Check if frontend dependencies are installed
 if not exist "node_modules" (
-    echo 正在安装前端依赖...
+    echo Installing frontend dependencies...
     npm install
     if %errorlevel% neq 0 (
-        echo 错误: 前端依赖安装失败。
+        echo Error: Frontend dependencies installation failed.
         pause
         exit /b 1
     )
 )
 
-:: 检查后端依赖是否已安装
+:: Check if backend dependencies are installed
 if not exist "server\node_modules" (
-    echo 正在安装后端依赖...
+    echo Installing backend dependencies...
     cd server
     npm install
     if %errorlevel% neq 0 (
-        echo 错误: 后端依赖安装失败。
+        echo Error: Backend dependencies installation failed.
         cd ..
         pause
         exit /b 1
@@ -42,16 +42,16 @@ if not exist "server\node_modules" (
 :MENU
 cls
 echo ========================================
-echo      Study Quiz App 启动菜单
+echo      Study Quiz App Menu
 echo ========================================
 echo.
-echo 1. 开发模式 (前端 + 后端)
-echo 2. 仅启动前端
-echo 3. 仅启动后端
-echo 4. 构建生产版本
-echo 5. 退出
+echo 1. Development Mode (Frontend + Backend)
+echo 2. Frontend Only
+echo 3. Backend Only
+echo 4. Build Production Version
+echo 5. Exit
 echo.
-choice /c 12345 /m "请选择启动方式"
+choice /c 12345 /m "Please select an option"
 
 if errorlevel 5 goto EXIT
 if errorlevel 4 goto BUILD
@@ -61,30 +61,30 @@ if errorlevel 1 goto FULL_DEV
 
 :FULL_DEV
 echo.
-echo 启动后端服务...
+echo Starting backend server...
 start "Study API Server" cmd /c "cd /d %~dp0\server && npm run dev"
 
 echo.
-echo 等待后端启动...
+echo Waiting for backend to start...
 timeout /t 3 /nobreak >nul
 
 echo.
-echo 启动前端开发服务器...
-echo 访问地址: http://localhost:5173
+echo Starting frontend development server...
+echo Access URL: http://localhost:5173
 npm run dev
 goto END
 
 :FRONTEND_ONLY
 echo.
-echo 启动前端开发服务器...
-echo 访问地址: http://localhost:5173
+echo Starting frontend development server...
+echo Access URL: http://localhost:5173
 npm run dev
 goto END
 
 :BACKEND_ONLY
 echo.
-echo 启动后端服务...
-echo 访问地址: http://localhost:3100
+echo Starting backend server...
+echo Access URL: http://localhost:3100
 cd server
 npm run dev
 cd ..
@@ -92,14 +92,14 @@ goto END
 
 :BUILD
 echo.
-echo 构建生产版本...
+echo Building production version...
 npm run build
 if %errorlevel% neq 0 (
-    echo 错误: 构建失败。
+    echo Error: Build failed.
     pause
     goto MENU
 )
-echo 构建完成！输出目录: dist
+echo Build completed! Output directory: dist
 pause
 goto MENU
 
@@ -109,6 +109,6 @@ exit /b 0
 :END
 if %errorlevel% neq 0 (
     echo.
-    echo 错误: 应用启动失败。
+    echo Error: Application failed to start.
     pause
 )
