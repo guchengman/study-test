@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # -*- coding: utf-8 -*-
 # Study-Test 一键安装脚本
 # 
