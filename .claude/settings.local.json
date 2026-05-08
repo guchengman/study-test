@@ -17,7 +17,16 @@
       "PowerShell(Get-Process *)",
       "Bash(netstat -ano)",
       "PowerShell(Get-Command *)",
-      "PowerShell(netstat *)"
+      "PowerShell(netstat *)",
+      "Bash(Select-String -Pattern \"\\\\.\\(ts|tsx|js\\)$\")",
+      "Bash(Select-String -NotMatch \"node_modules\")",
+      "Bash(Select-Object -First 60)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js\\)$\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(grep \"\\\\.\\\\\\(js\\\\|ts\\\\|tsx\\\\\\)$\")",
+      "Bash(npm ls *)",
+      "Bash(npm install *)",
+      "Bash(bash -n install.sh)"
     ]
   }
 }

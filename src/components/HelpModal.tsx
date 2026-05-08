@@ -6,7 +6,7 @@ import {
   ChevronDown, Star, BookMarked, RefreshCcw, Filter, Search,
   Shield, Key, Globe, Brain, Layers, CheckCircle2, Target,
   ChevronLeft, Wand2, Upload, Rocket, Zap, Clock, Download,
-  Lock, Cloud, Wrench, Code, FolderTree, Package, Scan, Server, User, Trash2
+  Lock, Cloud, Wrench, Code, FolderTree, Package, Scan, Server, User, Trash2, Terminal, Check
 } from 'lucide-react';
 
 interface HelpModalProps {
@@ -14,7 +14,7 @@ interface HelpModalProps {
   onClose: () => void;
 }
 
-type SectionId = 'overview' | 'quickstart' | 'management' | 'settings' | 'security';
+type SectionId = 'overview' | 'quickstart' | 'management' | 'settings' | 'security' | 'install';
 
 interface Section {
   id: SectionId;
@@ -28,6 +28,7 @@ const SECTIONS: Section[] = [
   { id: 'management', label: '综合管理', icon: <Layers size={16} /> },
   { id: 'settings', label: 'API 设置', icon: <Settings size={16} /> },
   { id: 'security', label: '安全隐私', icon: <Shield size={16} /> },
+  { id: 'install', label: '安装部署', icon: <Terminal size={16} /> },
 ];
 
 const content: Record<SectionId, { title: string; items: { q: string; a: React.ReactNode }[] }> = {
@@ -620,6 +621,183 @@ const content: Record<SectionId, { title: string; items: { q: string; a: React.R
                 <li>• 定期查看 API 使用统计，发现异常及时处理</li>
                 <li>• 如发现 API 被盗用，立即在 AI 平台删除该 Key 并重新生成</li>
               </ul>
+            </div>
+          </div>
+        ),
+      },
+    ],
+  },
+  install: {
+    title: '安装部署',
+    items: [
+      {
+        q: '环境要求是什么？',
+        a: (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">部署前请确保服务器满足以下条件：</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Node.js', desc: '18+（推荐 20.x LTS）' },
+                { label: 'MySQL', desc: '5.7+ 或 MariaDB 10.4+' },
+                { label: 'npm', desc: '随 Node.js 安装' },
+                { label: 'Git', desc: '克隆代码使用' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-2 p-2 bg-slate-50 rounded-lg text-sm">
+                  <Check size={14} className="text-green-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-slate-700">{item.label}</span>
+                    <span className="text-slate-500 ml-1">{item.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+      },
+      {
+        q: '如何一行命令安装？',
+        a: (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">支持在线安装，代码自动克隆到 <code className="px-1.5 py-0.5 bg-slate-100 rounded text-xs">/opt/study-test</code>：</p>
+            <div className="p-3 bg-slate-900 text-green-400 rounded-xl font-mono text-sm overflow-x-auto">
+              curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+            </div>
+            <p className="text-sm text-slate-500">国内服务器 GitHub 不通时，脚本会自动切换 Gitee 镜像。</p>
+            <p className="text-sm text-slate-600">带数据库参数的非交互模式：</p>
+            <div className="p-3 bg-slate-900 text-green-400 rounded-xl font-mono text-sm overflow-x-auto">
+              curl -fsSL .../install.sh | bash -s -- --db-host=localhost --db-user=root --db-password=your_pass --no-prompt
+            </div>
+          </div>
+        ),
+      },
+      {
+        q: '如何手动安装？',
+        a: (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">克隆项目后手动执行以下步骤：</p>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold shrink-0 mt-0.5">1</span>
+                <span className="text-slate-600"><code className="px-1 bg-slate-100 rounded text-xs">git clone</code> 项目后 <code className="px-1 bg-slate-100 rounded text-xs">npm install --legacy-peer-deps</code>（前端）</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold shrink-0 mt-0.5">2</span>
+                <span className="text-slate-600"><code className="px-1 bg-slate-100 rounded text-xs">cd server && npm install --legacy-peer-deps</code>（后端）</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold shrink-0 mt-0.5">3</span>
+                <span className="text-slate-600">复制 <code className="px-1 bg-slate-100 rounded text-xs">.env.example</code> 为 <code className="px-1 bg-slate-100 rounded text-xs">server/.env</code> 并填入数据库信息</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold shrink-0 mt-0.5">4</span>
+                <span className="text-slate-600">在 MySQL 中创建数据库并执行迁移脚本</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold shrink-0 mt-0.5">5</span>
+                <span className="text-slate-600">启动前后端服务</span>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        q: '如何启动服务？',
+        a: (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">安装完成后打开两个终端分别启动：</p>
+            <div className="p-3 bg-slate-100 rounded-xl">
+              <p className="text-sm font-semibold text-slate-700 mb-1">终端 1 — 后端（端口 3100）</p>
+              <div className="p-2 bg-slate-900 text-green-400 rounded-lg font-mono text-sm">
+                cd /opt/study-test && node server/src/index.js
+              </div>
+            </div>
+            <div className="p-3 bg-slate-100 rounded-xl">
+              <p className="text-sm font-semibold text-slate-700 mb-1">终端 2 — 前端开发服务器（端口 3000）</p>
+              <div className="p-2 bg-slate-900 text-green-400 rounded-lg font-mono text-sm">
+                cd /opt/study-test && npm run dev
+              </div>
+            </div>
+            <p className="text-sm text-slate-600">浏览器访问 <code className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">http://localhost:3000</code>，点击右上角「注册」即可使用。</p>
+          </div>
+        ),
+      },
+      {
+        q: '如何部署到生产环境？',
+        a: (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-700">1. 构建前端</p>
+              <div className="p-2 bg-slate-900 text-green-400 rounded-lg font-mono text-sm mt-1">npm run build</div>
+              <p className="text-xs text-slate-500 mt-1">产物输出到 dist/ 目录</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-700">2. PM2 守护后端进程</p>
+              <div className="p-2 bg-slate-900 text-green-400 rounded-lg font-mono text-sm mt-1">
+                npm install -g pm2<br/>
+                pm2 start server/src/index.js --name study-server<br/>
+                pm2 save && pm2 startup
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-700">3. 配置 Nginx 反向代理</p>
+              <div className="p-2 bg-slate-900 text-green-400 rounded-lg font-mono text-sm mt-1 overflow-x-auto">
+                {`server {
+  listen 80;
+  root /opt/study-test/dist;
+  location /api/ { proxy_pass http://127.0.0.1:3100; }
+  location / { try_files $uri /index.html; }
+}`}
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        q: '安装脚本有哪些参数？',
+        a: (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-600">一键安装脚本支持以下可选参数：</p>
+            <div className="grid gap-1 text-sm">
+              {[
+                ['--no-prompt', '非交互模式，全部默认确认'],
+                ['--verbose', '显示详细输出日志'],
+                ['--skip-node-check', '跳过 Node.js 版本检查'],
+                ['--skip-mysql-check', '跳过 MySQL 检查'],
+                ['--db-host=HOST', '数据库地址（默认 localhost）'],
+                ['--db-port=PORT', '数据库端口（默认 3306）'],
+                ['--db-user=USER', '数据库用户（默认 root）'],
+                ['--db-password=PASS', '数据库密码'],
+                ['--db-name=NAME', '数据库名（默认 study_test）'],
+                ['--auto-db-password', '自动生成随机密码'],
+              ].map(([flag, desc], i) => (
+                <div key={i} className="flex items-start gap-2 p-1.5">
+                  <code className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-mono shrink-0">{flag}</code>
+                  <span className="text-slate-600">{desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ),
+      },
+      {
+        q: '安装过程中常见问题？',
+        a: (
+          <div className="space-y-3">
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <p className="text-sm font-semibold text-amber-700">npm install 很慢/卡住</p>
+              <p className="text-sm text-slate-600 mt-1">脚本默认使用 npmmirror 国内镜像。如仍然慢：<code className="px-1 bg-slate-100 rounded text-xs">npm config set registry https://registry.npmmirror.com</code></p>
+            </div>
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <p className="text-sm font-semibold text-amber-700">MySQL 连接被拒绝</p>
+              <p className="text-sm text-slate-600 mt-1">检查 MySQL 服务状态：<code className="px-1 bg-slate-100 rounded text-xs">sudo systemctl status mysql</code>，确保防火墙允许 3306 端口。</p>
+            </div>
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <p className="text-sm font-semibold text-amber-700">端口 3000/3100 被占用</p>
+              <p className="text-sm text-slate-600 mt-1">脚本会自动检测并停止占用进程。手动处理：<code className="px-1 bg-slate-100 rounded text-xs">sudo fuser -k 3000/tcp</code></p>
+            </div>
+            <div className="p-2 bg-amber-50 rounded-lg">
+              <p className="text-sm font-semibold text-amber-700">数据库迁移失败</p>
+              <p className="text-sm text-slate-600 mt-1">确保 <code className="px-1 bg-slate-100 rounded text-xs">server/.env</code> 配置正确，手动执行：<code className="px-1 bg-slate-100 rounded text-xs">cd /opt/study-test && node server/migrations/run-002.js</code></p>
             </div>
           </div>
         ),
