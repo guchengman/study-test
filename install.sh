@@ -1,80 +1,77 @@
 #!/bin/bash
-# -*- coding: utf-8 -*-
 # Study-Test Installation Script
-# 
-# Online installation:
+#
+# Online install:
 #   curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
-# 
-# Local installation:
-#   sudo bash install.sh
-# 
-# Optional parameters:
-#   --no-prompt          # Non-interactive mode
-#   --verbose            # Verbose output
-#   --skip-node-check    # Skip Node.js check
-#   --skip-mysql-check   # Skip MySQL check
-#   --auto-db-password   # Auto generate database password
-#   --db-host=xxx        # Specify database host
-#   --db-user=xxx        # Specify database user
-#   --db-password=xxx    # Specify database password
+# Local install:
+#   bash install.sh
+#
+# Options:
+#   --no-prompt           Non-interactive mode
+#   --skip-node-check     Skip Node.js version check
+#   --skip-mysql-check    Skip MySQL connectivity check
+#   --db-host=HOST        Database host (default: localhost)
+#   --db-port=PORT        Database port (default: 3306)
+#   --db-user=USER        Database user (default: root)
+#   --db-password=PASS    Database password
+#   --db-name=NAME        Database name (default: study_test)
+#   --auto-db-password    Generate random DB password
+#   --verbose             Verbose output
 
-set -euo pipefail
+# ---- Safety ----
+set -uo pipefail
 
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
+# ---- Portability: timeout command fallback (macOS) ----
+if ! command -v timeout &>/dev/null; then
+    timeout() {
+        local t="$1"; shift
+        "$@" &
+        local pid=$!
+        (
+            sleep "$t"
+            kill -TERM "$pid" 2>/dev/null
+            sleep 2
+            kill -KILL "$pid" 2>/dev/null
+        ) &
+        local killer=$!
+        wait "$pid" 2>/dev/null
+        local rc=$?
+        kill -KILL "$killer" 2>/dev/null
+        wait "$killer" 2>/dev/null
+        return $rc
+    }
+fi
 
-# ============================================
-# 
-# ============================================
-BOLD='\033[1m'
-ACCENT='\033[38;2;59;130;246m'      # blue-500
-ACCENT_BRIGHT='\033[38;2;37;99;235m' # blue-600
-SUCCESS='\033[38;2;34;197;94m'      # green-500
-WARN='\033[38;2;251;191;36m'        # yellow-400
-ERROR='\033[38;2;239;68;68m'        # red-500
-INFO='\033[38;2;107;114;128m'       # gray-500
-MUTED='\033[38;2;156;163;175m'      # gray-400
-NC='\033[0m' # No Color
+# ---- Colors ----
+C_BLUE='\033[38;2;59;130;246m'
+C_GREEN='\033[38;2;34;197;94m'
+C_YELLOW='\033[38;2;251;191;36m'
+C_RED='\033[38;2;239;68;68m'
+C_GRAY='\033[38;2;107;114;128m'
+C_MUTED='\033[38;2;156;163;175m'
+C_BOLD='\033[1m'
+C_NC='\033[0m'
 
-# ============================================
-# 
-# ============================================
+# ---- Paths ----
+APP_NAME="study-test"
 if [[ -n "${BASH_SOURCE[0]-}" ]]; then
     SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 else
     SCRIPT_DIR=""
 fi
-APP_NAME="study-test"
 
-# （ curl | bash ）
+# curl | bash → install to /opt; otherwise use script directory
 if [[ -z "$SCRIPT_DIR" || "$SCRIPT_DIR" == "/" ]]; then
-    # ： /opt 
     APP_DIR="/opt/$APP_NAME"
     ONLINE_INSTALL=true
 else
-    # ：（）
     APP_DIR="$SCRIPT_DIR"
     ONLINE_INSTALL=false
 fi
-TMPFILES=()
-INSTALL_STAGE_TOTAL=8
-INSTALL_STAGE_CURRENT=0
-TAGLINE="，"
 
-# 
-USE_CN_MIRROR=true
-NPM_REGISTRY="https://registry.npmmirror.com"
-GIT_REPO_CN="https://gitee.com/guchengman/study-test.git"
-GIT_REPO_ORIGINAL="https://github.com/guchengman/study-test.git"
-NODEJS_SETUP_CN="https://mirrors.tuna.tsinghua.edu.cn/nodejs-release/v20.x/setup_20.x"
-NODEJS_SETUP_ORIGINAL="https://deb.nodesource.com/setup_20.x"
-
-# ============================================
-# 
-# ============================================
+# ---- Defaults ----
 SKIP_NODE_CHECK=false
 SKIP_MYSQL_CHECK=false
-SKIP_MIGRATION=false
 DB_HOST="localhost"
 DB_PORT="3306"
 DB_USER="root"
@@ -84,953 +81,392 @@ AUTO_DB_PASSWORD=false
 NO_PROMPT=false
 VERBOSE=false
 
+# mirror defaults (auto-detect later)
+USE_CN_MIRROR=true
+NPM_REGISTRY="https://registry.npmmirror.com"
+GIT_REPO_CN="https://gitee.com/guchengman/study-test.git"
+GIT_REPO_GITHUB="https://github.com/guchengman/study-test.git"
+
+# ---- Parse args ----
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --skip-node-check) SKIP_NODE_CHECK=true ;;
-        --skip-mysql-check) SKIP_MYSQL_CHECK=true ;;
-        --db-host=*) DB_HOST="${1#*=}" ;;
-        --db-port=*) DB_PORT="${1#*=}" ;;
-        --db-user=*) DB_USER="${1#*=}" ;;
-        --db-password=*) DB_PASSWORD="${1#*=}" ;;
-        --db-name=*) DB_NAME="${1#*=}" ;;
-        --auto-db-password) AUTO_DB_PASSWORD=true ;;
-        --no-prompt) NO_PROMPT=true ;;
-        --verbose) VERBOSE=true ;;
-        *)
-            echo -e "${ERROR}: $1${NC}"
-            exit 1
-            ;;
+        --skip-node-check)   SKIP_NODE_CHECK=true ;;
+        --skip-mysql-check)  SKIP_MYSQL_CHECK=true ;;
+        --db-host=*)         DB_HOST="${1#*=}" ;;
+        --db-port=*)         DB_PORT="${1#*=}" ;;
+        --db-user=*)         DB_USER="${1#*=}" ;;
+        --db-password=*)     DB_PASSWORD="${1#*=}" ;;
+        --db-name=*)         DB_NAME="${1#*=}" ;;
+        --auto-db-password)  AUTO_DB_PASSWORD=true ;;
+        --no-prompt)         NO_PROMPT=true ;;
+        --verbose)           VERBOSE=true ;;
+        *) echo -e "${C_RED}Unknown option: $1${C_NC}"; exit 1 ;;
     esac
     shift
 done
 
-# ============================================
-# 
-# ============================================
+# ---- Temp file cleanup ----
+TMPFILES=()
+cleanup() { for f in "${TMPFILES[@]:-}"; do rm -rf "$f" 2>/dev/null || true; done; }
+trap cleanup EXIT
 
-# 
-cleanup_tmpfiles() {
-    local f
-    for f in "${TMPFILES[@]:-}"; do
-        rm -rf "$f" 2>/dev/null || true
-    done
+tmpfile() { local f; f="$(mktemp)"; TMPFILES+=("$f"); echo "$f"; }
+
+# ---- Helpers ----
+is_root() { [[ $EUID -eq 0 ]]; }
+
+GIT_REPO_URL="$GIT_REPO_GITHUB"  # may switch to CN mirror
+
+say()       { echo -e "$*"; }
+info()      { echo -e "${C_GRAY}  $*${C_NC}"; }
+warn()      { echo -e "${C_YELLOW}  ! $*${C_NC}"; }
+ok()        { echo -e "${C_GREEN}  ✓ $*${C_NC}"; }
+err()       { echo -e "${C_RED}  ✗ $*${C_NC}"; }
+section()   { echo -e "\n${C_BLUE}${C_BOLD}${1}${C_NC}"; }
+banner()    {
+    echo -e "${C_BLUE}${C_BOLD}"
+    cat << "ENDOFBANNER"
+██████╗ ███████╗██╗   ██╗     █████╗ ██████╗  ██████╗██╗  ██╗██╗   ██╗██████╗
+██╔══██╗██╔════╝██║   ██║    ██╔══██╗██╔══██╗██╔════╝██║  ██║██║   ██║██╔══██╗
+██████╔╝█████╗  ██║   ██║    ███████║██████╔╝██║     ███████║██║   ██║██████╔╝
+██╔══██╗██╔══╝  ╚██╗ ██╔╝    ██╔══██║██╔══██╗██║     ██╔══██║██║   ██║██╔═══╝
+██████╔╝███████╗ ╚████╔╝     ██║  ██║██████╔╝╚██████╗██║  ██║╚██████╔╝██║
+╚═════╝ ╚══════╝  ╚═══╝      ╚═╝  ╚═╝╚═════╝  ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝
+ENDOFBANNER
+    echo -e "${C_NC}${C_GRAY}  Study-Test 一键安装脚本${C_NC}\n"
 }
-trap cleanup_tmpfiles EXIT
 
-# 
-mktempfile() {
-    local f
-    f="$(mktemp)"
-    TMPFILES+=("$f")
-    echo "$f"
+confirm() {
+    [[ "$NO_PROMPT" == "true" ]] && return 0
+    local answer
+    read -r -p "  ? $1 (y/N) " answer
+    [[ "$answer" =~ ^[Yy]$ ]]
 }
 
-#  root
-is_root() {
-    [[ $EUID -eq 0 ]]
+# ---- Run command with timeout ----
+# Usage: run STEP_TITLE TIMEOUT_SECONDS cmd...
+# Returns the command's exit code. Logs output to temp file; prints on failure.
+run() {
+    local title="$1"; shift
+    local timeout_sec="$1"; shift
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        info "$title ..."
+        timeout "$timeout_sec" "$@"
+        local rc=$?
+    else
+        local log; log="$(tmpfile)"
+        printf "${C_GRAY}  %-50s${C_NC}" "$title ..."
+        if timeout "$timeout_sec" "$@" >"$log" 2>&1; then
+            printf "\r${C_GREEN}  ✓ %-50s${C_NC}\n" "$title"
+            rc=0
+        else
+            rc=$?
+            printf "\r${C_RED}  ✗ %-50s${C_NC}\n" "$title"
+            if [[ -s "$log" ]]; then
+                echo -e "${C_RED}  --- 错误详情 ---${C_NC}"
+                tail -20 "$log" | while IFS= read -r line; do
+                    echo -e "  ${C_MUTED}$line${C_NC}"
+                done
+                echo -e "${C_RED}  -----------------${C_NC}"
+            fi
+        fi
+    fi
+    return $rc
 }
 
-#  sudo
-require_sudo() {
-    if ! is_root; then
-        if ! command -v sudo &>/dev/null; then
-            ui_error " root  sudo "
+# ---- Network check ----
+check_network() {
+    local t=5
+    info "检测网络连接..."
+    if curl -s --connect-timeout $t https://github.com >/dev/null 2>&1; then
+        ok "网络连接正常 (GitHub 可达)"
+        return 0
+    fi
+    if curl -s --connect-timeout $t https://gitee.com >/dev/null 2>&1; then
+        warn "GitHub 不可达，将使用 Gitee 镜像"
+        GIT_REPO_URL="$GIT_REPO_CN"
+        USE_CN_MIRROR=true
+        npm config set registry "$NPM_REGISTRY" 2>/dev/null || true
+        return 0
+    fi
+    err "无法连接网络，请检查网络设置"
+    return 1
+}
+
+# ---- MySQL connectivity ----
+mysql_cmd() {
+    local extra_args=("$@")
+    local pass_arg=()
+    [[ -n "$DB_PASSWORD" ]] && pass_arg=("-p${DB_PASSWORD}")
+    timeout 10 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "${pass_arg[@]}" --connect-timeout=5 "${extra_args[@]}" 2>&1
+}
+
+# ---- npm install with timeout ----
+run_npm_install() {
+    local cwd="$1"
+    local timeout_min="${2:-15}"
+
+    # npm itself can hang on slow networks; use --prefer-offline --no-audit --no-fund
+    local npm_args=(install --prefer-offline --no-audit --no-fund --legacy-peer-deps)
+    if [[ "$USE_CN_MIRROR" == "true" ]]; then
+        npm_args+=(--registry "$NPM_REGISTRY")
+    fi
+
+    local dirname; dirname="$(basename "$cwd")"
+    local title="npm install ($dirname)"
+
+    if [[ "$VERBOSE" == "true" ]]; then
+        info "$title ..."
+        (cd "$cwd" && timeout "${timeout_min}m" npm "${npm_args[@]}" 2>&1)
+        return $?
+    fi
+
+    local log; log="$(tmpfile)"
+    printf "${C_GRAY}  %-50s${C_NC}" "$title ..."
+    if (cd "$cwd" && timeout "${timeout_min}m" npm "${npm_args[@]}" >"$log" 2>&1); then
+        local added; added=$(grep -c "added" "$log" 2>/dev/null || echo "?")
+        printf "\r${C_GREEN}  ✓ %-50s${C_NC}\n" "$title ($added packages)"
+        return 0
+    else
+        local rc=$?
+        printf "\r${C_RED}  ✗ %-50s${C_NC}\n" "$title"
+        warn "npm install 失败，尝试继续..."
+        tail -15 "$log" 2>/dev/null | while IFS= read -r line; do
+            echo -e "  ${C_MUTED}$line${C_NC}"
+        done
+        return 0  # non-fatal
+    fi
+}
+
+# ============================================================
+# Main
+# ============================================================
+main() {
+    banner
+
+    # ---- 1. Pre-flight checks ----
+    section "[1/6] 环境检查"
+
+    # OS check
+    case "$OSTYPE" in
+        linux-gnu*) ok "操作系统: Linux" ;;
+        darwin*)    ok "操作系统: macOS" ;;
+        msys*|cygwin*)
+            err "此脚本仅支持 Linux/macOS。Windows 请使用 install.bat"
+            exit 1 ;;
+        *)
+            warn "未知操作系统: $OSTYPE，继续执行..." ;;
+    esac
+
+    # Network
+    check_network || exit 1
+
+    # Node.js
+    if [[ "$SKIP_NODE_CHECK" != "true" ]]; then
+        if command -v node &>/dev/null; then
+            local node_ver; node_ver=$(node --version | sed 's/v//')
+            local node_major; node_major=$(echo "$node_ver" | cut -d. -f1)
+            if [[ "$node_major" -ge 18 ]]; then
+                ok "Node.js v$node_ver"
+            else
+                err "Node.js 版本过低 (v$node_ver)，需要 v18+"
+                exit 1
+            fi
+        else
+            err "未找到 Node.js，请安装 Node.js 18+ 后重试"
+            info "下载: https://nodejs.org/"
             exit 1
         fi
     fi
-}
 
-# 
-detect_downloader() {
-    if command -v curl &>/dev/null; then
-        DOWNLOADER="curl"
-        return 0
-    fi
-    if command -v wget &>/dev/null; then
-        DOWNLOADER="wget"
-        return 0
-    fi
-    ui_error " (curl  wget)"
-    exit 1
-}
-
-# 
-check_network() {
-    local timeout=5
-    ui_info "..."
-    
-    #  GitHub
-    if curl -s --connect-timeout $timeout https://github.com >/dev/null 2>&1; then
-        ui_success ""
-        return 0
-    fi
-    
-    # 
-    if curl -s --connect-timeout $timeout https://gitee.com >/dev/null 2>&1; then
-        ui_warn " GitHub ，"
-        if confirm_action "？"; then
-            switch_to_cn_mirror
-        fi
-        return 0
-    fi
-    
-    ui_error "，"
-    return 1
-}
-
-# 
-switch_to_cn_mirror() {
-    USE_CN_MIRROR=true
-    ui_info "..."
-    
-    #  npm 
-    npm config set registry "$NPM_REGISTRY" 2>/dev/null || true
-    
-    ui_success ""
-    ui_kv "npm " "$NPM_REGISTRY"
-    ui_kv "Git " "$GIT_REPO_CN"
-    ui_kv "Node.js " "$NODEJS_SETUP_CN"
-}
-
-#  Git 
-get_git_repo() {
-    if [[ "$USE_CN_MIRROR" == "true" ]]; then
-        echo "$GIT_REPO_CN"
-    else
-        echo "$GIT_REPO_ORIGINAL"
-    fi
-}
-
-#  Node.js 
-get_nodejs_setup() {
-    if [[ "$USE_CN_MIRROR" == "true" ]]; then
-        echo "$NODEJS_SETUP_CN"
-    else
-        echo "$NODEJS_SETUP_ORIGINAL"
-    fi
-}
-
-# 
-download_with_retry() {
-    local title="$1"
-    local url="$2"
-    local output="$3"
-    local max_retries=2
-    local retry_count=0
-    
-    while [[ $retry_count -lt $max_retries ]]; do
-        if [[ "$retry_count" -gt 0 ]]; then
-            ui_warn " $((retry_count + 1)) ..."
-        fi
-        
-        if [[ "$output" ]]; then
-            if curl -fsSL --connect-timeout 30 "$url" -o "$output"; then
-                return 0
-            fi
-        else
-            if curl -fsSL --connect-timeout 30 "$url"; then
-                return 0
-            fi
-        fi
-        
-        retry_count=$((retry_count + 1))
-        
-        if [[ $retry_count -lt $max_retries ]]; then
-            ui_warn "，..."
-            USE_CN_MIRROR=true
-            npm config set registry "$NPM_REGISTRY" 2>/dev/null || true
-            #  URL 
-            case "$url" in
-                *github.com*)
-                    url=$(echo "$url" | sed 's|github.com|gitee.com|')
-                    ;;
-                *deb.nodesource.com*)
-                    url="$NODEJS_SETUP_CN"
-                    ;;
-            esac
-        fi
-    done
-    
-    ui_error "$title "
-    return 1
-}
-
-# ============================================
-# UI 
-# ============================================
-
-ui_info() {
-    local msg="$*"
-    echo -e "${MUTED}·${NC} ${msg}"
-}
-
-ui_warn() {
-    local msg="$*"
-    echo -e "${WARN}!${NC} ${msg}"
-}
-
-ui_success() {
-    local msg="$*"
-    echo -e "${SUCCESS}✓${NC} ${msg}"
-}
-
-ui_error() {
-    local msg="$*"
-    echo -e "${ERROR}✗${NC} ${msg}"
-}
-
-ui_section() {
-    local title="$1"
-    echo ""
-    echo -e "${ACCENT}${BOLD}${title}${NC}"
-}
-
-ui_stage() {
-    local title="$1"
-    INSTALL_STAGE_CURRENT=$((INSTALL_STAGE_CURRENT + 1))
-    ui_section "[${INSTALL_STAGE_CURRENT}/${INSTALL_STAGE_TOTAL}] ${title}"
-    show_progress_bar $INSTALL_STAGE_CURRENT $INSTALL_STAGE_TOTAL
-}
-
-ui_kv() {
-    local key="$1"
-    local value="$2"
-    echo -e "${INFO}${key}:${NC} ${value}"
-}
-
-ui_banner() {
-    echo -e "${ACCENT}${BOLD}"
-    cat << "EOF"
-██████╗ ███████╗██╗   ██╗     █████╗ ██████╗  ██████╗██╗  ██╗██╗   ██╗██████╗ 
-██╔══██╗██╔════╝██║   ██║    ██╔══██╗██╔══██╗██╔════╝██║  ██║██║   ██║██╔══██╗
-██████╔╝█████╗  ██║   ██║    ███████║██████╔╝██║     ███████║██║   ██║██████╔╝
-██╔══██╗██╔══╝  ╚██╗ ██╔╝    ██╔══██║██╔══██╗██║     ██╔══██║██║   ██║██╔═══╝ 
-██████╔╝███████╗ ╚████╔╝     ██║  ██║██████╔╝╚██████╗██║  ██║╚██████╔╝██║     
-╚═════╝ ╚══════╝  ╚═══╝      ╚═╝  ╚═╝╚═════╝  ╚═════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     
-EOF
-    echo -e "${NC}${INFO}  ${TAGLINE}${NC}"
-    echo ""
-}
-
-ui_celebrate() {
-    local msg="$1"
-    echo -e "\n${SUCCESS}${BOLD}🎉 ${msg} 🎉${NC}"
-}
-
-show_progress_bar() {
-    local current=$1
-    local total=$2
-    local width=50
-    local percent=$((current * 100 / total))
-    local filled=$((current * width / total))
-    
-    printf "\r${INFO}["
-    for ((i=0; i<filled; i++)); do
-        printf "${SUCCESS}="
-    done
-    for ((i=filled; i<width; i++)); do
-        printf "${MUTED}-"
-    done
-    printf "${INFO}] ${percent}%% ${NC}"
-    if [[ $current -eq $total ]]; then
-        echo ""
-    fi
-}
-
-show_spinner() {
-    local pid=$1
-    local msg=$2
-    local spin='-\|/'
-    local i=0
-    
-    echo -ne "${INFO}${msg}...${NC}"
-    
-    while kill -0 $pid 2>/dev/null; do
-        i=$(( (i+1) % 4 ))
-        printf "\r${INFO}${msg} ${spin:$i:1}${NC}"
-        sleep 0.1
-    done
-    
-    wait $pid
-    local exit_code=$?
-    if [[ $exit_code -eq 0 ]]; then
-        printf "\r${SUCCESS}${msg} ✓${NC}\n"
-    else
-        printf "\r${ERROR}${msg} ✗${NC}\n"
-    fi
-    
-    return $exit_code
-}
-
-# ============================================
-# （）
-# ============================================
-
-run_step() {
-    local title="$1"
-    shift
-    
-    if [[ "$VERBOSE" == "true" ]]; then
-        ui_info ": $*"
-        "$@"
-        return $?
-    fi
-    
-    local log
-    log="$(mktempfile)"
-    
-    echo -ne "${INFO}${title}...${NC}"
-    
-    if "$@" >"$log" 2>&1; then
-        printf "\r${SUCCESS}${title} ✓${NC}\n"
-        return 0
-    else
-        printf "\r${ERROR}${title} ✗${NC}\n"
-        if [[ -s "$log" ]]; then
-            echo -e "${ERROR}---  ---${NC}"
-            tail -n 30 "$log" >&2
-            echo -e "${ERROR}---------------${NC}"
-        fi
-        return 1
-    fi
-}
-
-run_step_with_spinner() {
-    local title="$1"
-    shift
-    
-    if [[ "$VERBOSE" == "true" ]]; then
-        ui_info ": $*"
-        "$@"
-        return $?
-    fi
-    
-    local log
-    log="$(mktempfile)"
-    local spin='-\|/'
-    local i=0
-    
-    echo -ne "${INFO}${title}...${NC}"
-    
-    "$@" >"$log" 2>&1 &
-    local pid=$!
-    
-    while kill -0 $pid 2>/dev/null; do
-        i=$(( (i+1) % 4 ))
-        printf "\r${INFO}${title} ${spin:$i:1}${NC}"
-        sleep 0.2
-        
-        # 
-        if [[ -s "$log" ]]; then
-            local last_line=$(tail -n 1 "$log")
-            if [[ -n "$last_line" ]]; then
-                printf "\r${INFO}${title} ${spin:$i:1} ${last_line:0:40}${NC}"
-            fi
-        fi
-    done
-    
-    wait $pid
-    local exit_code=$?
-    
-    if [[ $exit_code -eq 0 ]]; then
-        printf "\r${SUCCESS}${title} ✓${NC}\n"
-        return 0
-    else
-        printf "\r${ERROR}${title} ✗${NC}\n"
-        if [[ -s "$log" ]]; then
-            echo -e "${ERROR}---  ---${NC}"
-            tail -n 30 "$log" >&2
-            echo -e "${ERROR}---------------${NC}"
-        fi
-        return $exit_code
-    fi
-}
-
-run_npm_install() {
-    local title="$1"
-    local registry="${2:-}"
-    local timeout_minutes=30
-    local start_time=$(date +%s)
-    local last_output_time=$start_time
-    local no_output_timeout=180  # 3
-    
-    echo -e "${INFO}${title}...${NC}"
-    echo -e "${MUTED}----------------------------------------${NC}"
-    echo -e "${WARN}⏰ ，...${NC}"
-    echo ""
-    
-    local npm_cmd="npm install --legacy-peer-deps"
-    if [[ -n "$registry" ]]; then
-        npm_cmd="$npm_cmd --registry $registry"
-    fi
-    
-    # 
-    local log_file=$(mktemp)
-    local pid_file=$(mktemp)
-    
-    #  npm install
-    $npm_cmd >"$log_file" 2>&1 &
-    local pid=$!
-    echo "$pid" > "$pid_file"
-    
-    # 
-    local spin='-\|/'
-    local i=0
-    local elapsed=0
-    
-    while kill -0 "$pid" 2>/dev/null; do
-        # 
-        local current_time=$(date +%s)
-        elapsed=$((current_time - start_time))
-        
-        # 
-        if [[ -s "$log_file" ]]; then
-            local last_modified=$(stat -c %Y "$log_file" 2>/dev/null || stat -f %m "$log_file" 2>/dev/null || echo "$current_time")
-            if [[ $((current_time - last_modified)) -gt $no_output_timeout ]]; then
-                echo -e "\n${WARN}⚠️ ，${NC}"
-                echo -e "${WARN}：${NC}"
-                tail -n 5 "$log_file" | while IFS= read -r line; do
-                    echo -e "${INFO}  $line${NC}"
-                done
-                echo -e "${WARN}... ( $((elapsed/60)) )${NC}"
-                last_output_time=$current_time
-            fi
-        fi
-        
-        # 
-        i=$(( (i+1) % 4 ))
-        printf "\r${INFO}${title} ${spin:$i:1}  %d  %d ${NC}" $((elapsed/60)) $((elapsed%60))
-        
-        # 
-        if [[ $elapsed -gt $((timeout_minutes * 60)) ]]; then
-            echo -e "\n${WARN}⚠️ （ $timeout_minutes ），${NC}"
-            kill "$pid" 2>/dev/null || true
-            wait "$pid" 2>/dev/null || true
-            echo -e "${WARN}---  ---${NC}"
-            tail -n 10 "$log_file" >&2
-            echo -e "${WARN}---------------${NC}"
-            rm -f "$log_file" "$pid_file"
-            echo -e "${WARN}⚠️ ${title} ，...${NC}"
-            return 0  # ，
-        fi
-        
-        sleep 1
-    done
-    
-    wait "$pid"
-    local exit_code=$?
-    
-    # 
-    if [[ -s "$log_file" ]]; then
-        local package_count=$(grep -c "added" "$log_file" | head -1 || echo "0")
-        
-        if [[ $exit_code -eq 0 ]]; then
-            printf "\r${SUCCESS}${title} ✓ ( %d  %d )${NC}\n" $((elapsed/60)) $((elapsed%60))
-            echo -e "${MUTED}----------------------------------------${NC}"
-            if [[ -n "$package_count" && "$package_count" != "0" ]]; then
-                echo -e "${INFO}📦  $package_count ${NC}"
-            fi
-            rm -f "$log_file" "$pid_file"
-            return 0
-        else
-            printf "\r${WARN}⚠️ ${title}  ( %d  %d )${NC}\n" $((elapsed/60)) $((elapsed%60))
-            echo -e "${MUTED}----------------------------------------${NC}"
-            if [[ -n "$package_count" && "$package_count" != "0" ]]; then
-                echo -e "${INFO}📦  $package_count ${NC}"
-            fi
-            echo -e "${WARN}---  ---${NC}"
-            tail -n 10 "$log_file" >&2
-            echo -e "${WARN}---------------${NC}"
-            rm -f "$log_file" "$pid_file"
-            echo -e "${WARN}⚠️ ${title} ，...${NC}"
-            return 0  # ，
-        fi
-    else
-        if [[ $exit_code -eq 0 ]]; then
-            printf "\r${SUCCESS}${title} ✓ ( %d  %d )${NC}\n" $((elapsed/60)) $((elapsed%60))
-        else
-            printf "\r${WARN}⚠️ ${title}  ( %d  %d )${NC}\n" $((elapsed/60)) $((elapsed%60))
-            echo -e "${WARN}---  ---${NC}"
-            tail -n 10 "$log_file" >&2
-            echo -e "${WARN}---------------${NC}"
-            echo -e "${WARN}⚠️ ${title} ，...${NC}"
-        fi
-        rm -f "$log_file" "$pid_file"
-        return 0  # ，
-    fi
-}
-
-confirm_action() {
-    if [[ "$NO_PROMPT" == "true" ]]; then
-        return 0
-    fi
-    read -p "$1 (Y/N) " -n 1 -r
-    echo
-    [[ $REPLY =~ ^[Yy]$ ]]
-}
-
-# ============================================
-# 
-# ============================================
-
-main() {
-    #  Banner
-    ui_banner
-
-    # ============================================
-    # 1. 
-    # ============================================
-    ui_stage ""
-
-    #  root 
-    if ! is_root; then
-        ui_warn " root "
-        if ! confirm_action "？"; then
-            exit 0
-        fi
-    fi
-
-    # 
-    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-        ui_error ""
-        echo " Linux "
-        exit 1
-    fi
-    ui_success " Linux "
-
-    # 
-    if ! check_network; then
-        exit 1
-    fi
-
-    # 1.1  Node.js
-    if [[ "$SKIP_NODE_CHECK" != "true" ]]; then
-        ui_info " Node.js..."
-        if command -v node &>/dev/null; then
-            NODE_VERSION=$(node --version)
-            NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d'v' -f2 | cut -d'.' -f1)
-            if [[ "$NODE_MAJOR" -ge 18 ]]; then
-                ui_success "Node.js : $NODE_VERSION"
-            else
-                ui_error "Node.js ， 18+，: $NODE_VERSION"
-                if confirm_action " Node.js 20.x？"; then
-                    require_sudo
-                    if is_root; then
-                        run_step_with_spinner " Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | bash - && apt-get install -y nodejs"
-                    else
-                        run_step_with_spinner " Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | sudo bash - && sudo apt-get install -y nodejs"
-                    fi
-                    ui_success "Node.js "
-                else
-                    ui_error " Node.js 18+"
-                    exit 1
-                fi
-            fi
-        else
-            ui_warn "Node.js "
-            if confirm_action " Node.js 20.x？"; then
-                require_sudo
-                if is_root; then
-                    run_step_with_spinner " Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | bash - && apt-get install -y nodejs"
-                else
-                    run_step_with_spinner " Node.js" bash -c "curl -fsSL $(get_nodejs_setup) | sudo bash - && sudo apt-get install -y nodejs"
-                fi
-                ui_success "Node.js "
-            else
-                ui_error " Node.js 18+"
-                exit 1
-            fi
-        fi
-    fi
-
-    # 1.2  MySQL
-    if [[ "$SKIP_MYSQL_CHECK" != "true" ]]; then
-        ui_info " MySQL..."
-        if command -v mysql &>/dev/null; then
-            ui_success "MySQL "
-        else
-            ui_warn "MySQL "
-            if confirm_action " MySQL？"; then
-                require_sudo
-                if is_root; then
-                    run_step_with_spinner " MySQL" bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server && systemctl start mysql && systemctl enable mysql"
-                else
-                    run_step_with_spinner " MySQL" bash -c "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y mysql-server && sudo systemctl start mysql && sudo systemctl enable mysql"
-                fi
-                ui_success "MySQL "
-                ui_info " MySQL root ..."
-                if is_root; then
-                    run_step " MySQL " mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL "
-                else
-                    run_step " MySQL " sudo mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" || ui_warn "MySQL "
-                fi
-                ui_success "MySQL "
-            else
-                ui_warn " MySQL ，"
-            fi
-        fi
-    fi
-
-    # 1.3  curl（ Node.js ）
-    ui_info " curl..."
-    if command -v curl &>/dev/null; then
-        ui_success "curl "
-    else
-        ui_warn "curl "
-        require_sudo
-        if is_root; then
-            run_step " curl" apt-get install -y curl
-        else
-            run_step " curl" sudo apt-get install -y curl
-        fi
-        ui_success "curl "
-    fi
-    # 1.4  npm（Node.js ）
-    ui_info " npm..."
+    # npm
     if command -v npm &>/dev/null; then
-        NPM_VERSION=$(npm --version)
-        ui_success "npm : v$NPM_VERSION"
+        ok "npm v$(npm --version)"
     else
-        ui_warn "npm ， Node.js "
+        err "未找到 npm"
+        exit 1
     fi
 
-    # 1.5  Git
-    ui_info " Git..."
-    if command -v git &>/dev/null; then
-        GIT_VERSION=$(git --version | cut -d' ' -f3)
-        ui_success "Git : v$GIT_VERSION"
-    else
-        ui_warn "Git "
-        require_sudo
-        if is_root; then
-            run_step " Git" apt-get install -y git
+    # MySQL client (only check connectivity, don't install)
+    if [[ "$SKIP_MYSQL_CHECK" != "true" ]]; then
+        if ! command -v mysql &>/dev/null; then
+            warn "未安装 MySQL 客户端，跳过数据库检查"
+            SKIP_MYSQL_CHECK=true
         else
-            run_step " Git" sudo apt-get install -y git
-        fi
-        ui_success "Git "
-    fi
-
-    # 1.6  OpenSSL
-    ui_info " OpenSSL..."
-    if command -v openssl &>/dev/null; then
-        OPENSSL_VERSION=$(openssl version | cut -d' ' -f2)
-        ui_success "OpenSSL : v$OPENSSL_VERSION"
-    else
-        ui_warn "OpenSSL "
-        require_sudo
-        if is_root; then
-            run_step " OpenSSL" apt-get install -y openssl
-        else
-            run_step " OpenSSL" sudo apt-get install -y openssl
-        fi
-        ui_success "OpenSSL "
-    fi
-
-    # ============================================
-    # 2. 
-    # ============================================
-    ui_stage ""
-
-    local SERVICE_RUNNING=false
-
-    #  PM2 
-    if command -v pm2 &>/dev/null; then
-        if pm2 list 2>/dev/null | grep -q "study-server"; then
-            ui_warn " PM2  'study-server' "
-            SERVICE_RUNNING=true
+            ok "MySQL 客户端已安装"
         fi
     fi
 
-    # 
-    if lsof -i :3000 -i :3100 2>/dev/null | grep -q LISTEN; then
-        ui_warn " 3000  3100 "
-        SERVICE_RUNNING=true
+    # ---- 2. Stop existing services ----
+    section "[2/6] 检查运行中的服务"
+
+    local has_running=false
+    if command -v pm2 &>/dev/null && pm2 list 2>/dev/null | grep -q "study-server"; then
+        warn "检测到 PM2 进程 'study-server'"
+        has_running=true
     fi
 
-    if [[ "$SERVICE_RUNNING" == "true" ]]; then
-        if [[ "$ONLINE_INSTALL" == "true" ]]; then
-            # ：
-            ui_info "，..."
-            
-            #  PM2 
-            if command -v pm2 &>/dev/null; then
-                run_step " PM2 " pm2 stop study-server 2>/dev/null || true
-                run_step " PM2 " pm2 delete study-server 2>/dev/null || true
-            fi
+    # Check port occupancy (use ss/netstat, fallback gracefully)
+    local port_check=""
+    if command -v ss &>/dev/null; then
+        port_check=$(ss -tlnp 2>/dev/null | grep -E ':(3000|3100)\s' || true)
+    elif command -v netstat &>/dev/null; then
+        port_check=$(netstat -tlnp 2>/dev/null | grep -E ':(3000|3100)\s' || true)
+    fi
+    if [[ -n "$port_check" ]]; then
+        warn "端口 3000 或 3100 已被占用"
+        has_running=true
+    fi
 
-            # 
-            ui_info "..."
-            lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
-            lsof -ti:3100 | xargs -r kill -9 2>/dev/null || true
-
-            ui_success ""
+    if [[ "$has_running" == "true" ]]; then
+        if [[ "$ONLINE_INSTALL" == "true" || "$NO_PROMPT" == "true" ]]; then
+            info "停止旧服务..."
+            command -v pm2 &>/dev/null && { pm2 stop study-server 2>/dev/null || true; pm2 delete study-server 2>/dev/null || true; }
+            # kill by port (try fuser first, then lsof)
+            command -v fuser &>/dev/null && { fuser -k 3000/tcp 2>/dev/null || true; fuser -k 3100/tcp 2>/dev/null || true; }
+            command -v lsof &>/dev/null && { lsof -ti:3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true; lsof -ti:3100 2>/dev/null | xargs -r kill -9 2>/dev/null || true; }
+            ok "旧服务已停止"
         else
-            # ：
-            if confirm_action "？"; then
-                ui_info "..."
-                
-                #  PM2 
-                if command -v pm2 &>/dev/null; then
-                    run_step " PM2 " pm2 stop study-server 2>/dev/null || true
-                    run_step " PM2 " pm2 delete study-server 2>/dev/null || true
-                fi
-
-                # 
-                ui_info "..."
-                lsof -ti:3000 | xargs -r kill -9 2>/dev/null || true
-                lsof -ti:3100 | xargs -r kill -9 2>/dev/null || true
-
-                ui_success ""
+            if confirm "是否停止旧服务?"; then
+                command -v pm2 &>/dev/null && { pm2 stop study-server 2>/dev/null || true; pm2 delete study-server 2>/dev/null || true; }
+                command -v fuser &>/dev/null && { fuser -k 3000/tcp 2>/dev/null || true; fuser -k 3100/tcp 2>/dev/null || true; }
+                command -v lsof &>/dev/null && { lsof -ti:3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true; }
+                ok "旧服务已停止"
             else
-                ui_error ""
+                err "请先手动停止旧服务"
                 exit 1
             fi
         fi
     else
-        ui_success ""
+        ok "无运行中的旧服务"
     fi
 
-    # ============================================
-    # 3. 
-    # ============================================
-    ui_stage ""
+    # ---- 3. Get/verify code ----
+    section "[3/6] 获取代码"
 
     if [[ "$ONLINE_INSTALL" == "true" ]]; then
-        # ： GitHub 
         if [[ -d "$APP_DIR" ]]; then
-            ui_warn ": $APP_DIR"
-            ui_info "，..."
-            run_step "" rm -rf "$APP_DIR"
+            warn "目录已存在: $APP_DIR"
+            if confirm "删除并重新克隆?"; then
+                run "删除旧目录" 30 rm -rf "$APP_DIR" || true
+            else
+                info "保留现有目录，仅更新代码..."
+                (cd "$APP_DIR" && timeout 60 git pull 2>/dev/null) || warn "git pull 失败，将使用现有代码"
+                # skip clone
+            fi
         fi
-        ui_info "..."
-        run_step_with_spinner "" git clone "$(get_git_repo)" "$APP_DIR"
-        ui_success ""
+        if [[ ! -d "$APP_DIR" ]]; then
+            run "克隆仓库" 120 git clone --depth=1 "$GIT_REPO_URL" "$APP_DIR" || {
+                err "git clone 失败，请检查网络"
+                exit 1
+            }
+        fi
     else
-        # ：，
-        ui_info "，"
-        ui_success ""
+        ok "使用本地代码: $APP_DIR"
     fi
 
-    # ============================================
-    # 4. 
-    # ============================================
-    ui_stage ""
+    # ---- 4. Install dependencies ----
+    section "[4/6] 安装依赖"
 
     cd "$APP_DIR"
+    run_npm_install "$APP_DIR" 15
+    run_npm_install "$APP_DIR/server" 10
 
-    if [[ "$USE_CN_MIRROR" == "true" ]]; then
-        run_npm_install " npm " "$NPM_REGISTRY"
-    else
-        run_npm_install " npm "
-    fi
+    # ---- 5. Configure .env ----
+    section "[5/6] 配置环境变量"
 
-    cd server
-    if [[ "$USE_CN_MIRROR" == "true" ]]; then
-        run_npm_install " npm " "$NPM_REGISTRY"
-    else
-        run_npm_install " npm "
-    fi
+    local ENV_FILE="$APP_DIR/server/.env"
 
-    # ============================================
-    # 5. 
-    # ============================================
-    ui_stage ""
-
-    cd "$APP_DIR"
-    ENV_FILE="$APP_DIR/.env"
-
-    # 
+    # ensure server directory exists
+    mkdir -p "$APP_DIR/server"
     if [[ "$AUTO_DB_PASSWORD" == "true" ]]; then
-        DB_PASSWORD=$(openssl rand -base64 16)
+        DB_PASSWORD=$(openssl rand -base64 16 2>/dev/null || date +%s | sha256sum | head -c 16)
     fi
 
-    ui_info " .env ..."
+    local jwt_secret; jwt_secret=$(openssl rand -hex 32 2>/dev/null || date +%s | sha256sum | head -c 64)
+
     cat > "$ENV_FILE" << EOF
-# 
+# 数据库配置
 DB_HOST=$DB_HOST
 DB_PORT=$DB_PORT
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 DB_NAME=$DB_NAME
 
-# JWT  ()
-JWT_SECRET=$(openssl rand -hex 32)
-
-#  OCR  ()
-BAIDU_API_KEY=
-BAIDU_SECRET_KEY=
+# JWT 密钥（已自动生成随机值）
+JWT_SECRET=$jwt_secret
 EOF
 
-    ui_success ""
+    ok ".env 已生成"
 
-    if [[ "$AUTO_DB_PASSWORD" == "true" || -z "$DB_PASSWORD" ]]; then
-        ui_warn ""
-        ui_info " .env "
-    fi
+    # ---- 6. Database setup ----
+    section "[6/6] 数据库配置"
 
-    # ============================================
-    # 6. 
-    # ============================================
-    ui_stage ""
-
-    local DB_EXISTS=false
-    local TABLE_COUNT=0
-
-    ui_info " MySQL..."
-    if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" ${DB_PASSWORD:+-p"$DB_PASSWORD"} -e "SELECT 1" 2>/dev/null; then
-        ui_success "MySQL "
-    elif mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "SELECT 1" 2>/dev/null; then
-        DB_PASSWORD=""
-        ui_success "MySQL  ()"
+    if [[ "$SKIP_MYSQL_CHECK" == "true" ]]; then
+        warn "跳过数据库配置（MySQL 客户端不可用）"
+        info "请手动创建数据库和执行迁移脚本"
+    elif ! command -v mysql &>/dev/null; then
+        warn "跳过数据库配置（MySQL 客户端不可用）"
     else
-        ui_warn "MySQL ，"
-        ui_info ":"
-        echo -e "${WARN}    CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;${NC}"
-    fi
-
-    # 
-    if [[ -z "$DB_PASSWORD" ]]; then
-        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "USE $DB_NAME" 2>/dev/null; then
-            DB_EXISTS=true
-            TABLE_COUNT=$(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -D "$DB_NAME" -e "SHOW TABLES" 2>/dev/null | wc -l)
-            ((TABLE_COUNT--))
-        fi
-    else
-        if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "USE $DB_NAME" 2>/dev/null; then
-            DB_EXISTS=true
-            TABLE_COUNT=$(mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -D "$DB_NAME" -e "SHOW TABLES" 2>/dev/null | wc -l)
-            ((TABLE_COUNT--))
-        fi
-    fi
-
-    if [[ "$DB_EXISTS" == "true" ]]; then
-        ui_warn "Database '$DB_NAME' already exists with $TABLE_COUNT tables"
-        
-        if [[ "$TABLE_COUNT" -gt 0 ]]; then
-            echo ""
-            echo -e "${ACCENT}Database exists!${NC}"
-            echo "  1. Drop and recreate database (WARNING: all data will be lost)"
-            echo "  2. Continue with existing database"
-            echo "  3. Continue but skip database migration"
-            read -p "Select option [2]: " -n 1 -r
-            echo
-
-            case "$REPLY" in
-                "1")
-                    ui_info "Dropping and recreating database..."
-                    if [[ -z "$DB_PASSWORD" ]]; then
-                        run_step "" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-                    else
-                        run_step "" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-                    fi
-                    ui_success "Database recreated"
-                    ;;
-                "3")
-                    ui_info "Skipping database migration"
-                    SKIP_MIGRATION=true
-                    ;;
-                *)
-                    ui_info "Continuing with existing database..."
-                    ;;
-            esac
+        # Test connection
+        info "测试 MySQL 连接..."
+        local conn_test; conn_test=$(mysql_cmd -e "SELECT 1" 2>&1)
+        if [[ "$conn_test" == *"1"* ]]; then
+            ok "MySQL 连接成功"
         else
-            ui_info "Database exists but is empty, continuing..."
+            warn "MySQL 连接失败: $conn_test"
+            info "请检查数据库配置，手动执行以下操作:"
+            echo -e "  ${C_YELLOW}mysql -h $DB_HOST -u $DB_USER -p${C_NC}"
+            echo -e "  ${C_YELLOW}CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;${C_NC}"
         fi
-    else
-        ui_info "Creating database..."
-        if [[ -z "$DB_PASSWORD" ]]; then
-            run_step "" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+        # Create database
+        local create_result; create_result=$(mysql_cmd -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1)
+        if [[ $? -eq 0 ]]; then
+            ok "数据库 $DB_NAME 已就绪"
         else
-            run_step "" mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+            warn "创建数据库失败: $create_result"
         fi
-        ui_success "Database created"
-    fi
 
-    # ============================================
-    # 7. Database Migration
-    # ============================================
-    ui_stage "Database Migration"
-
-    if [[ "$SKIP_MIGRATION" == "true" ]]; then
-        ui_info "Skipping database migration"
-    else
-        MIGRATIONS_DIR="$APP_DIR/server/migrations"
+        # Run migrations
+        local MIGRATIONS_DIR="$APP_DIR/server/migrations"
         if [[ -d "$MIGRATIONS_DIR" ]]; then
-            ui_info "Running database migrations..."
-            JS_FILES=$(ls "$MIGRATIONS_DIR"/*.js 2>/dev/null | sort)
-            if [[ -n "$JS_FILES" ]]; then
-                for JS_FILE in $JS_FILES; do
-                    ui_info "Running: $(basename "$JS_FILE")"
-                    if node "$JS_FILE" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" 2>&1; then
-                        ui_success "  Done"
-                    else
-                        ui_warn "  Failed"
-                    fi
-                done
-                ui_success "Migrations completed"
-            else
-                ui_warn "No migration files found"
-            fi
-        else
-            ui_warn "Migrations directory not found"
+            info "执行数据库迁移..."
+            local migrated=0 failed=0
+            for f in $(ls "$MIGRATIONS_DIR"/*.js 2>/dev/null | sort); do
+                local fname; fname="$(basename "$f")"
+                if timeout 30 node "$f" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" 2>/dev/null; then
+                    ((migrated++))
+                else
+                    warn "跳过: $fname"
+                    ((failed++))
+                fi
+            done
+            ok "迁移完成: $migrated 成功, $failed 跳过"
         fi
     fi
 
-    # ============================================
-    # 8. 
-    # ============================================
-    ui_stage ""
+    # ---- Done ----
+    echo ""
+    echo -e "${C_GREEN}${C_BOLD}  安装完成!${C_NC}"
+    echo ""
+    echo -e "  ${C_GRAY}项目目录:${C_NC} $APP_DIR"
+    echo -e "  ${C_GRAY}环境配置:${C_NC} $ENV_FILE"
+    echo ""
+    echo -e "  ${C_GRAY}启动命令:${C_NC}"
+    echo -e "    ${C_YELLOW}cd $APP_DIR && npm run dev${C_NC}"
+    echo -e "    ${C_YELLOW}node $APP_DIR/server/src/index.js${C_NC}"
+    echo ""
 
-    cd "$APP_DIR"
-
-    if [[ "$NO_PROMPT" == "true" ]]; then
-        ui_info "Installation complete."
-        ui_info "To start: cd $APP_DIR && npm run dev"
-    else
-        echo ""
-        echo -e "${ACCENT}Installation Complete!${NC}"
-        echo "  1. Start Development Server (npm run dev)"
-        echo "  2. Start Production Server"
-        echo "  3. Build Only (npm run build)"
-        echo "  Q. Quit"
-        read -p "Select option [1]: " -n 1 -r
-        echo
-
-        case "$REPLY" in
-            "1")
-                echo -e "\n${WARN}Press Ctrl+C to stop${NC}\n"
-                sleep 2
-                npm run dev
-                ;;
-            "2")
-                ui_info "Building production version..."
-                run_step_with_spinner "" npm run build
-                ui_success "Build complete"
-                echo -e "\n${INFO}Configure nginx to serve dist/ folder${NC}"
-                ;;
-            "3")
-                ui_info "Building..."
-                run_step_with_spinner "" npm run build
-                ui_success "Build complete, output in dist/"
-                ;;
-            *)
-                ui_info "Exiting. To start later:"
-                echo -e "${WARN}    cd $APP_DIR${NC}"
-                echo -e "${WARN}    npm run dev${NC}"
-                ;;
-        esac
+    if [[ "$NO_PROMPT" != "true" ]]; then
+        if confirm "是否立即启动开发服务器?"; then
+            echo -e "\n${C_YELLOW}按 Ctrl+C 停止服务器${C_NC}\n"
+            sleep 1
+            cd "$APP_DIR"
+            npm run dev
+        fi
     fi
-
-    # ============================================
-    # Finish
-    # ============================================
-    ui_celebrate "Installation finished!"
-    echo ""
-    echo -e "${INFO}App directory:${NC} $APP_DIR"
-    echo -e "${INFO}Env file:${NC} $ENV_FILE"
-    echo -e "${INFO}To start:${NC} cd $APP_DIR && npm run dev"
-    echo ""
 }
 
-# 
 main "$@"

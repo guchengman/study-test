@@ -13,220 +13,123 @@
 
 </div>
 
-## 🚀 立刻体验
+## 在线体验
 
-### 🌐 **[www.xiaoyue.shop](https://www.xiaoyue.shop)** — 点击即可使用！
+🌐 **[www.xiaoyue.shop](https://www.xiaoyue.shop)** — 即开即用，支持自主注册
 
-👉 系统支持自主注册，点击右上角「注册」创建专属账号
+## 功能
 
----
+- **题库管理** — 按科目分类管理，支持单选/多选/编程三种题型
+- **在线考试** — 模拟考试环境，自动计时、随机出题、即时评分
+- **AI 出题** — 支持 Gemini、DeepSeek、通义千问、智谱、Moonshot、百川、混元、文心等多家 AI 自动生成题目
+- **Markdown 编辑** — 内置 Markdown 编辑器和渲染器，支持富文本题目
+- **文档导入** — Word / PDF 文件一键导入，批量解析题目
+- **错题本** — 自动记录错题，智能追踪薄弱知识点
+- **学员管理** — 邀请码机制，查看学习进度和成绩统计
+- **多平台** — Web + Electron 桌面版 + Chrome 扩展 + Android 应用
 
-## 💡 这些场景，你中招了吗？
-
-| 😫 困扰 | 😄 用它来解决 |
-|--------|-------------|
-| 期末考试一堆科目，题库整理到手酸 | 一个平台搞定所有科目题目，随时切换 |
-| 对着PDF刷题，错过的题下次还错 | 智能记录错题本，专门攻克薄弱点 |
-| 出卷子靠复制粘贴，眼睛都要瞎了 | AI自动生成试卷，一键导出打印 |
-| 学员练习情况靠截图反馈，完全失控 | 后台实时统计，每道题的正确率一目了然 |
-| 想刷题但电脑不在身边 | Chrome扩展，手机平板随时练 |
-| 导入历史题库只能手动一条条录 | Word/Excel一键导入，1000题分分钟搞定 |
-
----
-
-## 🎯 能做什么？
-
-**📚 题库管理** — 按科目、章节分类管理题目，支持单选/多选/判断/简答多种题型
-
-**🤖 AI 出题** — 输入知识点描述，AI 自动生成高质量题目，再也不用手动编题
-
-**📝 在线答题** — 模拟真实考试环境，自动计时、随机出题、即时评分
-
-**📤 一键导入** — Word/Excel 文档直接导入，支持批量导入历史题库
-
-**👥 学员管理** — 生成邀请码管理学员，查看学习进度、成绩排名、错题统计
-
-**📱 Chrome 扩展** — 安装扩展后，随时随地在浏览器中刷题，充分利用碎片时间
-
----
-
-## ✨ 为什么选择我们？
-
-| 特性 | 说明 |
-|------|------|
-| 🎨 界面友好 | 简洁清晰，一看就会用 |
-| ⚡ 响应快速 | 前后端分离架构，操作流畅 |
-| 🔒 安全可靠 | JWT 认证，密码加密存储 |
-| 📦 开箱即用 | Windows 一键安装脚本，无需手动配置 |
-| 🔄 持续更新 | 活跃维护，功能不断完善 |
-
----
-
-## 🛠 技术栈
+## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | React + TypeScript + Vite |
-| 后端 | Node.js + Express + MySQL |
+| 前端 | React 19 + TypeScript + Vite + Tailwind CSS v4 |
+| 后端 | Node.js + Express + MySQL (mysql2) |
 | 认证 | JWT + bcrypt |
-| 部署 | 阿里云服务器 |
+| AI | Gemini / DeepSeek / Qwen / Zhipu / Moonshot / Baichuan / Hunyuan / ERNIE / OpenRouter |
+| 桌面端 | Electron |
+| 移动端 | Capacitor (Android) |
 
----
+## 本地开发
 
-## 💻 一键安装
-
-### 🌐 在线安装（最快方式）
-
-**Linux / macOS / WSL2：**
-```bash
-curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
-```
-
-**Windows (PowerShell)：**
-```powershell
-iwr -useb https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
-```
-
-### 📁 本地安装
-
-**Linux/macOS：**
-```bash
-# 克隆项目
-git clone https://github.com/guchengman/study-test.git
-cd study-test
-
-# 运行一键安装脚本
-sudo bash install.sh
-```
-
-**Windows：**
-```bash
-# 克隆项目
-git clone https://github.com/guchengman/study-test.git
-cd study-test
-
-# 运行安装脚本
-install.bat
-```
-
-### 🎯 可选参数
+**环境要求**: Node.js 18+ / MySQL 5.7+
 
 ```bash
-# 非交互模式（适合自动化部署）
-curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash -s -- --no-prompt
-
-# 跳过检查
---skip-node-check       # 跳过 Node.js 检查
---skip-mysql-check      # 跳过 MySQL 检查
-
-# 数据库配置
---auto-db-password      # 自动生成随机密码
---db-host=localhost     # 指定数据库地址
---db-user=root          # 指定数据库用户名
---db-password=xxx       # 指定数据库密码
-
-# 输出模式
---verbose               # 详细输出模式
-```
-
-### 一键安装脚本功能
-
-| 功能 | 说明 |
-|------|------|
-| 🌐 **在线安装** | 支持 `curl | bash` 一键在线安装，无需手动克隆 |
-| 🌍 **网络检测** | 自动检测网络连接，智能切换国内镜像源 |
-| 📦 **环境检查** | 自动检测并安装 Node.js、MySQL、npm、Git、curl、OpenSSL |
-| 🔄 **服务检测** | 自动检测并停止运行中的旧服务（PM2、端口占用） |
-| 🔁 **覆盖安装** | 支持删除旧安装重新克隆，或保留现有安装仅更新代码 |
-| ⬇️ **下载代码** | 从 GitHub/Gitee 克隆最新代码（自动切换镜像） |
-| 📊 **实时进度** | npm 安装过程实时显示日志，不再黑屏等待 |
-| ⚡ **进度条** | 实时显示安装进度百分比 |
-| ✅ **配置环境** | 自动生成 .env 文件 |
-| 🗄️ **数据库检测** | 智能检测已有数据库，提供删除重建/保留更新/跳过等选项 |
-| 📋 **初始化表** | 自动执行 SQL 迁移脚本 |
-| 🚀 **启动服务** | 可选开发/生产模式启动 |
-
-### 手动安装
-
-**环境要求**
-- Node.js 18+
-- MySQL 5.7+ / MariaDB 10.4+
-
-**安装步骤**
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/guchengman/study-test.git
-cd study-test
-
-# 2. 安装依赖
+# 1. 安装依赖
 npm install
 
-# 3. 配置环境变量
-cp .env.example .env
-# 编辑 .env 填入数据库信息
+# 2. 配置环境变量
+cp .env.example server/.env
+# 编辑 server/.env 填入数据库信息和 JWT_SECRET
 
-# 4. 初始化数据库
-# 导入 server/migrations/ 下的 SQL 文件
+# 3. 初始化数据库
+# 导入 server/migrations/ 下的 SQL 迁移文件
 
-# 5. 启动开发服务器
+# 4. 启动开发服务器（前端 :3000，后端 :3100）
 npm run dev
+
+# 5. 另开终端启动后端
+node server/src/index.js
 ```
 
-### 环境变量 (.env)
+**其他命令：**
+
+```bash
+npm run build            # 生产构建到 dist/
+npm run lint             # TypeScript 类型检查 (tsc --noEmit)
+npm run electron:dev     # Electron 桌面应用（开发模式）
+npm run electron:build   # 打包 Windows 便携版 .exe
+```
+
+**环境变量：**
 
 ```env
-# 数据库
 DB_HOST=localhost
 DB_USER=your_user
 DB_PASSWORD=your_password
 DB_NAME=study_test
-
-# JWT 密钥
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=your_jwt_secret_32_chars_min
 ```
 
----
+## 部署
 
-## 📱 Chrome 扩展
+支持一键安装脚本：
 
-支持随时随地练习题库，详见 [chrome-extension/README.md](chrome-extension/README.md)
+**在线安装：**
+```bash
+curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+```
 
-### 安装扩展
-1. 打开 `chrome://extensions/`
-2. 开启「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择 `chrome-extension/` 文件夹
+**本地安装：**
+```bash
+git clone https://github.com/guchengman/study-test.git
+cd study-test
+bash install.sh
+```
 
----
+可选参数：`--no-prompt`（自动化部署）、`--db-host`、`--db-user`、`--db-password`、`--verbose`
 
-## 📁 目录结构
+## 目录结构
 
 ```
 study-test/
-├── src/                    # React 前端源码
-│   ├── components/         # 组件
-│   ├── pages/              # 页面
-│   ├── services/           # API 服务
-│   └── ...
-├── server/                 # Express 后端源码
-│   ├── src/routes/         # API 路由
-│   ├── src/db.js           # 数据库连接
-│   └── migrations/         # 数据库迁移
-├── chrome-extension/       # Chrome 扩展
-├── public/                 # 静态资源
-└── package.json
+├── src/                      # React 前端
+│   ├── components/           # 组件 (app/, Markdown编辑器等)
+│   ├── pages/                # 页面 (HomePage, ExamPage, ResultPage)
+│   ├── hooks/                # 自定义 Hooks (useAuth, useExam 等)
+│   ├── services/             # API 客户端 + AI 服务
+│   ├── context/              # React Context (AppContext)
+│   ├── config/               # 配置 (API 配置)
+│   └── utils/                # 工具函数
+├── server/                   # Express 后端
+│   ├── src/routes/           # API 路由
+│   ├── src/middleware/       # 中间件 (JWT 认证)
+│   └── migrations/           # 数据库迁移脚本
+├── electron/                 # Electron 桌面应用
+│   └── main.cjs
+├── chrome-extension/         # Chrome 浏览器扩展
+├── android/                  # Capacitor Android 应用
+├── scripts/                  # 构建/部署脚本
+└── .github/workflows/        # CI/CD (GitHub Actions)
 ```
 
----
+## 平台覆盖
 
-## 🌐 在线体验
-
-🌐 **测试地址**: [https://www.xiaoyue.shop](https://www.xiaoyue.shop)
-
-👉 系统支持自主注册，点击右上角「注册」即可创建账号
-
----
+| 平台 | 说明 |
+|------|------|
+| Web | SPA 部署于阿里云，Nginx + Express |
+| Windows 桌面 | Electron 便携版 .exe |
+| Chrome 扩展 | `chrome-extension/` 加载即用 |
+| Android | Capacitor 封装，`android/` 目录 |
 
 ## License
 

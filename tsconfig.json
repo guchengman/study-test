@@ -23,5 +23,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["query-aliyun.cjs"]
+  "include": ["src"],
+  "exclude": ["query-aliyun.cjs", "dist", "android", "chrome-extension"]
 }

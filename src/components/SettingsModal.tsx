@@ -108,7 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
 
   const renderApiInput = (
     label: React.ReactNode,
-    value: string,
+    value: string | undefined,
     onChange: (v: string) => void,
     placeholder: string,
     apiKey: string

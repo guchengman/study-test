@@ -38,13 +38,13 @@ async function runGeminiGenerateContent(
   const userKey = getGeminiKey(settingsOverride);
   if (userKey) {
     const response = await getAIInstance(settingsOverride).models.generateContent(params as never);
-    return { text: response.text };
+    return { text: response.text ?? '' };
   }
   const devBundled = typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '';
   if (import.meta.env.DEV && devBundled) {
     const ai = new GoogleGenAI({ apiKey: devBundled });
     const response = await ai.models.generateContent(params as never);
-    return { text: response.text };
+    return { text: response.text ?? '' };
   }
   const token = getToken();
   if (!token) {
@@ -710,7 +710,7 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
       }
     }, settingsOverride);
 
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text ?? '[]');
     let questions = result as Question[];
     
     // 自动修复缺失或错误的subject字段，并优化题目类型
@@ -963,7 +963,7 @@ export async function parseQuestionsWithFile(
     console.log(`文件上传成功: ${uploadedFile.name}`);
     
     // 2. 等待文件处理完成
-    await waitForFileProcessing(ai, uploadedFile.name);
+    await waitForFileProcessing(ai, uploadedFile.name ?? file.name);
     console.log('文件处理完成');
     
     // 3. 构建请求，使用文件 + 提示词
@@ -998,9 +998,9 @@ export async function parseQuestionsWithFile(
       }
     });
 
-    const result = JSON.parse(response.text);
+    const result = JSON.parse(response.text ?? '[]');
     let questions = result as Question[];
-    
+
     // 自动修复缺失或错误的subject字段
     questions = questions.map(q => {
       if (!q.subject || !['python', 'english', 'chinese', 'math'].includes(q.subject)) {
