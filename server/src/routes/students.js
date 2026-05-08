@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -114,12 +115,13 @@ router.put('/reset-password/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: '学生不存在或不属于您' });
     }
 
-    const defaultHash = await bcrypt.hash('123456', 10);
+    const newPassword = crypto.randomBytes(6).toString('hex');
+    const defaultHash = await bcrypt.hash(newPassword, 10);
     await pool.execute(
       'UPDATE users SET password_hash = ?, password_reset = 1 WHERE id = ?',
       [defaultHash, req.params.id]
     );
-    res.json({ message: '学生密码已重置为123456' });
+    res.json({ message: `密码已重置`, tempPassword: newPassword });
   } catch (err) {
     console.error('重置学生密码错误:', err);
     res.status(500).json({ error: '重置密码失败' });

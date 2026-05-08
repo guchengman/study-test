@@ -27,7 +27,7 @@ export async function extractTextFromPDF(
     });
     
     const pdf = await loadingTask.promise;
-    console.log(`PDF 页数: ${pdf.numPages}, 版本: ${pdf.pdfInfo?.metadata || '未知'}`);
+    console.log(`PDF 页数: ${pdf.numPages}, 版本: ${(pdf as any).pdfInfo?.metadata || '未知'}`);
     
     // 检测 PDF 是否加密
     if (pdf._pdfInfo?.encrypt) {
@@ -231,8 +231,29 @@ export async function checkIfPDfIsScanned(file: File): Promise<{ isScanned: bool
 
 export async function extractTextFromDocx(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return result.value;
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  // Strip HTML tags to get plain text for AI parsing
+  return result.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * 从 DOCX 提取 HTML 内容（mammoth 自动将图片转为 base64 data URI）
+ * 返回 HTML 字符串和提取到的图片列表（可上传到服务器）
+ */
+export async function extractHtmlFromDocx(file: File): Promise<{
+  html: string;
+  images: Array<{ name: string; data: string; mime: string }>;
+}> {
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  const images: Array<{ name: string; data: string; mime: string }> = [];
+  const imgRegex = /<img[^>]+src="data:([^;]+);base64,([^"]+)"[^>]*>/g;
+  let match;
+  let idx = 0;
+  while ((match = imgRegex.exec(result.value)) !== null) {
+    images.push({ name: `img_${++idx}`, mime: match[1], data: match[2] });
+  }
+  return { html: result.value, images };
 }
 
 export async function extractTextFromTxt(file: File): Promise<string> {
@@ -625,7 +646,7 @@ export async function onlineOCR(
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d')!;
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvas, viewport }).promise;
     const base64 = canvas.toDataURL('image/png').split(',')[1];
     const pageText = await baiduOnlineOCR(base64);
     fullText += `【第 ${i} 页】\n${pageText}\n\n`;

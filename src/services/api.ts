@@ -217,6 +217,7 @@ export const authApi = {
     client.put<{ message: string }>('/auth/settings', { settings }),
   markHelpRead: () => client.put<{ message: string }>('/auth/help-read'),
   deleteAccount: () => client.delete<{ message: string }>('/auth/account'),
+  checkUsername: (username: string) => client.get<{ exists: boolean }>(`/auth/check-username?username=${encodeURIComponent(username)}`),
 };
 
 // ─── 邀请码 API ─────────────────────────────────────────────
@@ -320,6 +321,26 @@ export const syncApi = {
 
 export const healthApi = {
   check: () => client.get<{ status: string; timestamp: string }>('/health'),
+};
+
+export const uploadApi = {
+  image: async (file: File): Promise<{ url: string; filename: string }> => {
+    const form = new FormData();
+    form.append('file', file);
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/upload/image`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw { message: data.error || `上传失败 (${res.status})`, status: res.status } as { message: string; status: number };
+    }
+    return res.json();
+  },
 };
 
 export default client;

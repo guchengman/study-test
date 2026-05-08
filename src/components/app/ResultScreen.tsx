@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, XCircle, Star, Award } from 'lucide-react';
 import type { Question, ExamResult, MistakeRecord } from '../../types';
 import { formatTime } from '../../utils/examScoring';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 
 export interface ResultScreenProps {
   finalResult: ExamResult;
@@ -120,23 +121,29 @@ export function ResultScreen(props: ResultScreenProps) {
                       </span>
                     )}
                   </div>
-                  <h4 className="font-bold text-slate-800 leading-snug">{q.title}</h4>
+                  <MarkdownRenderer content={q.title} className="font-bold text-slate-800 leading-snug" />
                 </div>
               </div>
 
               <div className="space-y-2 sm:space-y-3 text-sm">
                 <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl text-sm">
-                  <span className="text-slate-400 font-bold mr-2">你的回答:</span>
-                  <span className={isCorrect ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>
-                    {Array.isArray(finalResult.answers[q.id])
-                      ? (finalResult.answers[q.id] as string[]).join(', ')
-                      : (finalResult.answers[q.id] as string) || '(未回答)'}
-                  </span>
+                  <span className="text-slate-400 font-bold">你的回答:</span>
+                  <MarkdownRenderer
+                    content={
+                      Array.isArray(finalResult.answers[q.id])
+                        ? (finalResult.answers[q.id] as string[]).join(', ')
+                        : (finalResult.answers[q.id] as string) || '(未回答)'
+                    }
+                    className={`inline ${isCorrect ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}`}
+                  />
                 </div>
                 {!isCorrect && (
                   <div className="p-2.5 sm:p-3 bg-blue-50 rounded-xl text-sm">
-                    <span className="text-blue-400 font-bold mr-2">正确答案:</span>
-                    <span className="text-blue-700 font-medium">{Array.isArray(q.answer) ? q.answer.join(', ') : q.answer}</span>
+                    <span className="text-blue-400 font-bold">正确答案:</span>
+                    <MarkdownRenderer
+                      content={Array.isArray(q.answer) ? q.answer.join(', ') : q.answer}
+                      className="inline text-blue-700 font-medium"
+                    />
                   </div>
                 )}
               </div>

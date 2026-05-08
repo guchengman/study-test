@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sc query *)",
+      "Bash(mysql *)",
+      "Bash(node *)",
+      "Bash(curl *)",
+      "Bash(npm run *)",
+      "Bash(git config *)",
+      "Bash(Test-Path *)",
+      "PowerShell(node D:\\\\github\\\\Study-test\\\\server\\\\src\\\\index.js)",
+      "PowerShell(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Id, ProcessName, MainWindowTitle)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Get-Process *)",
+      "Bash(netstat -ano)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(netstat *)"
+    ]
+  }
+}

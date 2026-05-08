@@ -110,6 +110,13 @@ const SYSTEM_PROMPT = `
 4. 确保 answer 与选项内容一致（答案必须是选项中的内容）
 5. 多选题确保所有正确答案都被包含
 
+**富文本格式要求：**
+- title、options、explanation 字段均支持 Markdown 格式
+- 数学公式使用 LaTeX：行内公式 $...$，块级公式 $$...$$
+- 使用 **粗体** 标注关键词
+- 代码使用反引号包裹，多行代码块使用三个反引号并标注语言
+- 图片引用格式：![](图片描述)
+
 JSON 结构必须符合以下 TypeScript 接口：
 interface Question {
   id: number; // 请从 1000 开始递增
@@ -150,30 +157,38 @@ const GENERATE_PROMPT = `
 - 多选题：提供 4 个选项，正确答案可以是 2 个或更多，需标注"（多选）"
 - 判断题：如果题目适合用"正确/错误"判断，使用 single 类型，options 填写 ['正确', '错误']
 
+**图片保留要求（极其重要）：**
+- 如果输入的提示词/资料中包含 ![](url) 格式的 Markdown 图片引用，必须保留这些图片引用
+- 将相关图片插入到生成的题目 title、options 或 explanation 中合适的位置
+- 图片是题目内容的重要组成部分（如化学结构图、数学几何图、物理电路图等），绝对不能丢弃
+- 在题目标题中引用图片示例：![](https://example.com/img.png) 下列说法正确的是（）
+- 在选项中引用图片示例：A. ![](https://example.com/img.png) 选项描述
+- 如果输入中有多张图片，将它们分配到对应的题目中，不要堆砌在同一道题里
+
 **输出格式（直接返回纯文本）：**
 
 单选题：
-题目标题
-A. 选项A
+题目标题（可包含 ![](url) 图片引用）
+A. 选项A（可包含 ![](url) 图片引用）
 B. 选项B
 C. 选项C
 D. 选项D
 答案：正确选项字母
-解析：详细的解析说明（说明为什么选这个选项）
+解析：详细的解析说明（说明为什么选这个选项，可包含图片）
 
 多选题（标注"多选"）：
-题目标题（多选）
+题目标题（多选，可包含图片）
 A. 选项A
 B. 选项B
 C. 选项C
 D. 选项D
 答案：正确选项字母组合
-解析：详细的解析说明（说明每个正确答案的原因）
+解析：详细的解析说明（说明每个正确答案的原因，可包含图片）
 
 判断题（标注"判断"）：
-题目标题（判断）
+题目标题（判断，可包含图片）
 答案：正确 / 错误
-解析：详细的解析说明（说明判断依据）
+解析：详细的解析说明（说明判断依据，可包含图片）
 
 =====================================
 【⚠️强制格式规范：数学+化学+物理 全科目 100%严格执行，无任何例外】
@@ -206,7 +221,7 @@ D. 选项D
 
 【全局铁律（违反即输出无效）】
 1. 所有题目、选项、解析必须统一格式
-2. 纯文本输出，禁止markdown、禁止代码块、禁止HTML标签
+2. title、options、explanation 字段支持 Markdown：**粗体**、$LaTeX公式$、$$块级公式$$
 3. 数字与单位之间不加空格：1m³、5cm²、20℃
 4. 绝不允许出现：H2O、m3、cm2、F1、R1、^、-、+
 5. 所有符号可直接复制到Word/PPT/教学平台正常显示
@@ -449,7 +464,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
   const systemPrompt = isGeneration ? GENERATE_PROMPT : SYSTEM_PROMPT;
   
   const messages = [
-    { role: 'system', content: systemPrompt + (isGeneration ? "\n**重要提醒：生成题目时，必须确保每个答案100%正确。如果对某道题的答案不确定，不要提供选项和答案，直接改为问答题格式。宁可少生成一道题，也不要给出一道错误答案的题目。**" : "\n请直接返回 JSON 数组。如果题目较多（最多100道），请确保输出完整。如果输出被截断，请尽量保证最后一个对象是完整的，并在数组末尾添加注释说明。") },
+    { role: 'system', content: systemPrompt + (isGeneration ? "\n**重要提醒：生成题目时，必须确保每个答案100%正确。如果对某道题的答案不确定，不要提供选项和答案，直接改为问答题格式。宁可少生成一道题，也不要给出一道错误答案的题目。\n\n⚠️ 图片保留提醒：输入中的 ![](url) Markdown 图片引用是题目内容的重要组成部分，必须在生成的题目中保留相关图片，不能丢弃！**" : "\n请直接返回 JSON 数组。如果题目较多（最多100道），请确保输出完整。如果输出被截断，请尽量保证最后一个对象是完整的，并在数组末尾添加注释说明。") },
     { role: 'user', content: isGeneration ? text : `待解析文本（可能包含多达100道题目）：\n${text}` }
   ];
   
@@ -574,7 +589,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
       }
       
       // 处理判断题：转换为单选题格式（A. 正确 B. 错误）
-      if (q.type === 'true/false') {
+      if ((q.type as string) === 'true/false') {
         const answerStr = String(q.answer).toLowerCase().trim();
         const trueValues = ['正确', 'true', 't', '对', 'yes', 'y', '1', 'a', '√', '是'];
         const falseValues = ['错误', 'false', 'f', '错', 'no', 'n', '0', 'b', '×', '否'];
@@ -750,7 +765,7 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
         q.answer = [String(q.answer)];
       }
       
-      if (q.type === 'true/false') {
+      if ((q.type as string) === 'true/false') {
         const answerStr = String(q.answer).toLowerCase().trim();
         const trueValues = ['正确', 'true', 't', '对', 'yes', 'y', '1', 'a', '√', '是'];
         const falseValues = ['错误', 'false', 'f', '错', 'no', 'n', '0', 'b', '×', '否'];

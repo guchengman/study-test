@@ -174,22 +174,22 @@ router.post('/batch', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '必须指定科目' });
     }
     
-    let [subjectCheck] = await pool.execute(
+    let [subjectCheck] = await conn.execute(
       'SELECT id, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
       [effectiveSubjectId, req.user.id, req.user.role === 'admin' ? 1 : 0]
     );
-    
+
     // 如果科目不存在，尝试自动创建它（使用科目ID作为名称）
     if (subjectCheck.length === 0) {
       try {
-        await pool.execute(
+        await conn.execute(
           'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [effectiveSubjectId, effectiveSubjectId, '📚', '', '', 0, 0, 'none', req.user.id]
         );
         subjectCheck = [{ id: effectiveSubjectId, created_by: req.user.id }];
       } catch (createErr) {
         // 如果创建失败（可能已存在或ID冲突），再次检查
-        [subjectCheck] = await pool.execute(
+        [subjectCheck] = await conn.execute(
           'SELECT id, created_by FROM subjects WHERE id = ?',
           [effectiveSubjectId]
         );
@@ -262,12 +262,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// 删除题目 — 只能删除自己的
+// 删除题目 — 只能删除自己的，管理员可删除任意题目
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [result] = await pool.execute(
-      'DELETE FROM questions WHERE id = ? AND created_by = ?',
-      [req.params.id, req.user.id]
+      'DELETE FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
+      [req.params.id, req.user.id, isAdmin]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: '题目不存在或无权限' });

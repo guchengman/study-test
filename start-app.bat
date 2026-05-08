@@ -62,7 +62,7 @@ if errorlevel 1 goto FULL_DEV
 :FULL_DEV
 echo.
 echo Starting backend server...
-start "Study API Server" cmd /c "cd /d %~dp0\server && npm run dev"
+start "Study API Server" /d "%~dp0server" cmd /c npm run dev
 
 echo.
 echo Waiting for backend to start...
@@ -70,14 +70,14 @@ timeout /t 3 /nobreak >nul
 
 echo.
 echo Starting frontend development server...
-echo Access URL: http://localhost:5173
+echo Access URL: http://localhost:3000
 npm run dev
 goto END
 
 :FRONTEND_ONLY
 echo.
 echo Starting frontend development server...
-echo Access URL: http://localhost:5173
+echo Access URL: http://localhost:3000
 npm run dev
 goto END
 
@@ -107,8 +107,4 @@ goto MENU
 exit /b 0
 
 :END
-if %errorlevel% neq 0 (
-    echo.
-    echo Error: Application failed to start.
-    pause
-)
+exit /b 0

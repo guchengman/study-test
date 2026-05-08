@@ -75,3 +75,4 @@ debug-*.js
 install-*.ps1
 install-*.bat
 
+server/uploads/
