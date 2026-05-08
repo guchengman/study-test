@@ -21,6 +21,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { Question, MistakeRecord } from '../../types';
+import { MarkdownRenderer } from '../MarkdownRenderer';
 
 export interface ExamScreenProps {
   examQuestions: Question[];
@@ -54,7 +55,7 @@ export interface ExamScreenProps {
   currentUser: string | null;
   exportFormat: 'csv' | 'json';
   setExportFormat: (v: 'csv' | 'json') => void;
-  exportQuestionBank: () => void;
+  exportQuestionBank: (format: 'csv' | 'json') => void;
   openImportModal: () => void;
   checkProgrammingAnswer: () => void;
   checkMultipleAnswer: () => void;
@@ -104,6 +105,8 @@ export function ExamScreen(props: ExamScreenProps) {
     setStatus,
     setIsImportModalOpen,
   } = props;
+
+  const [searchMode, setSearchMode] = React.useState<'text' | 'number'>('text');
 
   if (examQuestions.length === 0) {
     return (
@@ -199,41 +202,6 @@ export function ExamScreen(props: ExamScreenProps) {
             {isFullMode && (
               <div className="flex items-center gap-2">
                 <span className="px-3 py-1 bg-purple-50 text-purple-600 text-xs font-bold rounded-full">全量练习</span>
-                <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 ml-2">
-                  {isSearchOpen ? (
-                    <motion.div
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 'auto', opacity: 1 }}
-                      className="flex items-center gap-1 px-2"
-                    >
-                      <Search size={14} className="text-slate-400" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="搜索题目..."
-                        className="bg-transparent border-none outline-none text-xs w-24 sm:w-40 py-1"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => {
-                          setSearchQuery('');
-                          setIsSearchOpen(false);
-                        }}
-                      >
-                        <X size={14} className="text-slate-400 hover:text-rose-500" />
-                      </button>
-                    </motion.div>
-                  ) : (
-                    <button
-                      onClick={() => setIsSearchOpen(true)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 transition-colors"
-                      title="搜索题目"
-                    >
-                      <Search size={16} />
-                    </button>
-                  )}
-                </div>
 
                 {confirmingDeduplicate ? (
                   <div className="flex items-center gap-1.5 bg-amber-50 rounded-md px-2 py-1 border border-amber-100 animate-in fade-in zoom-in duration-200">
@@ -299,7 +267,7 @@ export function ExamScreen(props: ExamScreenProps) {
                     <option value="json">JSON</option>
                   </select>
                   <button
-                    onClick={exportQuestionBank}
+                    onClick={() => exportQuestionBank(exportFormat)}
                     className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-600 text-[10px] font-bold hover:bg-green-200 transition-colors"
                     title="导出题库"
                   >
@@ -337,6 +305,86 @@ export function ExamScreen(props: ExamScreenProps) {
               </motion.div>
             ) : (
               <div className="flex items-center gap-3">
+                {isSearchOpen ? (
+                  <div className="flex items-center gap-1 bg-blue-50 rounded-md px-2 py-1 border border-blue-100">
+                    <Search size={12} className="text-blue-500" />
+                    <div className="flex rounded border border-slate-200 overflow-hidden">
+                      <button
+                        onClick={() => { setSearchMode('text'); setSearchQuery(''); }}
+                        className={`text-[9px] px-1.5 py-0.5 font-bold transition-colors ${
+                          searchMode === 'text' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        文字
+                      </button>
+                      <button
+                        onClick={() => { setSearchMode('number'); setSearchQuery(''); }}
+                        className={`text-[9px] px-1.5 py-0.5 font-bold transition-colors ${
+                          searchMode === 'number' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        题号
+                      </button>
+                    </div>
+                    <input
+                      type={searchMode === 'number' ? 'number' : 'text'}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = searchQuery.trim();
+                          if (!val) return;
+                          if (searchMode === 'number') {
+                            const numQuery = parseInt(val, 10);
+                            if (!isNaN(numQuery)) {
+                              const byIndex = examQuestions.findIndex((q, i) => i + 1 === numQuery);
+                              if (byIndex >= 0) {
+                                setCurrentIndex(byIndex);
+                                setShowFeedback(false);
+                                setIsSearchOpen(false);
+                                setSearchQuery('');
+                                return;
+                              }
+                              const byId = examQuestions.findIndex(q => q.id === numQuery);
+                              if (byId >= 0) {
+                                setCurrentIndex(byId);
+                                setShowFeedback(false);
+                                setIsSearchOpen(false);
+                                setSearchQuery('');
+                              }
+                            }
+                          } else {
+                            const first = examQuestions.findIndex(q => q.title.toLowerCase().includes(val.toLowerCase()));
+                            if (first >= 0) {
+                              setCurrentIndex(first);
+                              setShowFeedback(false);
+                              setIsSearchOpen(false);
+                              setSearchQuery('');
+                            }
+                          }
+                        }
+                        if (e.key === 'Escape') {
+                          setSearchQuery('');
+                          setIsSearchOpen(false);
+                        }
+                      }}
+                      placeholder={searchMode === 'number' ? '输入题号...' : '搜索标题...'}
+                      className="bg-transparent border-none outline-none text-[10px] w-28 sm:w-36 py-0.5"
+                      autoFocus
+                    />
+                    <button onClick={() => { setSearchQuery(''); setIsSearchOpen(false); }}>
+                      <X size={12} className="text-slate-400 hover:text-rose-500" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsSearchOpen(true)}
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                    title="搜索题目"
+                  >
+                    <Search size={18} />
+                  </button>
+                )}
                 <button
                   onClick={() => toggleFavorite(currentQuestion.id)}
                   className={`flex items-center gap-1.5 transition-colors text-xs font-bold uppercase ${
@@ -359,34 +407,45 @@ export function ExamScreen(props: ExamScreenProps) {
           </div>
         </div>
 
-        <h3 className="text-xl font-bold mb-6 leading-snug">{currentQuestion.title}</h3>
+        <MarkdownRenderer content={currentQuestion.title} className="text-xl font-bold mb-6 leading-snug" />
 
-        {isFullMode && searchQuery && (
+        {searchQuery && (
           <div className="mb-6 space-y-2">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">搜索结果:</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {searchMode === 'number' ? '题号匹配:' : '搜索结果:'}
+            </div>
             <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1">
-              {examQuestions.filter((q) => q.title.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
-                examQuestions
-                  .filter((q) => q.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map((q) => (
+              {(() => {
+                const filtered = searchMode === 'number'
+                  ? examQuestions.filter((q, i) => {
+                      const qNum = String(i + 1);
+                      const qId = String(q.id);
+                      return qNum.startsWith(searchQuery.trim()) || qId.startsWith(searchQuery.trim());
+                    })
+                  : examQuestions.filter((q) => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
+                if (filtered.length === 0) {
+                  return <div className="text-center py-4 text-slate-400 text-xs">未找到匹配题目</div>;
+                }
+                return filtered.map((q) => {
+                  const idx = examQuestions.findIndex((eq) => eq.id === q.id) + 1;
+                  return (
                     <button
                       key={q.id}
                       onClick={() => {
-                        const newIndex = examQuestions.findIndex((eq) => eq.id === q.id);
-                        setCurrentIndex(newIndex);
+                        setCurrentIndex(idx - 1);
                         setShowFeedback(false);
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
                         currentQuestion.id === q.id ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-50 text-slate-600'
                       }`}
                     >
-                      <span className="opacity-50 mr-2">#{examQuestions.findIndex((eq) => eq.id === q.id) + 1}</span>
+                      <span className="opacity-50 mr-2">#{idx}</span>
+                      <span className="text-[9px] opacity-40 mr-1">ID:{q.id}</span>
                       {q.title.length > 50 ? q.title.substring(0, 50) + '...' : q.title}
                     </button>
-                  ))
-              ) : (
-                <div className="text-center py-4 text-slate-400 text-xs">未找到匹配题目</div>
-              )}
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
@@ -477,7 +536,7 @@ export function ExamScreen(props: ExamScreenProps) {
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-colors ${dotClass}`}>
                       {String.fromCharCode(65 + i)}
                     </div>
-                    <span className={`font-medium ${isSelected ? 'text-blue-900' : 'text-slate-600'}`}>{option}</span>
+                    <MarkdownRenderer content={option} className={`flex-1 font-medium text-left ${isSelected ? 'text-blue-900' : 'text-slate-600'}`} />
                     {showFeedback && (isMistakeMode || isFullMode || isRandomMode) && isCorrect && (
                       <CheckCircle2 size={20} className="ml-auto text-emerald-500" />
                     )}
@@ -510,15 +569,19 @@ export function ExamScreen(props: ExamScreenProps) {
               <BookOpen size={18} className="text-blue-600" />
               <span className="font-bold text-slate-700">答案解析</span>
             </div>
-            <p className="text-slate-600 text-sm leading-relaxed">
-              正确答案:
-              <span className="font-bold text-emerald-600">
-                {Array.isArray(currentQuestion.answer) ? currentQuestion.answer.join('、') : currentQuestion.answer}
-              </span>
-            </p>
-            <p className="text-slate-500 text-sm mt-2 leading-relaxed italic">
-              {currentQuestion.explanation || '暂无详细解析,请牢记正确答案。'}
-            </p>
+            <MarkdownRenderer
+              content={
+                Array.isArray(currentQuestion.answer)
+                  ? currentQuestion.answer.join('、')
+                  : currentQuestion.answer
+              }
+              className="text-slate-600 text-sm leading-relaxed"
+            />
+            {currentQuestion.explanation ? (
+              <MarkdownRenderer content={currentQuestion.explanation} className="text-slate-500 text-sm mt-2 leading-relaxed italic" />
+            ) : (
+              <p className="text-slate-500 text-sm mt-2 leading-relaxed italic">暂无详细解析,请牢记正确答案。</p>
+            )}
           </motion.div>
         )}
       </div>

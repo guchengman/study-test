@@ -22,6 +22,7 @@ import syncRoutes from './routes/sync.js';
 import inviteCodeRoutes from './routes/invite-codes.js';
 import studentRoutes from './routes/students.js';
 import aiRoutes from './routes/ai.js';
+import uploadRoutes, { uploadsRoot } from './routes/upload.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -102,6 +103,8 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/invite-codes', inviteCodeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/uploads', express.static(uploadsRoot));
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 app.post('/api/ocr/baidu', async (req, res) => {

@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import emailjs from '@emailjs/browser';
 import { authApi, setToken, removeToken, getToken, type AuthUser, type UserRole } from '../services/api';
 
-const EMAILJS_SERVICE_ID = 'service_q6bw8c7';
-const EMAILJS_TEMPLATE_ID = 'template_bou4v4l';
-const EMAILJS_PUBLIC_KEY = 'S1kEieWKhvFliUCDq';
+const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID || '';
+const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID || '';
+const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY || '';
 
 const VERIFY_CODE_KEY = 'verification_code';
 const VERIFY_EMAIL_KEY = 'verification_email';
@@ -213,7 +213,10 @@ export function useAuth() {
   }, []);
 
   const checkUsername = useCallback(async (username: string): Promise<{ exists: boolean }> => {
-    try { await authApi.login(username, '___check___'); return { exists: true }; } catch { return { exists: false }; }
+    try {
+      const res = await authApi.checkUsername(username);
+      return { exists: res.exists };
+    } catch { return { exists: false }; }
   }, []);
 
   const getUserList = useCallback(async () => {

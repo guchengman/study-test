@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
 import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Maximize2, ScanText, ExternalLink } from 'lucide-react';
-import { extractTextFromPDF, extractTextFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR } from '../services/fileService';
+import { extractTextFromPDF, extractTextFromDocx, extractHtmlFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR } from '../services/fileService';
 import { parseQuestionsWithAI, generateQuestionsFromPrompt } from '../services/geminiService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
-import { authApi, type AuthUser } from '../services/api';
+import { authApi, uploadApi, type AuthUser } from '../services/api';
 import { SettingsModal } from './SettingsModal';
+import { MarkdownEditor } from './MarkdownEditor';
 import { STORAGE_KEYS } from '../constants/storage';
 
 const MODELS = [
@@ -84,7 +85,7 @@ const MODELS = [
 interface ImportModalProps {
   isOpen?: boolean;  // Optional, parent controls visibility via conditional rendering
   onClose: () => void;
-  onImport: (questions: Question[]) => void;
+  onImport: (questions: Question[], targetSubjectId?: string) => void;
   allSubjects?: Subject[];
   currentSubjectId?: SubjectId;
   authUser?: AuthUser | null;
@@ -177,7 +178,33 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           throw err;
         }
       } else if (file.name.endsWith('.docx')) {
-        extractedText = await extractTextFromDocx(file);
+        const { html, images } = await extractHtmlFromDocx(file);
+        let md = html;
+        // Upload extracted images and replace with Markdown syntax
+        if (images.length > 0) {
+          const uploadResults = await Promise.allSettled(
+            images.map(async (img) => {
+              const byteChars = atob(img.data);
+              const byteArrays: Uint8Array[] = [];
+              for (let offset = 0; offset < byteChars.length; offset += 512) {
+                const slice = byteChars.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) byteNumbers[i] = slice.charCodeAt(i);
+                byteArrays.push(new Uint8Array(byteNumbers));
+              }
+              const imgFile = new File(byteArrays, `${img.name}.png`, { type: img.mime });
+              const { url } = await uploadApi.image(imgFile);
+              return { name: img.name, url, mime: img.mime, data: img.data };
+            })
+          );
+          for (const r of uploadResults) {
+            if (r.status === 'fulfilled') {
+              md = md.split(`data:${r.value.mime};base64,${r.value.data}`).join(r.value.url);
+            }
+          }
+          md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/g, '![]($1)');
+        }
+        extractedText = md.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       } else if (file.name.endsWith('.doc')) {
         extractedText = await extractTextFromDoc(file);
       } else if (file.name.endsWith('.txt')) {
@@ -428,7 +455,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   // 根据原始科目名获取显示名称
   const getSubjectDisplayName = (subjectName: string | null): string => {
     if (!subjectName) return '未知';
-    const mySubjects = (allSubjects || []).filter(s => s.is_owner !== false);
+    const mySubjects = (allSubjects || []).filter(s => s.isOwner !== false);
     // 尝试匹配原始名称或 ID 前缀
     const matched = mySubjects.find(s => 
       s.id === subjectName || 
@@ -441,7 +468,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   // 根据科目ID获取显示名称
   const getSubjectDisplayNameById = (subjectId: string | null): string => {
     if (!subjectId) return '未知';
-    const mySubjects = (allSubjects || []).filter(s => s.is_owner !== false);
+    const mySubjects = (allSubjects || []).filter(s => s.isOwner !== false);
     const matched = mySubjects.find(s => s.id === subjectId);
     if (matched) return matched.name;
     // 回退：去掉 ID 后缀获取名称
@@ -508,7 +535,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
 
     // 只显示自己创建的科目（排除别人共享给自己的科目）
     const mySubjects = (allSubjects || []).filter(s => {
-      return s.is_owner !== false;
+      return s.isOwner !== false;
     });
 
     // 默认选中当前正在查看的科目，或第一个自己的科目
@@ -611,19 +638,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   </div>
                 </div>
                 <div className="flex gap-2 flex-col lg:flex-row">
-                  <div className="relative flex-1">
-                    <textarea
+                  <div className="relative flex-1" onFocus={() => setShowHistory(true)} onBlur={() => setTimeout(() => setShowHistory(false), 200)}>
+                    <MarkdownEditor
                       value={promptInput}
-                      onChange={(e) => {
-                        setPromptInput(e.target.value);
-                        // 当输入框为空时显示历史记录
-                        setShowHistory(e.target.value.trim() === '');
-                      }}
-                      onFocus={() => setShowHistory(true)}
-                      onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+                      onChange={(v) => { setPromptInput(v); setShowHistory(v.trim() === ''); }}
                       placeholder="输入提示词生成题目，或点击右侧上传文件提取文本..."
                       rows={3}
-                      className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 focus:border-purple-600 outline-none text-sm transition-all resize-y min-h-[80px]"
                     />
                     {showHistory && promptInput.trim() === '' && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-80 overflow-y-auto">
@@ -806,11 +826,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                     <Maximize2 size={14} />
                   </button>
                 </label>
-                <textarea
+                <MarkdownEditor
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={setText}
                   placeholder="在此粘贴题目文本，AI解析后生成结构化题目..."
-                  className="w-full h-40 px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-600 outline-none text-sm transition-all resize-none"
+                  rows={8}
                 />
               </div>
 
@@ -923,13 +943,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   {(() => {
                     // 过滤掉共享科目，只显示自己创建的科目
                     const mySubjects = (allSubjects && allSubjects.length > 0 ? allSubjects : [
-                      { id: 'python' as SubjectId, name: 'Python', icon: '🐍', is_owner: true, is_shared: false },
-                      { id: 'english' as SubjectId, name: '英语', icon: '🔤', is_owner: true, is_shared: false },
-                      { id: 'chinese' as SubjectId, name: '语文', icon: '📖', is_owner: true, is_shared: false },
-                      { id: 'math' as SubjectId, name: '数学', icon: '📐', is_owner: true, is_shared: false }
+                      { id: 'python' as SubjectId, name: 'Python', icon: '🐍', isOwner: true, isShared: false },
+                      { id: 'english' as SubjectId, name: '英语', icon: '🔤', isOwner: true, isShared: false },
+                      { id: 'chinese' as SubjectId, name: '语文', icon: '📖', isOwner: true, isShared: false },
+                      { id: 'math' as SubjectId, name: '数学', icon: '📐', isOwner: true, isShared: false }
                     ]).filter(s => {
                       // 排除共享科目：is_owner 为 false 或 is_shared 为 true
-                      return s.is_owner !== false && !s.is_shared;
+                      return s.isOwner !== false && !s.isShared;
                     });
                     if (mySubjects.length === 0) {
                       return <p className="col-span-2 text-sm text-slate-400 text-center py-6">暂无可导入的题库，请先创建自己的题库</p>;
@@ -1001,11 +1021,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
               </button>
             </div>
             <div className="flex-1 p-4 overflow-hidden">
-              <textarea
+              <MarkdownEditor
                 value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
+                onChange={setPromptInput}
                 placeholder="输入提示词生成题目..."
-                className="w-full h-full min-h-[400px] px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-purple-600 outline-none text-sm transition-all resize-none"
+                rows={18}
               />
             </div>
             <div className="p-4 border-t border-slate-100 flex justify-end gap-3">
@@ -1052,11 +1072,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
               </button>
             </div>
             <div className="flex-1 p-4 overflow-hidden">
-              <textarea
+              <MarkdownEditor
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={setText}
                 placeholder="在此粘贴题目文本，AI解析后生成结构化题目..."
-                className="w-full h-full min-h-[400px] px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-600 outline-none text-sm transition-all resize-none"
+                rows={18}
               />
             </div>
             <div className="p-4 border-t border-slate-100 flex justify-end gap-3">
