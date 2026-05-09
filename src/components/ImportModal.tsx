@@ -948,8 +948,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                       { id: 'chinese' as SubjectId, name: '语文', icon: '📖', isOwner: true, isShared: false },
                       { id: 'math' as SubjectId, name: '数学', icon: '📐', isOwner: true, isShared: false }
                     ]).filter(s => {
-                      // 排除共享科目：is_owner 为 false 或 is_shared 为 true
-                      return s.isOwner !== false && !s.isShared;
+                      return s.isOwner !== false;
                     });
                     if (mySubjects.length === 0) {
                       return <p className="col-span-2 text-sm text-slate-400 text-center py-6">暂无可导入的题库，请先创建自己的题库</p>;
