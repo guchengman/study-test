@@ -436,7 +436,7 @@ EOF
             local migrated=0 failed=0
             for f in $(ls "$MIGRATIONS_DIR"/*.js 2>/dev/null | sort); do
                 local fname; fname="$(basename "$f")"
-                if timeout 30 node "$f" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" 2>/dev/null; then
+                if timeout 30 node "$f" "$DB_HOST" "$DB_PORT" "$DB_USER" "$DB_PASSWORD" "$DB_NAME" >/dev/null; then
                     ((migrated++))
                 else
                     warn "跳过: $fname"
