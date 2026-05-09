@@ -42,7 +42,7 @@ export function AppLayout() {
   const ctx = useAppContext();
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans selection:bg-blue-100">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans selection:bg-blue-100 overflow-x-hidden max-w-full">
       <AppHeader
         currentSubject={ctx.currentSubject}
         onGoWelcome={() => { ctx.goWelcome(); navigate('/', { replace: true }); }}
