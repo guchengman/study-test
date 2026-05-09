@@ -55,9 +55,15 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      entries: ['./index.html'],
+    },
     server: {
       port: 5173,
       hmr: process.env.DISABLE_HMR !== 'true',
+      watch: {
+        ignored: ['**/android/**', '**/chrome-extension/**'],
+      },
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:3100',

@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, BookOpen, HelpCircle, GraduationCap, Users, Database, Settings,
-  Sparkles, Share2, UserCheck, FileText, BarChart3, ChevronRight,
-  ChevronDown, Star, BookMarked, RefreshCcw, Filter, Search,
-  Shield, Key, Globe, Brain, Layers, CheckCircle2, Target,
-  ChevronLeft, Wand2, Upload, Rocket, Zap, Clock, Download,
-  Lock, Cloud, Wrench, Code, FolderTree, Package, Scan, Server, User, Trash2, Terminal, Check
+  X, HelpCircle, Users, Database, Settings,
+  Sparkles, FileText, ChevronDown, Star, RefreshCcw,
+  Shield, Globe, Layers, CheckCircle2,
+  Upload, Rocket, Zap, Download,
+  Lock, Scan, Server, User, Trash2, Terminal, Check
 } from 'lucide-react';
 
 interface HelpModalProps {

@@ -26,7 +26,10 @@
       "Bash(grep \"\\\\.\\\\\\(js\\\\|ts\\\\|tsx\\\\\\)$\")",
       "Bash(npm ls *)",
       "Bash(npm install *)",
-      "Bash(bash -n install.sh)"
+      "Bash(bash -n install.sh)",
+      "Bash(gh pr *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Select-Object -ExpandProperty Name)"
     ]
   }
 }

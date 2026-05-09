@@ -710,7 +710,10 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
       }
     }, settingsOverride);
 
-    const result = JSON.parse(response.text ?? '[]');
+    if (!response.text) {
+      console.warn('[geminiService] response.text is empty, using empty array as fallback');
+    }
+    const result = JSON.parse(response.text || '[]');
     let questions = result as Question[];
     
     // 自动修复缺失或错误的subject字段，并优化题目类型
@@ -998,7 +1001,10 @@ export async function parseQuestionsWithFile(
       }
     });
 
-    const result = JSON.parse(response.text ?? '[]');
+    if (!response.text) {
+      console.warn('[geminiService] response.text is empty, using empty array as fallback');
+    }
+    const result = JSON.parse(response.text || '[]');
     let questions = result as Question[];
 
     // 自动修复缺失或错误的subject字段
