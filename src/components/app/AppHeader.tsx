@@ -85,8 +85,8 @@ export function AppHeader(props: AppHeaderProps) {
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-      <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="max-w-4xl mx-auto px-2 sm:px-4 h-16 flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <div className="flex items-center gap-2 cursor-pointer" onClick={onGoWelcome}>
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <span className="text-xl">{currentSubject.icon}</span>
@@ -113,7 +113,7 @@ export function AppHeader(props: AppHeaderProps) {
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 justify-end">
           {currentUser && (
             <button
               onClick={() => setIsJoinSubjectOpen(true)}

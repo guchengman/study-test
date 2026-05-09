@@ -157,9 +157,9 @@ export function ExamScreen(props: ExamScreenProps) {
       </div>
 
       <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 border border-slate-100">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setStatus('welcome')}
                 className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"

@@ -79,10 +79,14 @@
   }
 }
 
-/* 移动端平滑滚动 */
+/* 移动端平滑滚动 & 防止水平溢出 */
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+body {
+  overflow-x: hidden;
 }
 
 /* 输入框兼容 */

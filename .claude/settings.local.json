@@ -29,7 +29,15 @@
       "Bash(bash -n install.sh)",
       "Bash(gh pr *)",
       "Bash(Get-ChildItem *)",
-      "Bash(Select-Object -ExpandProperty Name)"
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(python3 -c \"import docx; print\\('python-docx available'\\)\")",
+      "Bash(python -c \"import docx; print\\('python-docx available'\\)\")",
+      "Bash(python generate_skills_doc.py)",
+      "Bash(python gen_doc.py)",
+      "PowerShell(robocopy \"C:\\\\Users\\\\zengxiao\\\\OneDrive\\\\Desktop\" \"C:\\\\Users\\\\zengxiao\\\\Desktop\" /MOVE /E /R:1 /W:1 2>&1 | Select-Object -Last 20)",
+      "Bash(Select-Object Id, ProcessName, StartTime)",
+      "Bash(tasklist)",
+      "Bash(http://localhost:3100/api/subjects)"
     ]
   }
 }

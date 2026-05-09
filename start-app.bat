@@ -66,7 +66,7 @@ start "Study API Server" /d "%~dp0server" cmd /c npm run dev
 
 echo.
 echo Waiting for backend to start...
-timeout /t 3 /nobreak >nul
+timeout /t 5 /nobreak >nul
 
 echo.
 echo Starting frontend development server...
