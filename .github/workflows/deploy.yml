@@ -16,7 +16,6 @@ env:
   SERVER_HOST: 47.88.52.213
   SERVER_USER: root
   SERVER_PATH: /home/zengxiao/study-test
-  NODE_ENV: production
 
 jobs:
   deploy:
@@ -24,104 +23,69 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      # 1. 检出代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 设置 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # 3. 安装依赖 & 构建（可跳过）
       - name: Install and Build
         if: github.event.inputs.skip_build != 'true'
         run: |
           npm ci
           cd server && npm ci && cd ..
           npm run build
-        env:
-          VITE_API_BASE_URL: /api
 
-      # 4. 配置 SSH
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/private_key
           chmod 600 ~/.ssh/private_key
-          chmod 700 ~/.ssh
 
-          cat > ~/.ssh/config << EOF
-          Host server
-          HostName ${{ env.SERVER_HOST }}
-          User ${{ env.SERVER_USER }}
-          IdentityFile ~/.ssh/private_key
-          StrictHostKeyChecking no
-          EOF
-
-      # 5. 部署到服务器 + 自动备份
       - name: Deploy to server
         run: |
-          BACKUP_TIME=$(date +%Y%m%d_%H%M%S)
-          ssh server "mkdir -p ${{ env.SERVER_PATH }}/backup"
+          rsync -avz --delete ./dist/ -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/dist/
+          rsync -avz --delete ./server/src/ -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/src/
+          rsync -avz ./package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
+          rsync -avz ./server/package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
 
-          # 备份
-          ssh server "cp -r ${{ env.SERVER_PATH }}/dist ${{ env.SERVER_PATH }}/backup/dist_$BACKUP_TIME 2>/dev/null || true"
-          ssh server "cp -r ${{ env.SERVER_PATH }}/server/src ${{ env.SERVER_PATH }}/backup/server_src_$BACKUP_TIME 2>/dev/null || true"
-
-          # 同步文件
-          rsync -avz --delete ./dist/ server:${{ env.SERVER_PATH }}/dist/
-          rsync -avz --delete ./server/src/ server:${{ env.SERVER_PATH }}/server/src/
-          rsync -avz ./package.json server:${{ env.SERVER_PATH }}/
-          rsync -avz ./server/package.json server:${{ env.SERVER_PATH }}/server/
-
-      # 6. 生成服务器 .env 环境变量
       - name: Update environment files
         run: |
-          ssh server "cat > ${{ env.SERVER_PATH }}/server/.env << 'EOF'
-PORT=3100
-NODE_ENV=production
-TRUST_PROXY=1
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-JWT_EXPIRES_IN=7d
-DB_HOST=${{ secrets.DB_HOST }}
-DB_PORT=${{ secrets.DB_PORT }}
-DB_USER=${{ secrets.DB_USER }}
-DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-DB_NAME=${{ secrets.DB_NAME }}
-BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}
-BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}
-DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
-EOF"
-          ssh server "chmod 600 ${{ env.SERVER_PATH }}/server/.env"
+          printf '%s\n' \
+            "PORT=3100" \
+            "NODE_ENV=production" \
+            "TRUST_PROXY=1" \
+            "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            "JWT_EXPIRES_IN=7d" \
+            "DB_HOST=${{ secrets.DB_HOST }}" \
+            "DB_PORT=${{ secrets.DB_PORT }}" \
+            "DB_USER=${{ secrets.DB_USER }}" \
+            "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+            "DB_NAME=${{ secrets.DB_NAME }}" \
+            "BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}" \
+            "BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}" \
+            "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" \
+            | ssh -i ~/.ssh/private_key root@${{ env.SERVER_HOST }} "mkdir -p ${{ env.SERVER_PATH }}/server && cat > ${{ env.SERVER_PATH }}/server/.env && chmod 600 ${{ env.SERVER_PATH }}/server/.env"
 
-      # 7. 安装依赖 & 重启服务
       - name: Install dependencies and restart
         run: |
-          ssh server << 'EOF'
-          set -e
-          cd ${{ env.SERVER_PATH }}/server
+          ssh -i ~/.ssh/private_key root@${{ env.SERVER_HOST }} << 'SSHEOF'
+            set -e
+            cd ${{ env.SERVER_PATH }}/server
+            npm ci --production
+            pm2 restart study-server || pm2 start src/index.js --name study-server
+            pm2 save
+            nginx -t && nginx -s reload
+          SSHEOF
 
-          echo "==> 安装生产依赖"
-          npm ci --production
-
-          echo "==> 重启服务"
-          pm2 restart study-server || pm2 start src/index.js --name study-server
-          pm2 save
-
-          echo "==> 重启 Nginx"
-          nginx -t && nginx -s reload
-          EOF
-
-      # 8. 健康检查
       - name: Health check
         run: |
-          sleep 8
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://www.xiaoyue.shop/api/health || echo "000")
-
+          sleep 10
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://www.xiaoyue.shop/api/health)
           if [ "$STATUS" = "200" ]; then
             echo "✅ 健康检查成功"
           else
@@ -129,7 +93,6 @@ EOF"
             exit 1
           fi
 
-      # 9. 完成通知
       - name: Deploy completed
         run: |
           echo "✅ 部署成功！"
