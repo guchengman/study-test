@@ -575,7 +575,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
         
         q.options = allOptions;
         const correctIndex = allOptions.indexOf(correctAnswer);
-        q.answer = String.fromCharCode(65 + correctIndex);
+        q.answer = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : 'A';
       }
       
       // 确保单选题的answer是字符串
@@ -757,7 +757,7 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
         
         q.options = allOptions;
         const correctIndex = allOptions.indexOf(correctAnswer);
-        q.answer = String.fromCharCode(65 + correctIndex);
+        q.answer = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : 'A';
       }
       
       if (q.type === 'single' && Array.isArray(q.answer)) {

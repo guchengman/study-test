@@ -45,21 +45,30 @@ router.put('/approve/:id', authMiddleware, async (req, res) => {
 
 // 审核拒绝 → 变为独立用户
 router.put('/reject/:id', authMiddleware, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });
     }
-    const [result] = await pool.execute(
+    await conn.beginTransaction();
+    const [result] = await conn.execute(
       "UPDATE users SET role = 'independent', teacher_id = NULL, status = 'active' WHERE id = ? AND teacher_id = ? AND status = 'pending'",
       [req.params.id, req.user.id]
     );
     if (result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(404).json({ error: '学生不存在或无需审核' });
     }
+    // 清理该学生的科目订阅（转为独立用户后不再有老师关联）
+    await conn.execute('DELETE FROM subject_subscriptions WHERE user_id = ?', [req.params.id]);
+    await conn.commit();
     res.json({ message: '已拒绝该学生，已转为独立用户' });
   } catch (err) {
+    await conn.rollback();
     console.error('拒绝学生错误:', err);
     res.status(500).json({ error: '拒绝操作失败' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -82,21 +91,30 @@ router.get('/my', authMiddleware, async (req, res) => {
 
 // 移除学生 → 变为独立用户
 router.put('/remove/:id', authMiddleware, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });
     }
-    const [result] = await pool.execute(
+    await conn.beginTransaction();
+    const [result] = await conn.execute(
       "UPDATE users SET role = 'independent', teacher_id = NULL, status = 'active' WHERE id = ? AND teacher_id = ?",
       [req.params.id, req.user.id]
     );
     if (result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(404).json({ error: '学生不存在' });
     }
+    // 清理该学生的科目订阅
+    await conn.execute('DELETE FROM subject_subscriptions WHERE user_id = ?', [req.params.id]);
+    await conn.commit();
     res.json({ message: '学生已移除，已转为独立用户' });
   } catch (err) {
+    await conn.rollback();
     console.error('移除学生错误:', err);
     res.status(500).json({ error: '移除学生失败' });
+  } finally {
+    conn.release();
   }
 });
 

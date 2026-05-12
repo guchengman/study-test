@@ -81,6 +81,38 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const prevIsOpenRef = useRef(isOpen);
   // 追踪是否在注册流程中（已到验证码步骤）
   const inRegFlowRef = useRef(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Escape 键关闭弹窗
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
+  // 焦点陷阱
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'input, button, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    el.addEventListener('keydown', trap);
+    first.focus();
+    return () => el.removeEventListener('keydown', trap);
+  }, [isOpen]);
 
   // 同步注册流程状态到 ref
   useEffect(() => {
@@ -1130,10 +1162,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div 
-        className="modal-content" 
-        onClick={(e) => e.stopPropagation()} 
+      <div
+        ref={modalRef}
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '420px', padding: '0' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="登录注册"
       >
         <button 
           onClick={onClose}

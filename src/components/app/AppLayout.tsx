@@ -192,7 +192,7 @@ export function AppLayout() {
                               onConfirm: async () => {
                                 const result = await ctx.clearUserPassword(user.username);
                                 if (result.success) { ctx.setUserActionConfirm(null); ctx.getUserList().then(list => ctx.setUserList(list)); }
-                                else alert(result.error);
+                                else ctx.setShowToast(result.error || '操作失败');
                               }
                             });
                           }} className="px-3 py-1.5 bg-orange-100 text-orange-600 rounded-lg text-sm hover:bg-orange-200">清空密码</button>
@@ -202,7 +202,7 @@ export function AppLayout() {
                               onConfirm: async () => {
                                 const result = await ctx.deleteUser(user.username);
                                 if (result.success) { ctx.setUserActionConfirm(null); ctx.getUserList().then(list => ctx.setUserList(list)); }
-                                else alert(result.error);
+                                else ctx.setShowToast(result.error || '操作失败');
                               }
                             });
                           }} className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200">删除</button>
@@ -427,7 +427,7 @@ export function AppLayout() {
               </button>
               <button onClick={() => {
                 if (ctx.selectedInitSubjects.length === 0) {
-                  alert('请至少选择一个科目进行初始化!');
+                  ctx.setShowToast('请至少选择一个科目进行初始化');
                   return;
                 }
                 const initialBankIdsToHide = INITIAL_BANK
@@ -651,7 +651,7 @@ export function AppLayout() {
                                       try {
                                         await subjectApi.update(subject.id, { shareScope: 'students', studentIds: [] });
                                       } catch (e: any) {
-                                        alert('保存失败: ' + (e.message || '未知错误'));
+                                        ctx.setShowToast('保存失败: ' + (e.message || '未知错误'));
                                         return;
                                       }
                                     }
@@ -682,7 +682,7 @@ export function AppLayout() {
                                       try {
                                         await subjectApi.update(subject.id, { shareScope: 'all' });
                                       } catch (e: any) {
-                                        alert('保存失败: ' + (e.message || '未知错误'));
+                                        ctx.setShowToast('保存失败: ' + (e.message || '未知错误'));
                                         return;
                                       }
                                     }

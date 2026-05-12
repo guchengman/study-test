@@ -636,14 +636,14 @@ router.delete('/user/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '不能删除自己的账号' });
     }
 
+    await conn.beginTransaction();
+
     // 检查用户是否有学生
     const [students] = await conn.execute('SELECT id FROM users WHERE teacher_id = ?', [userId]);
     if (students.length > 0) {
       // 将学生转为独立用户
       await conn.execute('UPDATE users SET role = ?, teacher_id = NULL WHERE teacher_id = ?', ['independent', userId]);
     }
-
-    await conn.beginTransaction();
 
     // 获取用户创建的科目ID列表
     const [userSubjects] = await conn.execute('SELECT id FROM subjects WHERE created_by = ?', [userId]);

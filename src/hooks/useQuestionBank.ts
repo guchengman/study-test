@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { QUESTION_BANK as INITIAL_BANK } from '../questionBank';
 import type { Question, Subject, SubjectId, MistakeRecord } from '../types';
 import { DEFAULT_SUBJECTS, CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS } from '../types';
@@ -18,7 +18,79 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
 
-  // 从 API 加载数据
+  const subjectsLoadedRef = useRef(false);
+
+  // 加载科目列表 — 仅依赖 currentUser，切换科目不重新加载
+  useEffect(() => {
+    if (!currentUser) {
+      setCustomSubjects(DEFAULT_SUBJECTS);
+      subjectsLoadedRef.current = false;
+      return;
+    }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    (async () => {
+      try {
+        const res = await subjectApi.list(signal);
+        if (signal.aborted) return;
+
+        if (res.subjects.length > 0) {
+          const subs: Subject[] = res.subjects.map((s: any) => ({
+            id: s.id, name: s.name, icon: s.icon,
+            welcomeTitle: s.welcome_title || s.welcomeTitle || '', welcomeDesc: s.welcome_desc || s.welcomeDesc || '',
+            isCustom: true, isEditable: !!s.is_owner,
+            isShared: !!s.is_shared, shareScope: s.share_scope || 'none', isOwner: !!s.is_owner, isSubscribed: !!s.is_subscribed,
+            subscriberCount: s.subscriber_count || 0, creatorName: s.creator_name || '',
+            subscriptionStatus: s.subscription_status || undefined,
+          }));
+          setCustomSubjects(prev => {
+            const merged = new Map<string, Subject>(subs.map(s => [s.id, s]));
+            const defaultIds = new Set(DEFAULT_SUBJECTS.map(s => s.id));
+            for (const s of prev) {
+              if (!merged.has(s.id) && !defaultIds.has(s.id)) merged.set(s.id, s);
+            }
+            return Array.from(merged.values());
+          });
+          subjectsLoadedRef.current = true;
+          if (!subs.find(s => s.id === currentSubjectId)) {
+            setCurrentSubjectId(prevId => {
+              const allIds = new Set(subs.map(s => s.id));
+              return allIds.has(prevId) ? prevId : (subs[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
+            });
+          }
+        } else if (!subjectsLoadedRef.current) {
+          // 后端注册时已自动创建科目；此处仅为未迁移的旧用户兜底创建一次
+          subjectsLoadedRef.current = true;
+          const userId = authUser?.id || '';
+          const userDefaults: Subject[] = DEFAULT_SUBJECTS.map(s => ({
+            ...s, id: `${s.id}_${userId}`,
+            isCustom: true, isEditable: true, isOwner: true,
+          }));
+          setCustomSubjects(prev => {
+            const merged = new Map(prev.map(s => [s.id, s]));
+            const defaultIds = new Set(DEFAULT_SUBJECTS.map(s => s.id));
+            for (const s of userDefaults) {
+              if (!merged.has(s.id) && !defaultIds.has(s.id)) merged.set(s.id, s);
+            }
+            return Array.from(merged.values());
+          });
+          for (const s of userDefaults) {
+            if (signal.aborted) break;
+            subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }, signal).catch(() => {});
+          }
+        }
+      } catch (e) {
+        if (signal.aborted) return;
+        console.error('加载科目失败:', e);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [currentUser]);
+
+  // 加载题目/错题/收藏 — 切换科目时重新加载
   useEffect(() => {
     if (!currentUser) {
       setDataLoaded(true);
@@ -31,11 +103,10 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
     (async () => {
       try {
         setQuestionsLoading(true);
-        const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
+        const [questionsRes, mistakesRes, favoritesRes] = await Promise.allSettled([
           questionApi.listAll({ subject: currentSubjectId }, signal),
           practiceApi.getMistakes(undefined, signal),
           practiceApi.getFavorites(undefined, signal),
-          subjectApi.list(signal),
         ]);
         setQuestionsLoading(false);
 
@@ -59,47 +130,10 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
         if (favoritesRes.status === 'fulfilled') {
           setFavoriteIds(favoritesRes.value.favorites.map((f: any) => f.id));
         }
-
-        if (subjectsRes.status === 'fulfilled' && subjectsRes.value.subjects.length > 0) {
-          const subs = subjectsRes.value.subjects.map((s: any) => ({
-            id: s.id, name: s.name, icon: s.icon,
-            welcomeTitle: s.welcome_title || s.welcomeTitle || '', welcomeDesc: s.welcome_desc || s.welcomeDesc || '',
-            isCustom: true, isEditable: !!s.is_owner,
-            isShared: !!s.is_shared, shareScope: s.share_scope || 'none', isOwner: !!s.is_owner, isSubscribed: !!s.is_subscribed,
-            subscriberCount: s.subscriber_count || 0, creatorName: s.creator_name || '',
-            subscriptionStatus: s.subscription_status || undefined,
-          }));
-          setCustomSubjects(prev => {
-            const merged = new Map<string, Subject>(subs.map(s => [s.id, s]));
-            const defaultIds = new Set(DEFAULT_SUBJECTS.map(s => s.id));
-            for (const s of prev) {
-              if (!merged.has(s.id) && !defaultIds.has(s.id)) merged.set(s.id, s);
-            }
-            return Array.from(merged.values());
-          });
-          if (!subs.find((s: Subject) => s.id === currentSubjectId)) {
-            setCurrentSubjectId(prevId => {
-              const allIds = new Set(subs.map(s => s.id));
-              return allIds.has(prevId) ? prevId : (subs[0]?.id || DEFAULT_SUBJECTS[0]?.id || 'chinese');
-            });
-          }
-        } else {
-          const userId = authUser?.id || '';
-          const userDefaults = DEFAULT_SUBJECTS.map(s => ({
-            ...s, id: `${s.id}_${userId}`,
-            isCustom: true, isEditable: true, isOwner: true,
-          }));
-          setCustomSubjects(userDefaults);
-          for (const s of userDefaults) {
-            if (signal.aborted) break;
-            subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }, signal).catch(() => {});
-          }
-        }
       } catch (e) {
         if (signal.aborted) return;
         console.error('从 API 加载数据失败:', e);
         setQuestionsLoading(false);
-        setCustomSubjects(DEFAULT_SUBJECTS);
       }
       if (!signal.aborted) setDataLoaded(true);
     })();

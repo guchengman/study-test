@@ -82,20 +82,20 @@ jobs:
       - name: Update environment files
         run: |
           ssh server "cat > ${{ env.SERVER_PATH }}/server/.env << 'EOF'
-          PORT=3100
-          NODE_ENV=production
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-JWT_EXPIRES_IN=7d
+PORT=3100
+NODE_ENV=production
 TRUST_PROXY=1
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}
-          BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}
-          DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
-          EOF"
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+JWT_EXPIRES_IN=7d
+DB_HOST=${{ secrets.DB_HOST }}
+DB_PORT=${{ secrets.DB_PORT }}
+DB_USER=${{ secrets.DB_USER }}
+DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+DB_NAME=${{ secrets.DB_NAME }}
+BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}
+BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}
+DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
+EOF"
           ssh server "chmod 600 ${{ env.SERVER_PATH }}/server/.env"
 
       # 7. 安装依赖 & 重启服务
