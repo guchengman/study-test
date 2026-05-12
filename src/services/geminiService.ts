@@ -625,7 +625,7 @@ async function callOpenAICompatible(baseUrl: string, apiKey: string, model: stri
 
 function getSettings(override?: AISettings): AISettings {
   if (override) return override;
-  const settingsStr = sessionStorage.getItem('AI_SETTINGS');
+  const settingsStr = sessionStorage.getItem('ai_settings');
   return settingsStr ? JSON.parse(settingsStr) : {};
 }
 

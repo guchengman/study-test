@@ -48,8 +48,8 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
     const { username, password, email, role = 'independent', phone, inviteCode, teacherPhone } = req.body;
 
     // 基本验证
-    if (!username || !password) {
-      return res.status(400).json({ error: '用户名和密码不能为空' });
+    if (!username || !password || !email) {
+      return res.status(400).json({ error: '用户名、邮箱和密码不能为空' });
     }
     if (username.length < 3) {
       return res.status(400).json({ error: '用户名至少3个字符' });
@@ -59,6 +59,9 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
     }
     if (password.length < 6) {
       return res.status(400).json({ error: '密码至少6位' });
+    }
+    if (typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: '请输入有效的邮箱地址' });
     }
 
     // 角色验证

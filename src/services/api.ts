@@ -37,7 +37,7 @@ class ApiClient {
   private baseUrl: string;
   constructor(baseUrl: string) { this.baseUrl = baseUrl; }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, signal?: AbortSignal): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const token = getToken();
     const headers: Record<string, string> = {
@@ -45,6 +45,7 @@ class ApiClient {
       ...(options.headers as Record<string, string> || {}),
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (signal) options.signal = signal;
 
     try {
       const response = await fetch(url, { ...options, headers });
@@ -73,15 +74,15 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string): Promise<T> { return this.request<T>(endpoint, { method: 'GET' }); }
-  async post<T>(endpoint: string, body?: any): Promise<T> {
-    return this.request<T>(endpoint, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined });
+  async get<T>(endpoint: string, signal?: AbortSignal): Promise<T> { return this.request<T>(endpoint, { method: 'GET' }, signal); }
+  async post<T>(endpoint: string, body?: any, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(endpoint, { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined }, signal);
   }
-  async put<T>(endpoint: string, body?: any): Promise<T> {
-    return this.request<T>(endpoint, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined });
+  async put<T>(endpoint: string, body?: any, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(endpoint, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined }, signal);
   }
-  async delete<T>(endpoint: string, body?: any): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE', body: body !== undefined ? JSON.stringify(body) : undefined });
+  async delete<T>(endpoint: string, body?: any, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE', body: body !== undefined ? JSON.stringify(body) : undefined }, signal);
   }
 }
 
@@ -245,9 +246,9 @@ export const studentApi = {
 // ─── 科目 API ───────────────────────────────────────────────
 
 export const subjectApi = {
-  list: () => client.get<{ subjects: SubjectItem[] }>('/subjects'),
-  create: (data: { id: string; name: string; icon: string; welcomeTitle?: string; welcomeDesc?: string; shareScope?: string; }) =>
-    client.post<{ message: string; id: string }>('/subjects', { ...data, welcome_title: data.welcomeTitle, welcome_desc: data.welcomeDesc, share_scope: data.shareScope || 'none' }),
+  list: (signal?: AbortSignal) => client.get<{ subjects: SubjectItem[] }>('/subjects', signal),
+  create: (data: { id: string; name: string; icon: string; welcomeTitle?: string; welcomeDesc?: string; shareScope?: string; }, signal?: AbortSignal) =>
+    client.post<{ message: string; id: string }>('/subjects', { ...data, welcome_title: data.welcomeTitle, welcome_desc: data.welcomeDesc, share_scope: data.shareScope || 'none' }, signal),
   update: (id: string, data: { name?: string; icon?: string; welcomeTitle?: string; welcomeDesc?: string; shareScope?: string; studentIds?: number[]; }) =>
     client.put<{ message: string }>(`/subjects/${id}`, { ...data, welcome_title: data.welcomeTitle, welcome_desc: data.welcomeDesc, share_scope: data.shareScope, student_ids: data.studentIds }),
   getStudents: (id: string) =>
@@ -265,23 +266,23 @@ export const subjectApi = {
 // ─── 题目 API ───────────────────────────────────────────────
 
 export const questionApi = {
-  list: (params?: { subject?: string; type?: string; page?: number; limit?: number; }) => {
+  list: (params?: { subject?: string; type?: string; page?: number; limit?: number; }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
     if (params?.subject) query.set('subject_id', params.subject); // 后端期望 subject_id 参数
     if (params?.type) query.set('type', params.type);
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));
     const qs = query.toString();
-    return client.get<{ questions: QuestionItem[]; total: number; page?: number; limit?: number }>(`/questions${qs ? '?' + qs : ''}`);
+    return client.get<{ questions: QuestionItem[]; total: number; page?: number; limit?: number }>(`/questions${qs ? '?' + qs : ''}`, signal);
   },
   /** 按后端单页上限分页拉取，直到拿全该筛选条件下的题目（避免 limit=5000 被后端截断为 200） */
-  listAll: async (params?: { subject?: string; type?: string }) => {
+  listAll: async (params?: { subject?: string; type?: string }, signal?: AbortSignal) => {
     const pageSize = 200;
     const maxPages = 100;
     const all: QuestionItem[] = [];
     let total = 0;
     for (let page = 1; page <= maxPages; page++) {
-      const res = await questionApi.list({ ...params, page, limit: pageSize });
+      const res = await questionApi.list({ ...params, page, limit: pageSize }, signal);
       total = res.total;
       all.push(...res.questions);
       if (all.length >= total || res.questions.length === 0) break;
@@ -299,11 +300,11 @@ export const questionApi = {
 // ─── 练习/错题 API ─────────────────────────────────────────
 
 export const practiceApi = {
-  getMistakes: (subject?: string) => client.get<{ mistakes: MistakeItem[] }>(`/practice/mistakes${subject ? `?subject=${subject}` : ''}`),
+  getMistakes: (subject?: string, signal?: AbortSignal) => client.get<{ mistakes: MistakeItem[] }>(`/practice/mistakes${subject ? `?subject=${subject}` : ''}`, signal),
   addMistake: (questionId: number, isCorrect: boolean = false) => client.post<{ message: string; mastered?: boolean }>('/practice/mistakes', { question_id: questionId, is_correct: isCorrect }),
   updateMistake: (questionId: number, consecutiveCorrect: number) => client.put('/practice/mistakes', { questionId, consecutiveCorrect }),
   deleteMistake: (questionId: number) => client.delete(`/practice/mistakes/${questionId}`),
-  getFavorites: (subject?: string) => client.get<{ favorites: FavoriteItem[] }>(`/practice/favorites${subject ? `?subject=${subject}` : ''}`),
+  getFavorites: (subject?: string, signal?: AbortSignal) => client.get<{ favorites: FavoriteItem[] }>(`/practice/favorites${subject ? `?subject=${subject}` : ''}`, signal),
   addFavorite: (questionId: number, subject: string) => client.post<{ message: string }>('/practice/favorites', { question_id: questionId }),
   removeFavorite: (questionId: number) => client.delete(`/practice/favorites/${questionId}`),
   getStats: (subject?: string) => client.get<{ stats: StatsItem[] }>(`/practice/stats${subject ? `?subject=${subject}` : ''}`),
