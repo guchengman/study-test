@@ -671,7 +671,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   </div>
                 </div>
                 <div className="flex gap-2 flex-col lg:flex-row">
-                  <div className="relative flex-1" onFocus={() => setShowHistory(true)} onBlur={() => setTimeout(() => setShowHistory(false), 200)}>
+                  <div className="relative flex-1" onFocus={() => setShowHistory(true)} onBlur={() => setShowHistory(false)}>
                     <MarkdownEditor
                       value={promptInput}
                       onChange={(v) => { setPromptInput(v); setShowHistory(v.trim() === ''); }}
@@ -697,7 +697,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                               return (
                                 <div
                                   key={`history-${index}`}
-                                  onClick={() => {
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
                                     setPromptInput(historyPrompt);
                                     setShowHistory(false);
                                   }}
@@ -744,10 +745,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                               return (
                                 <div
                                   key={`default-${index}`}
-                                  onClick={() => {
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
                                     setPromptInput(defaultPrompt);
                                     setShowHistory(false);
-                                    // 保存到历史记录
                                     savePromptToHistory(defaultPrompt);
                                   }}
                                   className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm transition-colors group flex items-start gap-3"

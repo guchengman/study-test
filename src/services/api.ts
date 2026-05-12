@@ -302,7 +302,7 @@ export const questionApi = {
 export const practiceApi = {
   getMistakes: (subject?: string, signal?: AbortSignal) => client.get<{ mistakes: MistakeItem[] }>(`/practice/mistakes${subject ? `?subject=${subject}` : ''}`, signal),
   addMistake: (questionId: number, isCorrect: boolean = false) => client.post<{ message: string; mastered?: boolean }>('/practice/mistakes', { question_id: questionId, is_correct: isCorrect }),
-  updateMistake: (questionId: number, consecutiveCorrect: number) => client.put('/practice/mistakes', { questionId, consecutiveCorrect }),
+  updateMistake: (questionId: number, consecutiveCorrect: number) => client.put('/practice/mistakes', { question_id: questionId, consecutive_correct: consecutiveCorrect }),
   deleteMistake: (questionId: number) => client.delete(`/practice/mistakes/${questionId}`),
   getFavorites: (subject?: string, signal?: AbortSignal) => client.get<{ favorites: FavoriteItem[] }>(`/practice/favorites${subject ? `?subject=${subject}` : ''}`, signal),
   addFavorite: (questionId: number, subject: string) => client.post<{ message: string }>('/practice/favorites', { question_id: questionId }),

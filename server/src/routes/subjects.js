@@ -178,11 +178,12 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // 更新科目 — 只能更新自己创建的（管理员也可以）
 router.put('/:id', authMiddleware, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { name, icon, welcome_title, welcome_desc, share_scope, student_ids } = req.body;
 
     // 权限校验 — 允许科目拥有者或管理员修改
-    const [existing] = await pool.execute(
+    const [existing] = await conn.execute(
       'SELECT id, share_scope as current_scope, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
       [req.params.id, req.user.id, req.user.role === 'admin' ? 1 : 0]
     );
@@ -207,28 +208,30 @@ router.put('/:id', authMiddleware, async (req, res) => {
     updates.push('share_scope = ?'); params.push(effectiveShareScope);
     params.push(req.params.id);
 
-    await pool.execute(
+    await conn.beginTransaction();
+
+    await conn.execute(
       `UPDATE subjects SET ${updates.join(', ')} WHERE id = ?`,
       params
     );
 
     // 如果从共享改为非共享，删除所有订阅和邀请码
     if (existing[0].current_scope && existing[0].current_scope !== 'none' && effectiveShareScope === 'none') {
-      await pool.execute('DELETE FROM subject_subscriptions WHERE subject_id = ?', [req.params.id]);
-      await pool.execute("DELETE FROM invite_codes WHERE subject_id = ? AND type = 'subject'", [req.params.id]);
-      await pool.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
+      await conn.execute('DELETE FROM subject_subscriptions WHERE subject_id = ?', [req.params.id]);
+      await conn.execute("DELETE FROM invite_codes WHERE subject_id = ? AND type = 'subject'", [req.params.id]);
+      await conn.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
     }
 
     // 更新学生授权列表（仅 students 模式）
     if (effectiveShareScope === 'students' && Array.isArray(student_ids)) {
       // 先清除旧的
-      await pool.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
+      await conn.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
       // 如果不是全体（student_ids 非空且非 ['all']），则插入白名单
       if (student_ids.length > 0 && !(student_ids.length === 1 && student_ids[0] === 'all')) {
         const values = student_ids.map(sid => [req.params.id, sid]);
         const placeholders = values.map(() => '(?, ?)').join(',');
         const params = values.flat();
-        await pool.execute(
+        await conn.execute(
           `INSERT INTO subject_student_access (subject_id, student_user_id) VALUES ${placeholders}`,
           params
         );
@@ -238,13 +241,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // 如果从 students 模式切换到其他模式，清除学生授权表
     if (existing[0].current_scope === 'students' && effectiveShareScope !== 'students') {
-      await pool.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
+      await conn.execute('DELETE FROM subject_student_access WHERE subject_id = ?', [req.params.id]);
     }
 
+    await conn.commit();
     res.json({ message: '科目更新成功' });
   } catch (err) {
+    await conn.rollback();
     console.error('更新科目错误:', err);
     res.status(500).json({ error: '科目更新失败' });
+  } finally {
+    conn.release();
   }
 });
 
@@ -412,17 +419,8 @@ router.post('/join', authMiddleware, async (req, res) => {
       }
     }
 
-    const [existing] = await pool.execute(
-      'SELECT id FROM subject_subscriptions WHERE user_id = ? AND subject_id = ?',
-      [req.user.id, inviteCode.subject_id]
-    );
-    if (existing.length > 0) {
-      return res.status(409).json({ error: '您已订阅该科目' });
-    }
-
     // 判断是否需要审核：如果订阅者是该科目创建者的学生，需要审核
-    const [userRows] = await pool.execute('SELECT teacher_id FROM users WHERE id = ?', [req.user.id]);
-    const needsApproval = (userRows.length > 0 && userRows[0].teacher_id === inviteCode.created_by);
+    const needsApproval = (inviteCode.scope === 'students');
     const subStatus = needsApproval ? 'pending' : 'approved';
 
     await pool.execute(

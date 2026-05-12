@@ -14,6 +14,7 @@ dotenv.config({ path: envPath });
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import questionRoutes from './routes/questions.js';
 import subjectRoutes from './routes/subjects.js';
@@ -142,8 +143,10 @@ if (existsSync(distPath)) {
         res.setHeader('Content-Type', 'application/json');
       } else if (path.endsWith('.html')) {
         res.setHeader('Content-Type', 'text/html');
-      } else if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      } else if (path.endsWith('.png')) {
         res.setHeader('Content-Type', 'image/png');
+      } else if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+        res.setHeader('Content-Type', 'image/jpeg');
       } else if (path.endsWith('.svg')) {
         res.setHeader('Content-Type', 'image/svg+xml');
       }

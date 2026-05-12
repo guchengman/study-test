@@ -66,7 +66,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const offsetNum = (pageNum - 1) * limitNum;
     sql += ` ORDER BY q.created_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
-    const [rows] = await pool.query(sql, params);
+    const [rows] = await pool.execute(sql, params);
     rows.forEach(r => { r.is_owner = (r.created_by === userId); });
 
     res.json({ questions: rows, total, page: pageNum, limit: limitNum });
@@ -129,9 +129,10 @@ router.post('/', authMiddleware, async (req, res) => {
     // 如果科目不存在，尝试自动创建它
     if (subjectCheck.length === 0) {
       try {
+        const autoName = typeof subject_id === 'string' ? subject_id.replace(/^custom_/, '').replace(/_/g, ' ') : String(subject_id);
         await pool.execute(
           'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [subject_id, subject_id, '📚', '', '', 0, 0, 'none', req.user.id]
+          [subject_id, autoName, '📚', '', '', 0, 0, 'none', req.user.id]
         );
         subjectCheck = [{ id: subject_id, created_by: req.user.id }];
       } catch (createErr) {
@@ -179,12 +180,13 @@ router.post('/batch', authMiddleware, async (req, res) => {
       [effectiveSubjectId, req.user.id, req.user.role === 'admin' ? 1 : 0]
     );
 
-    // 如果科目不存在，尝试自动创建它（使用科目ID作为名称）
+    // 如果科目不存在，尝试自动创建它
     if (subjectCheck.length === 0) {
       try {
+        const autoName = typeof effectiveSubjectId === 'string' ? effectiveSubjectId.replace(/^custom_/, '').replace(/_/g, ' ') : String(effectiveSubjectId);
         await conn.execute(
           'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [effectiveSubjectId, effectiveSubjectId, '📚', '', '', 0, 0, 'none', req.user.id]
+          [effectiveSubjectId, autoName, '📚', '', '', 0, 0, 'none', req.user.id]
         );
         subjectCheck = [{ id: effectiveSubjectId, created_by: req.user.id }];
       } catch (createErr) {

@@ -42,7 +42,13 @@
       "Bash(Select-String \"LISTEN\")",
       "Bash(Select-String \"3000|3100\")",
       "PowerShell(Get-NetTCPConnection *)",
-      "Bash(ssh *)"
+      "Bash(ssh *)",
+      "Bash(Set-Location server *)",
+      "Bash(Select-String -Pattern \"test_python|Test Python\")",
+      "Bash(Select-Object -First 10)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-Location *)",
+      "Bash(kill %1)"
     ]
   }
 }

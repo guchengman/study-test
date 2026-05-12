@@ -12,7 +12,7 @@ export function getJwtSecret() {
 
 export function generateToken(user) {
   return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, role: user.role, teacher_id: user.teacher_id, status: user.status },
     getJwtSecret(),
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -27,6 +27,9 @@ export function authMiddleware(req, res, next) {
   try {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, getJwtSecret());
+    if (decoded.status && decoded.status !== 'active') {
+      return res.status(403).json({ error: '账号审核中，请等待老师审核通过' });
+    }
     req.user = decoded;
     next();
   } catch {

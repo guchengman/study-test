@@ -223,6 +223,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 router.post('/stats', authMiddleware, async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { subject_id, correct, total } = req.body;
     if (!subject_id || typeof total === 'undefined') {
@@ -236,38 +237,56 @@ router.post('/stats', authMiddleware, async (req, res) => {
     if (isNaN(correctNum) || correctNum < 0 || correctNum > totalNum) {
       return res.status(400).json({ error: '正确数必须为0到总数之间的整数' });
     }
-    const [existing] = await pool.execute(
-      'SELECT id, total_practiced, total_correct, streak_days FROM study_stats WHERE user_id = ? AND subject_id = ?',
+
+    await conn.beginTransaction();
+
+    // 使用 SELECT ... FOR UPDATE 锁定行，防止并发竞态
+    const [existing] = await conn.execute(
+      'SELECT id, total_practiced, total_correct, streak_days, last_study_at FROM study_stats WHERE user_id = ? AND subject_id = ? FOR UPDATE',
       [req.user.id, subject_id]
     );
+
     if (existing.length > 0) {
       const s = existing[0];
-      const newTotal = s.total_practiced + total;
-      const newCorrect = s.total_correct + (correct || 0);
-      const lastStudy = s.last_study_at;
-      const now = new Date();
+      const newTotal = s.total_practiced + totalNum;
+      const newCorrect = s.total_correct + correctNum;
       let streakDays = s.streak_days;
-      if (lastStudy) {
-        const diffDays = Math.floor((now - new Date(lastStudy)) / (1000 * 60 * 60 * 24));
-        if (diffDays === 1) streakDays++;
-        else if (diffDays > 1) streakDays = 1;
+
+      if (s.last_study_at) {
+        const last = new Date(s.last_study_at);
+        const now = new Date();
+        // 使用日历日期比较（而非24小时间隔）
+        const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+        const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const diffDays = Math.round((nowDate - lastDate) / 86400000);
+        if (diffDays === 1) {
+          streakDays++;
+        } else if (diffDays > 1) {
+          streakDays = 1;
+        }
       } else {
         streakDays = 1;
       }
-      await pool.execute(
+
+      await conn.execute(
         'UPDATE study_stats SET total_practiced = ?, total_correct = ?, streak_days = ?, last_study_at = NOW() WHERE id = ?',
         [newTotal, newCorrect, streakDays, s.id]
       );
     } else {
-      await pool.execute(
+      await conn.execute(
         'INSERT INTO study_stats (user_id, subject_id, total_practiced, total_correct, streak_days, last_study_at) VALUES (?, ?, ?, ?, 1, NOW())',
-        [req.user.id, subject_id, total, correct || 0]
+        [req.user.id, subject_id, totalNum, correctNum]
       );
     }
+
+    await conn.commit();
     res.json({ message: '统计更新成功' });
   } catch (err) {
+    await conn.rollback();
     console.error('更新统计错误:', err);
     res.status(500).json({ error: '更新统计失败' });
+  } finally {
+    conn.release();
   }
 });
 

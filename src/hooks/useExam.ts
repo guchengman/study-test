@@ -178,26 +178,30 @@ export function useExam({
           if (nextCorrect >= 3) {
             setMistakeRecords(prev => prev.filter(r => r.questionId !== q.id));
             setMasteredIds(prev => [...new Set([...prev, q.id])]);
+            if (currentUser) practiceApi.deleteMistake(q.id).catch(() => {});
           } else {
             setMistakeRecords(prev =>
               prev.map(r => r.questionId === q.id ? { ...r, consecutiveCorrect: nextCorrect } : r)
             );
+            if (currentUser) practiceApi.updateMistake(q.id, nextCorrect).catch(() => {});
           }
         }
       } else {
         if (!currentRecord) {
           setMistakeRecords(prev => [...prev, { questionId: q.id, consecutiveCorrect: 0 }]);
+          if (currentUser) practiceApi.addMistake(q.id, false).catch(() => {});
         } else {
           setMistakeRecords(prev =>
             prev.map(r => r.questionId === q.id ? { ...r, consecutiveCorrect: 0 } : r)
           );
+          if (currentUser) practiceApi.updateMistake(q.id, 0).catch(() => {});
         }
       }
     }
 
     setFinalResult({ score: Math.round(score), totalPoints: 100, answers: userAnswers, correctness });
     setStatus('result');
-  }, [examQuestions, userAnswers, mistakeRecords, setMistakeRecords]);
+  }, [examQuestions, userAnswers, mistakeRecords, currentUser, setMistakeRecords]);
 
   const goWelcome = useCallback(() => {
     setStatus('welcome');
