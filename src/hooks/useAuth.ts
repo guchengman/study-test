@@ -72,7 +72,7 @@ export function useAuth() {
   const register = useCallback(async (data: {
     username: string;
     password: string;
-    email?: string;
+    email: string;
     role?: UserRole;
     phone?: string;
     inviteCode?: string;
@@ -80,6 +80,7 @@ export function useAuth() {
   }): Promise<{ success: boolean; error?: string }> => {
     if (data.username.length < 3) return { success: false, error: '用户名至少3个字符' };
     if (!/^[a-zA-Z0-9_]+$/.test(data.username)) return { success: false, error: '用户名只能包含字母、数字和下划线' };
+    if (!data.email.includes('@')) return { success: false, error: '请输入有效的邮箱地址' };
     if (data.password.length < 6) return { success: false, error: '密码至少6位' };
 
     try {
@@ -165,7 +166,8 @@ export function useAuth() {
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: email, passcode: code, time: expireTime, from_name: 'Study-test' }, EMAILJS_PUBLIC_KEY);
       return { success: true, message: '验证码已发送至您的邮箱' };
     } catch (error: any) {
-      return { success: false, message: `邮件发送失败: ${error.text || error.message}` };
+      const reason = error?.text || error?.message || error?.status || '网络异常，请稍后重试';
+      return { success: false, message: `邮件发送失败: ${reason}` };
     }
   }, []);
 
@@ -196,7 +198,7 @@ export function useAuth() {
     if (!email.includes('@')) return { success: false, error: '请输入有效的邮箱地址' };
     if (code.length !== 6) return { success: false, error: '验证码应为6位数字' };
     if (newPassword.length < 6) return { success: false, error: '新密码至少6位' };
-    const storedCode = sessionStorage.getItem(VERIFY_CODE_KEY);
+    const storedCode = localStorage.getItem(VERIFY_CODE_KEY);
     const storedEmail = localStorage.getItem(VERIFY_EMAIL_KEY);
     const expires = parseInt(localStorage.getItem(VERIFY_EXPIRES_KEY) || '0');
     if (Date.now() > expires) return { success: false, error: '验证码已过期' };

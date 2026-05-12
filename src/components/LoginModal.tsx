@@ -8,7 +8,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (username: string, password: string) => Promise<{ success: boolean; needSetupPassword?: boolean; error?: string }>;
-  onRegister: (data: { username: string; password: string; email?: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; }) => Promise<{ success: boolean; error?: string }>;
+  onRegister: (data: { username: string; password: string; email: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; }) => Promise<{ success: boolean; error?: string }>;
   onChangePassword?: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   onSendCode?: (email: string) => Promise<{ success: boolean; message: string }>;
   onVerifyCode?: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
@@ -175,8 +175,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       }
     }
     
-    // 继续验证其他字段
-    if (regRole !== 'student' && regEmail && !regEmail.includes('@')) {
+    // 邮箱必填校验
+    if (!regEmail || !regEmail.includes('@')) {
       setRegLoading(false);
       setRegError('请输入有效的邮箱地址');
       return;
@@ -391,15 +391,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              邮箱{regRole !== 'independent' ? '' : '（选填）'}
+              邮箱
             </label>
             <input
               type="email"
               value={regEmail}
               onChange={(e) => setRegEmail(e.target.value)}
-              placeholder={regRole === 'independent' ? '选填，用于找回密码' : '用于接收验证码'}
+              placeholder="用于接收验证码和找回密码"
               style={inputStyle}
-              required={regRole !== 'independent'}
+              required
             />
           </div>
 

@@ -32,6 +32,7 @@ import { StudentManagementModal } from '../StudentManagementModal';
 import { StudentSelectorModal } from '../StudentSelectorModal';
 import { SubjectShareCode } from '../SubjectShareCode';
 import { useAppContext } from '../../context/AppContext';
+import { useBackPrevention } from '../../hooks/useBackPrevention';
 import { subjectApi, authApi, questionApi } from '../../services/api';
 import { QUESTION_BANK as INITIAL_BANK } from '../../questionBank';
 import { CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, SUBJECT_ICONS, suggestSubject } from '../../types';
@@ -40,6 +41,7 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const ctx = useAppContext();
+  const { showExitPrompt, confirmExit, cancelExit } = useBackPrevention();
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#1E293B] font-sans selection:bg-blue-100 overflow-x-hidden max-w-full">
@@ -1011,6 +1013,34 @@ export function AppLayout() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 退出应用确认 */}
+      {showExitPrompt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1001] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-200 text-center"
+          >
+            <h3 className="text-lg font-bold text-slate-800 mb-2">确定要退出吗？</h3>
+            <p className="text-sm text-slate-500 mb-6">点击返回将离开应用页面</p>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelExit}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmExit}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+              >
+                退出
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

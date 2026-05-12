@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'motion/react';
-import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Maximize2, ScanText, ExternalLink } from 'lucide-react';
-import { extractTextFromPDF, extractTextFromDocx, extractHtmlFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR } from '../services/fileService';
+import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Maximize2, ScanText, ExternalLink, Image } from 'lucide-react';
+import { extractTextFromPDF, extractTextFromDocx, extractHtmlFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR, parsePdfWithAIVision } from '../services/fileService';
 import { parseQuestionsWithAI, generateQuestionsFromPrompt } from '../services/geminiService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
 import { authApi, uploadApi, type AuthUser } from '../services/api';
@@ -112,8 +112,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [ocrPendingFile, setOcrPendingFile] = useState<File | null>(null);
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [ocrProgress, setOcrProgress] = useState({ current: 0, total: 0, status: '' });
-  // OCR 模式: 'none' = 直接解析, 'offline' = 离线OCR, 'online' = 在线OCR
-  const [ocrMode, setOcrMode] = useState<'none' | 'offline' | 'online'>('offline');
+  // OCR 模式: 'none' = 直接解析, 'offline' = 离线OCR, 'online' = 在线OCR, 'ai' = 在线AI识别
+  const [ocrMode, setOcrMode] = useState<'none' | 'offline' | 'online' | 'ai'>('offline');
+  // AI 视觉识别模型
+  const [aiVisionModel, setAiVisionModel] = useState(() => localStorage.getItem('last_ai_vision_model') || 'gemini-3-flash-preview');
   // PaddleOCR API 设置对话框
   const [showPaddleOcrSettings, setShowPaddleOcrSettings] = useState(false);
   const [paddleOcrApiKey, setPaddleOcrApiKey] = useState(() => localStorage.getItem('paddle_ocr_api_key') || '97f310b23dcf2639d3a2f29ce5140c8eb4591587');
@@ -400,6 +402,37 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       console.error('在线 OCR 识别失败:', err);
       setError(err.message || '在线 OCR 识别失败');
       setOcrPendingFile(null); // 清除待处理文件，允许重新上传
+    } finally {
+      setIsOcrProcessing(false);
+      setOcrProgress({ current: 0, total: 0, status: '' });
+    }
+  };
+
+  // 处理在线AI识别（多模态 AI 直接识别整页内容，无需 OCR）
+  const handleAiVisionOcrStart = async () => {
+    if (!ocrPendingFile) return;
+
+    setShowOcrDialog(false);
+    setIsOcrProcessing(true);
+    setError(null);
+
+    try {
+      const result = await parsePdfWithAIVision(ocrPendingFile, aiVisionModel, (progress) => {
+        setOcrProgress(progress);
+      }, serverSettings || undefined);
+
+      console.log(`AI 视觉识别完成 (${aiVisionModel})，提取文字: ${result.content.length} 字符`);
+
+      if (!result.content?.trim()) {
+        throw new Error('AI 未能识别出任何内容，请检查 API Key 配置或尝试其他识别方式');
+      }
+
+      setPromptInput(result.content);
+      setOcrPendingFile(null);
+    } catch (err: any) {
+      console.error('AI 视觉识别失败:', err);
+      setError(err.message || 'AI 视觉识别失败');
+      setOcrPendingFile(null);
     } finally {
       setIsOcrProcessing(false);
       setOcrProgress({ current: 0, total: 0, status: '' });
@@ -1250,8 +1283,70 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                     </div>
                   </div>
                 </div>
+
+                {/* Option 3: AI Vision */}
+                <div
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    ocrMode === 'ai'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                  onClick={() => setOcrMode('ai')}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                    ocrMode === 'ai' ? 'border-purple-500 bg-purple-500' : 'border-slate-300'
+                  }`}>
+                    {ocrMode === 'ai' && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Image size={14} className="text-purple-600" />
+                      <span className="font-medium text-slate-700">在线AI识别（多模态）</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">推荐</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">将每页渲染为图片，发送到多模态 AI 同时识别文字、图表、公式、表格等全部内容。需在设置中配置 AI API Key（Gemini/DeepSeek/OpenRouter/Qwen）</p>
+                  </div>
+                </div>
               </div>
-              
+
+              {/* AI 识别模型选择 + 提示 */}
+              {ocrMode === 'ai' && (
+                <div className="space-y-3 mb-4">
+                  {/* 模型选择 */}
+                  <div className="bg-purple-50 rounded-xl p-3 border border-purple-200">
+                    <label className="text-xs font-medium text-purple-700 mb-1.5 block">选择识别模型：</label>
+                    <select
+                      value={aiVisionModel}
+                      onChange={(e) => {
+                        setAiVisionModel(e.target.value);
+                        localStorage.setItem('last_ai_vision_model', e.target.value);
+                      }}
+                      className="w-full text-xs bg-white border border-purple-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    >
+                      <optgroup label="Google Gemini">
+                        <option value="gemini-3-flash-preview">Gemini 3 Flash — 速度快，适合批量识别</option>
+                        <option value="gemini-3-pro-preview">Gemini 3 Pro — 推理强，适合复杂页面</option>
+                      </optgroup>
+                      <optgroup label="DeepSeek">
+                        <option value="deepseek-v4-flash">DeepSeek V4 Flash — 性价比高</option>
+                      </optgroup>
+                      <optgroup label="通义千问">
+                        <option value="qwen-max">Qwen Max — 中文理解顶尖</option>
+                      </optgroup>
+                      <optgroup label="通用接口">
+                        <option value="openrouter">OpenRouter — 需在设置中配置模型</option>
+                        <option value="custom">自定义接口 — 需在设置中配置 Endpoint</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-[11px] text-purple-600 mt-1.5">
+                      使用 AI 模型设置中的对应 API Key。识别内容：文字 + 图表/公式/表格描述。
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Buttons */}
               <div className="flex gap-3">
                 <button
@@ -1261,15 +1356,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                   取消
                 </button>
                 <button
-                  onClick={ocrMode === 'offline' ? handleOcrConfirm : handleOnlineOcrStart}
+                  onClick={ocrMode === 'offline' ? handleOcrConfirm : ocrMode === 'ai' ? handleAiVisionOcrStart : handleOnlineOcrStart}
                   className={`flex-1 px-4 py-2.5 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${
                     ocrMode === 'offline'
                       ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-amber-100'
+                      : ocrMode === 'ai'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-100'
                       : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600 shadow-blue-100'
                   }`}
                 >
                   <ScanText size={16} />
-                  {ocrMode === 'offline' ? '开始离线识别' : '开始在线识别'}
+                  {ocrMode === 'offline' ? '开始离线识别' : ocrMode === 'ai' ? '开始AI识别' : '开始在线识别'}
                 </button>
               </div>
             </div>

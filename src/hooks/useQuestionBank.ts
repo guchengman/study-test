@@ -25,16 +25,21 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
       return;
     }
 
+    const controller = new AbortController();
+    const { signal } = controller;
+
     (async () => {
       try {
         setQuestionsLoading(true);
         const [questionsRes, mistakesRes, favoritesRes, subjectsRes] = await Promise.allSettled([
-          questionApi.listAll({ subject: currentSubjectId }),
-          practiceApi.getMistakes(),
-          practiceApi.getFavorites(),
-          subjectApi.list(),
+          questionApi.listAll({ subject: currentSubjectId }, signal),
+          practiceApi.getMistakes(undefined, signal),
+          practiceApi.getFavorites(undefined, signal),
+          subjectApi.list(signal),
         ]);
         setQuestionsLoading(false);
+
+        if (signal.aborted) return;
 
         if (questionsRes.status === 'fulfilled') {
           const qs = questionsRes.value.questions.map((q: any) => ({
@@ -86,16 +91,20 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
           }));
           setCustomSubjects(userDefaults);
           for (const s of userDefaults) {
-            subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }).catch(() => {});
+            if (signal.aborted) break;
+            subjectApi.create({ id: s.id, name: s.name, icon: s.icon, welcomeTitle: s.welcomeTitle, welcomeDesc: s.welcomeDesc }, signal).catch(() => {});
           }
         }
       } catch (e) {
+        if (signal.aborted) return;
         console.error('从 API 加载数据失败:', e);
         setQuestionsLoading(false);
         setCustomSubjects(DEFAULT_SUBJECTS);
       }
-      setDataLoaded(true);
+      if (!signal.aborted) setDataLoaded(true);
     })();
+
+    return () => controller.abort();
   }, [currentUser, currentSubjectId]);
 
   useEffect(() => {
