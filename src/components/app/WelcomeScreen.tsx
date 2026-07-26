@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import {
   Loader2,
   Clock,
@@ -17,6 +18,7 @@ import {
   CircleDot,
   ListChecks,
   Trash2,
+  Trophy,
 } from 'lucide-react';
 import type { Subject, SubjectId } from '../../types';
 
@@ -43,6 +45,7 @@ export interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen(props: WelcomeScreenProps) {
+  const navigate = useNavigate();
   const {
     allSubjects,
     currentSubjectId,
@@ -192,7 +195,7 @@ export function WelcomeScreen(props: WelcomeScreenProps) {
           <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <BookOpen size={24} />
           </div>
-          <div className="font-bold text-lg text-blue-900">开始正式考试</div>
+          <div className="font-bold text-lg text-blue-900">模拟考试（随机抽题）</div>
           <div className="text-sm text-blue-600/70">随机抽取 {examQuestionCount || '...'} 题,全面检测</div>
           <div className="mt-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <div className="relative group/input">
@@ -271,6 +274,17 @@ export function WelcomeScreen(props: WelcomeScreenProps) {
             收藏总数: {currentSubjectFavoriteCount}
           </div>
           {currentSubjectFavoriteCount === 0 && <div className="mt-2 text-xs text-slate-400">练习时点击⭐收藏题目</div>}
+        </button>
+
+        <button
+          onClick={() => navigate('/formal-exam')}
+          className="p-4 sm:p-5 bg-amber-50 rounded-2xl border-2 border-amber-100 hover:border-amber-300 transition-all text-left group"
+        >
+          <div className="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Trophy size={24} />
+          </div>
+          <div className="font-bold text-lg text-amber-900">正式考试</div>
+          <div className="text-sm text-amber-600/70">限时考核 · 交卷后查看成绩与解析</div>
         </button>
 
         <button

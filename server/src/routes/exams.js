@@ -284,19 +284,23 @@ router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
     } = req.body;
 
     if (exam.status === 'published') {
-      // 仅允许改时间窗与状态
       const nextStatus = status && ['draft', 'published', 'closed'].includes(status) ? status : exam.status;
-      await pool.execute(
-        `UPDATE exams SET start_time = ?, end_time = ?, status = ?, updated_at = NOW()
-         WHERE id = ?`,
-        [
-          start_time !== undefined ? (start_time || null) : exam.start_time,
-          end_time !== undefined ? (end_time || null) : exam.end_time,
-          nextStatus,
-          examId,
-        ]
-      );
-      return res.json({ message: '考试已更新（发布状态下仅允许修改时间窗与状态）' });
+      // 仅当目标状态仍是 published（未撤销发布）时才限制为只改时间窗与状态；
+      // 若主动降为 draft / closed（即「撤销发布」），视为离线编辑，放行全字段更新（见下方）。
+      if (nextStatus === 'published') {
+        await pool.execute(
+          `UPDATE exams SET start_time = ?, end_time = ?, status = ?, updated_at = NOW()
+           WHERE id = ?`,
+          [
+            start_time !== undefined ? (start_time || null) : exam.start_time,
+            end_time !== undefined ? (end_time || null) : exam.end_time,
+            nextStatus,
+            examId,
+          ]
+        );
+        return res.json({ message: '考试已更新（发布状态下仅允许修改时间窗与状态）' });
+      }
+      // 否则（撤销发布）继续走下方全字段更新
     }
 
     // draft / closed：可改全字段
