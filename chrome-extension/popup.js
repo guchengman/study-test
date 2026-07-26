@@ -1,5 +1,6 @@
-// 配置
-const API_BASE = 'https://www.xiaoyue.shop/api';
+// 配置：服务器 API 地址默认官方站点，可在弹出页「服务器设置」中改为自有服务器
+const DEFAULT_API_BASE = 'https://www.xiaoyue.shop/api';
+let API_BASE = DEFAULT_API_BASE;
 
 // 状态管理
 let currentUser = null;
@@ -25,8 +26,10 @@ const questionCard = document.getElementById('questionCard');
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  // 检查是否已登录
-  const stored = await chrome.storage.local.get(['user', 'token']);
+  // 检查是否已登录 + 读取自定义 API 地址
+  const stored = await chrome.storage.local.get(['user', 'token', 'apiBase']);
+  if (stored.apiBase) API_BASE = stored.apiBase;
+
   if (stored.user && stored.token) {
     currentUser = stored.user;
     showMainPage();
@@ -34,9 +37,24 @@ async function init() {
   } else {
     showAuthPage();
   }
-  
+
+  // 回填设置框
+  const apiBaseInput = document.getElementById('apiBaseInput');
+  if (apiBaseInput) apiBaseInput.value = API_BASE;
+
   // 绑定事件
   bindEvents();
+}
+
+// 保存自定义 API 地址（去除尾部斜杠，统一补 /api）
+async function saveApiBase() {
+  const input = document.getElementById('apiBaseInput');
+  const msg = document.getElementById('apiBaseMsg');
+  let val = (input.value || '').trim().replace(/\/+$/, '');
+  if (!val) val = DEFAULT_API_BASE.replace(/\/api$/, '');
+  API_BASE = val + '/api';
+  await chrome.storage.local.set({ apiBase: API_BASE });
+  if (msg) msg.textContent = '已保存：' + API_BASE;
 }
 
 function bindEvents() {
@@ -70,6 +88,10 @@ function bindEvents() {
   
   // 提交答案
   document.getElementById('submitAnswer').addEventListener('click', submitAnswer);
+
+  // 保存服务器地址
+  const saveBtn = document.getElementById('saveApiBaseBtn');
+  if (saveBtn) saveBtn.addEventListener('click', saveApiBase);
 }
 
 // 认证相关
@@ -207,7 +229,7 @@ async function startPractice() {
   try {
     // 获取题目
     const stored = await chrome.storage.local.get('token');
-    const res = await fetch(`${API_BASE}/questions/subject/${currentSubject.id}?limit=20`, {
+    const res = await fetch(`${API_BASE}/questions?subject_id=${currentSubject.id}&limit=20`, {
       headers: { 'Authorization': `Bearer ${stored.token}` }
     });
     
