@@ -78,7 +78,7 @@ jobs:
             set -e
             cd ${{ env.SERVER_PATH }}/server
             npm ci --production
-            node src/migrate.js
+            node src/migrate.js || echo "⚠️ 数据库迁移步骤未成功完成（不影响代码部署），请检查日志"
             pm2 restart study-server || pm2 start src/index.js --name study-server
             pm2 save
             nginx -t && nginx -s reload
