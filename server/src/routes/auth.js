@@ -617,7 +617,7 @@ router.put('/reset-password', authMiddleware, async (req, res) => {
     const newPassword = crypto.randomBytes(8).toString('hex');
     const defaultHash = await bcrypt.hash(newPassword, 10);
     await pool.execute('UPDATE users SET password_hash = ?, password_reset = 1 WHERE id = ?', [defaultHash, userId]);
-    res.json({ message: `密码已重置为: ${newPassword}`, tempPassword: newPassword });
+    res.json({ message: '密码已重置成功，临时密码已生成（出于安全考虑不在响应中返回，请通过其他渠道通知用户）' });
   } catch (err) {
     console.error('重置密码错误:', err);
     res.status(500).json({ error: '重置密码失败' });

@@ -13,6 +13,7 @@ dotenv.config({ path: envPath });
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import axios from 'axios';
 import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
@@ -81,13 +82,21 @@ getBaiduAccessToken();
 setInterval(getBaiduAccessToken, 86400 * 1000);
 
 // 中间件
+// CORS 白名单从环境变量 ALLOWED_ORIGINS（逗号分隔）读取；为空则仅允许同源请求，生产不再硬编码来源
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: [
-    'https://www.xiaoyue.shop',
-    'https://xiaoyue.shop',
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ],
+  origin: (origin, callback) => {
+    // 同源请求（origin 为 undefined）或命中白名单则允许
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -106,11 +115,19 @@ app.use('/api/invite-codes', inviteCodeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/uploads', express.static(uploadsRoot));
+app.use('/api/uploads', authMiddleware, express.static(uploadsRoot));
 app.use('/api/exams', examsRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
-app.post('/api/ocr/baidu', async (req, res) => {
+// 鉴权 + 限流：15 分钟内每 IP 最多 30 次
+const ocrBaiduLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'OCR 请求过于频繁，请稍后再试' },
+});
+app.post('/api/ocr/baidu', authMiddleware, ocrBaiduLimiter, async (req, res) => {
   if (!baiduAccessToken) {
     await getBaiduAccessToken();
   }
