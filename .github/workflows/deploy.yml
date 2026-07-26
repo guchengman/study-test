@@ -52,6 +52,7 @@ jobs:
           rsync -avz --delete ./server/src/ -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/src/
           rsync -avz ./package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
           rsync -avz ./server/package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
+          rsync -avz ./server/package-lock.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
 
       - name: Update environment files
         run: |
@@ -77,6 +78,7 @@ jobs:
             set -e
             cd ${{ env.SERVER_PATH }}/server
             npm ci --production
+            node src/migrate.js
             pm2 restart study-server || pm2 start src/index.js --name study-server
             pm2 save
             nginx -t && nginx -s reload
