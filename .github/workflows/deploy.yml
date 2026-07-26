@@ -87,9 +87,9 @@ jobs:
       - name: Health check
         run: |
           sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://www.xiaoyue.shop/api/health)
+          STATUS=$(ssh -i ~/.ssh/private_key root@${{ env.SERVER_HOST }} "curl -s -o /dev/null -w '%{http_code}' http://localhost:3100/api/health")
           if [ "$STATUS" = "200" ]; then
-            echo "✅ 健康检查成功"
+            echo "✅ 健康检查成功（直连 localhost:3100，已绕过 Cloudflare）"
           else
             echo "❌ 健康检查失败，状态码：$STATUS"
             exit 1
