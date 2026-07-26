@@ -59,7 +59,7 @@ export default defineConfig(({mode}) => {
       entries: ['./index.html'],
     },
     server: {
-      port: 5173,
+      port: 3000,
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: {
         ignored: ['**/android/**', '**/chrome-extension/**'],
@@ -73,7 +73,7 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 2000,
+      chunkSizeWarningLimit: 500,
       rollupOptions: {
         output: {
           manualChunks: {

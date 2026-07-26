@@ -2,66 +2,132 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Coding Guidelines
-
-**Think before coding.** State assumptions explicitly. When uncertain, present multiple interpretations rather than silently choosing one. If something is confusing, stop and name it.
-
-**Simplicity first.** Minimum code that solves the problem. No speculative features, no abstractions for one-off code, no unrequested configurability, no error handling for impossible states. If 200 lines could be 50, rewrite.
-
-**Surgical changes.** Touch only what you must. Don't "improve" adjacent code, comments, or formatting. Match existing style even when it differs from preference. Remove only imports/variables that *your* changes made unused — leave pre-existing dead code unless asked. Every changed line should trace directly to the request.
-
-**Goal-driven.** Convert tasks into verifiable goals. "Fix the bug" → write a reproduction test first. "Refactor X" → tests pass before and after. For multi-step work, define verification checks for each step.
-
 ## Commands
 
 ```bash
-npm run dev              # Start Vite dev server (port 3000), proxies /api to Express:3100
-npm run build            # Production build to dist/
-npm run lint             # TypeScript type-check (tsc --noEmit)
-npm run electron:dev     # Run Electron app pointing at local dist/
-npm run electron:build   # Build + package Windows portable .exe
-```
+# Frontend dev (Vite, port 3000, proxies /api -> Express:3100)
+npm run dev
 
-The backend Express server (port 3100) must be started separately:
+# Backend dev (Express, port 3100, hot reload via node --watch)
+cd server && npm run dev
 
-```bash
-node server/src/index.js          # or: npx tsx server/src/index.js
+# TypeScript type-check
+npm run lint
+
+# Production build to dist/
+npm run build
+
+# Electron
+npm run electron:dev    # Run app pointing at local dist/
+npm run electron:build  # Build + package Windows portable .exe
+
+# Database migrations (automated runner, applies server/migrations/*.sql in order)
+cd server && npm run migrate          # apply pending migrations (auto-baselines an existing DB)
+npm run migrate:status                # show applied / pending
+# First time adopting on an already-initialized DB, baseline without re-executing:
+node src/migrate.js --baseline
 ```
 
 ## Architecture
 
-**Frontend** (`src/`): React 19 SPA with TypeScript, Vite, Tailwind CSS v4. Single-file App.tsx uses a state-machine pattern with three views: `welcome` → `exam` → `result`. All UI state (questions, mistakes, favorites, subjects) is loaded from the API on mount — there is no localStorage data persistence.
+**Single-page app (React 19 + TypeScript + Vite + Tailwind CSS v4)** with a three-view state machine: `welcome` → `exam` → `result`.
 
-- `src/services/api.ts`: Typed API client wrapping `fetch` with JWT auto-attachment and 401 expiry handling. All backend calls go through named API objects (`authApi`, `questionApi`, `subjectApi`, `practiceApi`, `syncApi`).
-- `src/hooks/useAuth.ts`: Auth hook managing login/register/logout/role-switching, verification codes via EmailJS, and JWT token lifecycle.
-- `src/types.ts`: Core types (`Question`, `Subject`, `MistakeRecord`, `AISettings`) and constants (`DEFAULT_SUBJECTS`, `SUBJECT_ICONS`).
-- `src/utils/examScoring.ts`: Answer correctness checking for single/multiple/programming question types.
-- `src/services/geminiService.ts` / `fileService.ts`: AI question generation and Word/PDF import.
+### State management
 
-**Backend** (`server/`): Express + MySQL (mysql2/promise). JWT auth with bcrypt password hashing.
+`AppProvider` in `context/AppContext` composes 5 custom hooks. Their return values are merged into one context consumed by all components:
 
-- `server/src/index.js`: App entry — loads `.env`, sets up CORS (allowlisted origins), mounts all route modules under `/api/*`, serves `dist/` as static files with SPA fallback, runs on port 3100.
-- `server/src/db.js`: MySQL connection pool (utf8mb4, 10 connections).
-- `server/src/middleware/auth.js`: JWT sign/verify and `authMiddleware` (required for most routes). `adminMiddleware` also allows teachers.
-- `server/src/routes/`: auth, questions, subjects, practice, sync, invite-codes, students, ai.
-- `server/migrations/`: Numbered SQL migration files (`001_initial_schema.sql` through `007_user_ai_settings.sql`).
+```
+AppProvider
+├── useAuth()            — login/register/logout, JWT lifecycle, role switching, EmailJS verification
+├── useToast()           — simple toast notification state
+├── useUIState()         — modal visibility, user management UI, search/export state
+├── useQuestionBank()    — questions, subjects, mistakes, favorites, data loading from API
+└── useExam()            — exam session state, timer, answers, scoring, mistake tracking
+```
 
-**Database** (MySQL): Core tables — `users` (admin/teacher/student/independent roles), `subjects` (with share_scope none/all/students), `questions` (JSON options/answer columns), `mistake_records`, `favorites`, `invite_codes`, `subject_subscriptions`, `subject_student_access`.
+All UI data (questions, subjects, mistake records, favorites) is loaded from the API on mount — no localStorage persistence beyond the JWT token.
 
-**Other targets**:
-- `electron/main.cjs`: Electron wrapper that loads `dist/index.html` (packaged or dev mode).
-- `chrome-extension/`: Companion browser extension (manifest.json, popup, background script).
-- `android/`: Capacitor-based Android app.
+### Frontend structure (`src/`)
+- `services/api.ts` — Typed `ApiClient` wrapping `fetch` with JWT auto-attachment and 401 handling. Exports named API objects: `authApi`, `questionApi`, `subjectApi`, `practiceApi`, `syncApi`, `uploadApi`.
+- `App.tsx` — React Router routes: `<AppLayout>` wrapper with `/` (HomePage), `/exam` (ExamPage), `/result` (ResultPage), `/formal-exam` (FormalExamPage 正式考试), `/exams/manage` (ExamManagePage 组卷管理).
+- `components/app/AppLayout.tsx` — Main orchestrator rendering header, footer, all modals (Login, Import, Help, Settings, Subject management, Student management, etc.), and `<Outlet />` for pages.
+- `pages/` — Thin components that pull from context and delegate to screen-level component files.
+- `components/app/` — Screen components: `WelcomeScreen.tsx`, `ExamScreen.tsx`, `ResultScreen.tsx`, `AppHeader.tsx`.
+- `types.ts` — Core types (`Question`, `Subject`, `MistakeRecord`, `AISettings`), default subjects, icon categories, smart subject name suggestions.
+
+### Question types & scoring
+
+Three question types stored in `questions` table with JSON columns for `options` and `answer`:
+- `single` — single-choice (option letter or text match)
+- `multiple` — multiple-choice (sorted comparison against answer array; supports label-to-text mapping)
+- `programming` — code answer (whitespace-normalized, quote-normalized string comparison)
+
+Scoring logic in `src/utils/examScoring.ts` (pure function `isAnswerCorrect`, no React dependency).
+
+### Backend (`server/`)
+
+Express + MySQL (mysql2/promise pool, 10 connections, utf8mb4). ES modules (`"type": "module"`).
+
+- `server/src/index.js` — App entry: loads `.env`, CORS (allowlisted origins), mounts routes under `/api/*`, serves `dist/` as static files with SPA fallback, Baidu OCR proxy.
+- `server/src/db.js` — Connection pool (reads DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME from env).
+- `server/src/middleware/auth.js` — JWT sign/verify, `authMiddleware` (required for most routes), `adminMiddleware` (admin + teacher).
+- `server/src/routes/auth.js` — Register/login, user management, password reset, role conversion, visit counter, rate limiting on auth endpoints.
+- `server/src/routes/questions.js` — CRUD with visibility scoping (own questions + shared subscriptions).
+- `server/src/routes/subjects.js` — CRUD with sharing (none/all/students), subscriptions, student access control.
+- `server/src/routes/practice.js` — Mistake records, favorites, study stats.
+- `server/src/routes/sync.js` — Data migration/export (questions, mistakes, favorites, subjects).
+- `server/src/routes/students.js` — Teacher's student management (approve/reject/remove).
+- `server/src/routes/upload.js` — Image upload endpoint, serves `/api/uploads/` as static files.
+- `server/src/routes/exams.js` — 正式考试模块：试卷 CRUD、开始/提交作答、历史与成绩分析（对应前端路由 `/formal-exam`、`/exams/manage`）。
+
+### Database (MySQL)
+
+10 tables in `001_initial_schema.sql` through `009_add_help_read.sql`:
+
+| Table | Key columns |
+|---|---|
+| `users` | role (admin/teacher/student/independent), status (active/pending), teacher_id FK |
+| `subjects` | id (string key), share_scope (none/all/students), created_by FK |
+| `questions` | type (single/multiple/programming), options JSON, answer JSON, subject_id FK, created_by FK |
+| `mistake_records` | user_id+question_id unique, consecutive_correct (3 = mastered, auto-removed) |
+| `favorites` | user_id+question_id unique |
+| `study_stats` | study time tracking |
+| `invite_codes` | type (registration/subject), scope, max_uses |
+| `subject_subscriptions` | user_id+subject_id unique, status (pending/approved/rejected) |
+| `subject_student_access` | white-list for student-only shared subjects |
+| `visit_counter` | singleton row |
+
+### Subject sharing model
+
+Three levels controlled by `share_scope` on the subjects table:
+- `none` — private (creator only)
+- `students` — visible to creator's students (teacher-student relationship), optional student white-list via `subject_student_access`
+- `all` — any user can subscribe via invitation code (creates `subject_subscriptions` row, auto-approved)
+
+### User roles
+
+- `admin` — full access, can manage all users/subjects
+- `teacher` — can create subjects, manage students, share subjects
+- `student` — bound to a teacher, sees teacher's shared subjects
+- `independent` — self-managed, no teacher binding
 
 ## Environment
 
-Copy `.env.example` to `server/.env` and configure `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET` (≥16 chars, ≥32 in production). AI keys (GEMINI_API_KEY, DEEPSEEK_API_KEY, etc.) are embedded at build time via `vite.config.ts` `define` — in production builds they are stripped to empty strings.
+Copy `.env.example` to `server/.env`. Required: `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET` (≥16 chars, ≥32 in production). AI keys (`GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, etc.) are compile-time injected via `vite.config.ts` `define` — in production builds they're stripped to empty strings (users input keys in-app or go through the server-side `/api/ai` proxy).
 
 ## Key conventions
 
-- Terminal commands must use native Bash / Shell, never PowerShell.
-- The `@/` import alias resolves to project root (configured in both `vite.config.ts` and `tsconfig.json`).
-- Backend uses `.js` extension with ES modules (`"type": "module"` in package.json) but uses CommonJS `require` in `electron/main.cjs` and `ecosystem.config.cjs`.
-- Question types: `single`, `multiple`, `programming`. Answers are stored as JSON in the database.
-- Subject IDs use string keys (e.g., `chinese`, `math`, `custom_<timestamp>`).
-- The frontend `questionBank.ts` contains a hardcoded initial question bank used as a fallback/seed.
+- Terminal commands use native Bash / Shell, not PowerShell.
+- `@/` import alias resolves to project **root** (e.g., `@/src/types`, `@/server/src/db.js`), configured in both `vite.config.ts` and `tsconfig.json`.
+- Backend uses `.js` extension with ES modules; exceptions: `electron/main.cjs` and `ecosystem.config.cjs` (CommonJS).
+- Subject IDs use string keys (default: `chinese`, `math`, `english`, `python`; custom: `custom_<timestamp>`).
+- Migration system: numbered `server/migrations/NNN_*.sql` files applied in order by the automated runner `server/src/migrate.js` (tracks applied state in `schema_migrations`). Legacy ad-hoc runners (`run-00X.js`) are archived under `server/migrations/archive/`. To add a migration, drop a new `NNN_name.sql` into `server/migrations/`; it is applied automatically on next deploy.
+
+## Other targets
+
+- `electron/main.cjs` — Electron wrapper, loads `dist/index.html` (packaged or dev mode). Node integration disabled, context isolation on.
+- `chrome-extension/` — Companion browser extension (manifest.json, popup, background script).
+- `android/` — Capacitor-based Android app.
+- `scripts/setup/install.sh` — One-click deployment script with optional flags (`--no-prompt`, `--db-host`, etc.). Other ops scripts live under `scripts/` (`deploy/`, `db/`, `db/fix/`, `data/`, `test/`, `utils/`, `config/`); server-side operational/diagnostic scripts live under `server/scripts/`.
+- `start-app.bat` — Interactive one-click launcher at the repo **root** (menu: full dev / frontend-only / backend-only / production build). It resolves paths relative to its own location via `%~dp0`, so it must stay at the repo root; do not move it into `scripts/`.
+- `.github/workflows/deploy.yml` — GitHub Actions deployment; on each push it runs `npm ci`, builds, rsyncs `dist/` + `server/src/`, applies DB migrations (`node src/migrate.js`), then `pm2 restart`.

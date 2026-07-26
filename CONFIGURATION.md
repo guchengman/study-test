@@ -1,79 +1,33 @@
-# API Configuration Guide
+# 配置说明（Configuration）
 
-This document explains how to configure API keys and settings for the Python Test application.
+本项目为 **React 19 + TypeScript + Vite（前端）/ Express + MySQL（后端）** 全栈应用。
+密钥与敏感配置通过环境变量管理，**切勿在源码中硬编码**。
 
-## Configuration Methods
+## 前端（Web / Electron）
 
-The application supports two configuration methods:
+前端仅在浏览器中运行，**不应包含任何服务端密钥**。AI Key 由用户在本机「设置」中填写，
+保存在浏览器 `sessionStorage` / `localStorage`，不会上报服务器。
 
-### 1. Environment Variables (Recommended for Development)
+- 构建期注入的 Key（`vite.config.ts` 的 `define`）在生产构建中会被剥离为空字符串；
+  生产环境走服务端代理（`/api/ai`）或用户自行填写。
+- 可选前端环境变量（放在根目录 `.env`，仅开发期有效）：
+  - `VITE_PADDLEOCR_API_KEY`：PaddleOCR API Key（可选；不填则用户需在前端设置中自填并持久化到 localStorage）。
 
-Create a `.env.local` file in the project root directory and fill in your API keys:
+## 后端（server/）
 
-```bash
-# Copy .env.example to .env.local and edit it
-cp .env.example .env.local
-```
+复制 `server/.env.example` 为 `server/.env` 并填写：
 
-Then edit `.env.local` with your actual API keys.
+| 变量 | 说明 |
+|------|------|
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | MySQL 连接信息 |
+| `JWT_SECRET` | 生产必填，≥16 字符（建议 ≥32） |
+| `GEMINI_API_KEY` | 服务端 Gemini 代理密钥（可选） |
+| `BAIDU_API_KEY` / `BAIDU_SECRET_KEY` | 百度 OCR（可选） |
+| `ALLOWED_ORIGINS` | 允许跨域的源，逗号分隔（如 `http://localhost:3000,http://localhost:5173`）；为空则仅允许同源 |
+| `PORT` | 后端端口，默认 3100 |
+| `TRUST_PROXY` | 反向代理后需真实 IP 时设为 `1` |
 
-### 2. Runtime Configuration (User Interface)
+## 安全须知
 
-You can also configure API keys through the Settings UI in the application. These settings are saved to `localStorage` and persist across sessions.
-
-## Priority Order
-
-1. **Runtime Settings** (localStorage) - Highest priority, user-specific
-2. **Environment Variables** (.env.local) - Build-time defaults
-3. **Built-in Defaults** - Fallback values
-
-## Available Configuration Options
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-xxxxx` |
-| `QWEN_API_KEY` | Qwen (Tongyi Qianwen) API Key | `sk-xxxxx` |
-| `ZHIPU_API_KEY` | Zhipu AI API Key | `sk-xxxxx` |
-| `MOONSHOT_API_KEY` | Moonshot API Key | `sk-xxxxx` |
-| `BAICHUAN_API_KEY` | Baichuan API Key | `sk-xxxxx` |
-| `HUNYUAN_API_KEY` | HunYuan API Key (for OpenRouter) | `sk-xxxxx` |
-| `ERNIE_API_KEY` | ERNIE Bot API Key (for OpenRouter) | `sk-xxxxx` |
-| `OPENROUTER_API_KEY` | OpenRouter API Key | `sk-xxxxx` |
-| `DEFAULT_OPENROUTER_MODEL` | Default OpenRouter model | `openai/gpt-4o` |
-| `CUSTOM_API_ENDPOINT` | Custom API endpoint URL | `https://api.example.com/v1` |
-| `CUSTOM_API_KEY` | Custom API key | `sk-xxxxx` |
-| `DEFAULT_AI_MODEL` | Default AI model | `deepseek` |
-
-## First-Time Setup
-
-1. Copy `.env.example` to `.env.local`:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-2. Edit `.env.local` with your API keys
-
-3. Start the application:
-   ```bash
-   npm run dev
-   ```
-
-4. The application will use your configured API keys automatically
-
-## Updating Configuration
-
-- **For development**: Update `.env.local` and restart the development server
-- **For production builds**: Update `.env.local` before building, or use the Settings UI after deployment
-- **For end users**: Use the Settings UI to configure API keys (saved to localStorage)
-
-## Security Notes
-
-- Never commit `.env.local` to version control
-- The `.env.local` file is automatically ignored by git (added to `.gitignore`)
-- API keys configured via UI are stored in browser localStorage and are not shared with the server
-
-## Troubleshooting
-
-- If API keys are not working, check the browser console for errors
-- Ensure you're using the correct API key format for each service
-- Some services may require specific model names or additional configuration
+- 切勿将 `.env` / 含密钥的脚本提交到版本库（已被 `.gitignore` 忽略）。
+- 运维脚本的数据库密码、SSH 私钥路径等一律从环境变量读取（如 `DB_PASSWORD`、`SSH_KEY_PATH`），不在代码中写死。
