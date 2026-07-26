@@ -178,3 +178,193 @@ export interface AISettings {
   customEndpoint?: string;
   customKey?: string;
 }
+
+// ─── 正式考试模块类型（与后端 /api/exams 契约严格一致） ───────────────
+
+export type ExamStatus = 'draft' | 'published' | 'closed';
+export type AttemptStatus = 'in_progress' | 'submitted' | 'auto_submitted';
+export type ExamAttemptState = 'none' | 'in_progress' | 'submitted';
+
+/** 题集项（exams.question_set JSON 元素）：题目引用 + 该题分值 */
+export interface ExamQuestionItem {
+  question_id: number;
+  points: number;
+}
+
+/** 开始考试后返回的「剥离答案」题目，仅用于答题（不含 answer/explanation） */
+export interface ExamQuestionDetail {
+  id: number;
+  type: QuestionType;
+  title: string;
+  code?: string | null;
+  options?: string[];
+  points: number;
+}
+
+/** 试卷详情 / 编辑中的完整题目（含答案，供 owner 预览与组卷） */
+export interface ExamQuestionFull {
+  id: number;
+  type: QuestionType;
+  title: string;
+  code?: string | null;
+  options?: string[];
+  answer: string | string[];
+  explanation: string;
+  points: number;
+  missing?: boolean;
+}
+
+/** 答卷明细项（exam_attempts.details JSON 元素，含正确答案 + 解析，供错题回顾） */
+export interface ExamAttemptDetail {
+  question_id: number;
+  user_answer: string | string[] | null;
+  correct_answer: string | string[] | null;
+  is_correct: boolean | null;
+  points: number;
+  earned: number;
+  explanation: string;
+  needs_manual: boolean;
+}
+
+/** 试卷定义；owner 列表项会附带 attempt_count / avg_score 简报 */
+export interface Exam {
+  id: number;
+  subject_id: string;
+  title: string;
+  description: string | null;
+  created_by: number;
+  question_set: ExamQuestionItem[];
+  total_points: number;
+  duration_minutes: number;
+  start_time: string | null;
+  end_time: string | null;
+  pass_score: number;
+  status: ExamStatus;
+  created_at: string;
+  updated_at: string;
+  attempt_count?: number;
+  avg_score?: number;
+  questions?: ExamQuestionFull[]; // GET /:id 详情时附加
+}
+
+/** 学员「可参加」列表项 */
+export interface ExamAvailableItem {
+  id: number;
+  title: string;
+  subject_id: string;
+  duration_minutes: number;
+  start_time: string | null;
+  end_time: string | null;
+  total_points: number;
+  pass_score: number;
+  attempt_state: ExamAttemptState;
+}
+
+/** 开始考试返回 */
+export interface ExamStartResponse {
+  attemptId: number;
+  deadline: string; // ISO datetime 字符串，服务端计时基准
+  reused: boolean; // 是否复用了未提交且未超时的 attempt
+  questions: ExamQuestionDetail[];
+  total_points: number;
+}
+
+/** 提交 / 自动交卷返回（透出正确答案 + 解析，含编程题待定项） */
+export interface ExamSubmitResponse {
+  score: number;
+  total_points: number;
+  correct_count: number;
+  details: ExamAttemptDetail[];
+  alreadySubmitted?: boolean;
+}
+
+/** 某次答卷中的题目（透出 correct_answer + user_answer + is_correct） */
+export interface ExamAttemptQuestion {
+  id: number;
+  type: QuestionType;
+  title: string;
+  code?: string | null;
+  options?: string[];
+  correct_answer: string | string[] | null;
+  user_answer: string | string[] | null;
+  is_correct: boolean | null;
+  points: number;
+  earned: number;
+  explanation: string;
+  needs_manual: boolean;
+}
+
+/** 答卷记录 */
+export interface ExamAttempt {
+  id: number;
+  exam_id: number;
+  user_id: number;
+  status: AttemptStatus;
+  answers: Record<number, string | string[]>;
+  details: ExamAttemptDetail[];
+  score: number;
+  correct_count: number;
+  total_count: number;
+  started_at: string;
+  submitted_at: string | null;
+  deadline: string | null;
+  created_at: string;
+  updated_at: string;
+  exam_title?: string; // GET /attempts/:id 时附加
+}
+
+/** 我的历史成绩项（跨考试，含 is_best 标记） */
+export interface ExamHistoryItem {
+  attemptId: number;
+  exam_id: number;
+  exam_title: string;
+  score: number;
+  total_points: number;
+  pass_score: number;
+  passed: boolean;
+  status: AttemptStatus;
+  correct_count: number;
+  total_count: number;
+  submitted_at: string;
+  is_best: boolean;
+}
+
+/** 考试分析（实时聚合，口径 = 每学生最高分 attempt） */
+export interface ExamAnalysisQuestionErrorRate {
+  question_id: number;
+  errorRate: number;
+  correctCount: number;
+  wrongCount: number;
+  totalCount: number;
+}
+
+export interface ExamAnalysis {
+  examId: number;
+  title: string;
+  total_points: number;
+  pass_score: number;
+  referenceCount: number;
+  averageScore: number;
+  passRate: number;
+  questionErrorRates: ExamAnalysisQuestionErrorRate[];
+  scope: string;
+}
+
+/** 创建 / 更新试卷入参 */
+export interface ExamCreatePayload {
+  subject_id: string;
+  title: string;
+  question_set: ExamQuestionItem[];
+  duration_minutes: number;
+  start_time?: string | null;
+  end_time?: string | null;
+  pass_score?: number;
+  description?: string | null;
+}
+
+export type ExamUpdatePayload = Partial<ExamCreatePayload> & { status?: ExamStatus };
+
+/** 组卷表单提交（含 status） */
+export interface ExamFormPayload extends ExamCreatePayload {
+  status: ExamStatus;
+}
