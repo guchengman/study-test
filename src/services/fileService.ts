@@ -1,14 +1,24 @@
-// 动态导入 pdfjs-dist 和 tesseract 以减小主包体积
-import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
+// pdfjs-dist / mammoth 改为函数内动态 import，避免打入主包（减小首屏体积）
 import { loadApiConfig } from '../config/apiConfig';
 import { AISettings } from '../types';
 
 // PDF.js 配置
 const PDF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
 
-// 初始化 PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
+// 懒加载 pdfjs-dist（带缓存，仅首次动态加载并设置 worker）
+let _pdfjsLibCache: typeof import('pdfjs-dist') | null = null;
+async function loadPdfjs(): Promise<typeof import('pdfjs-dist')> {
+  if (!_pdfjsLibCache) {
+    _pdfjsLibCache = await import('pdfjs-dist');
+    _pdfjsLibCache.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
+  }
+  return _pdfjsLibCache;
+}
+
+// 懒加载 mammoth
+async function loadMammoth(): Promise<typeof import('mammoth')> {
+  return import('mammoth');
+}
 
 export async function extractTextFromPDF(
   file: File,
@@ -18,6 +28,7 @@ export async function extractTextFromPDF(
   }
 ): Promise<{ text: string; hasOcrResult: boolean }> {
   try {
+    const pdfjsLib = await loadPdfjs();
     const arrayBuffer = await file.arrayBuffer();
     
     console.log(`PDF 文件大小: ${(arrayBuffer.byteLength / 1024).toFixed(1)} KB`);
@@ -160,6 +171,7 @@ export async function extractTextFromPDFWithOCR(
     
     // 1. 加载 PDF 并获取页面
     const arrayBuffer = await file.arrayBuffer();
+    const pdfjsLib = await loadPdfjs();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
     
@@ -233,6 +245,7 @@ export async function checkIfPDfIsScanned(file: File): Promise<{ isScanned: bool
 
 export async function extractTextFromDocx(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
+  const mammoth = await loadMammoth();
   const result = await mammoth.convertToHtml({ arrayBuffer });
   // Strip HTML tags to get plain text for AI parsing
   return result.value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -247,6 +260,7 @@ export async function extractHtmlFromDocx(file: File): Promise<{
   images: Array<{ name: string; data: string; mime: string }>;
 }> {
   const arrayBuffer = await file.arrayBuffer();
+  const mammoth = await loadMammoth();
   const result = await mammoth.convertToHtml({ arrayBuffer });
   const images: Array<{ name: string; data: string; mime: string }> = [];
   const imgRegex = /<img[^>]+src="data:([^;]+);base64,([^"]+)"[^>]*>/g;
@@ -302,6 +316,7 @@ export async function extractTextFromMd(file: File): Promise<string> {
 export async function extractTextFromDoc(file: File): Promise<string> {
   try {
     const arrayBuffer = await file.arrayBuffer();
+    const mammoth = await loadMammoth();
     // mammoth 理论上可以尝试解析 .doc，但成功率很低
     const result = await mammoth.extractRawText({ arrayBuffer });
     if (result.value && result.value.trim().length > 0) {
@@ -497,6 +512,7 @@ export async function extractTextFromPDFWithPaddleOCR(
 
     // ========== 方案2: 逐页渲染图片上传 ==========
     const arrayBuffer = await file.arrayBuffer();
+    const pdfjsLib = await loadPdfjs();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
     
@@ -637,6 +653,7 @@ export async function onlineOCR(
   onProgress?: (progress: { current: number; total: number; status: string }) => void
 ): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
+  const pdfjsLib = await loadPdfjs();
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
   let fullText = '';
 
@@ -665,16 +682,21 @@ const AI_VISION_PROMPT = `你是一个专业的试卷识别与转录专家。请
 
 1. **文字内容**：逐字转录，保持标题层级、段落结构、题号标记
 2. **图片与插图**：用 \`【图片描述：...】\` 格式详细描述图片内容（如实验装置图、流程图、结构图等）
-3. **数学/化学公式**：严格使用LaTeX格式 — 行内公式用 \$...\$，块级公式用 \$\$...\$\$。化学方程式、离子方程式、结构式等全部用LaTeX表示
-4. **表格**：用Markdown表格格式完整输出，包含所有行列和数据
-5. **图表与坐标图**：描述图表类型、坐标轴含义、数据趋势等关键信息
-6. **特殊符号**：化学符号（→↑↓△等）、单位符号、上下标等必须准确转录
+3. **数学公式**：严格使用标准 LaTeX 语法。行内公式用 \$...\$，块级公式用 \$\$...\$\$。
+   常见符号：分数 \frac{}{}、根号 \sqrt{}、上下标 _{} ^{}、积分 \int、求和 \sum、极限 \lim
+   希腊字母：\alpha \beta \gamma \theta \pi \Delta \Omega
+4. **化学式与化学反应**：全部用 LaTeX 表示。化学式用下标写法如 H\$_2\$O、CO\$_2\$，离子用上标 Na\$^+\$、OH\$^-\$，反应方程式用 \$\$...\$\$ 块，箭头用 \rightarrow、\leftarrow、\rightleftharpoons
+5. **表格**：用Markdown表格格式完整输出，包含所有行列和数据
+6. **图表与坐标图**：描述图表类型、坐标轴含义、数据趋势等关键信息
+7. **特殊符号**：单位符号（℃、°、′、″）、上下标、箭头等必须准确转录
 
 **关键要求：**
 - 不要省略任何页面元素，即使看起来不重要的内容也要包含
 - 严格遵循原页面的逻辑顺序（从上到下、从左到右）
 - 对于混合排版的页面，先转录文字再描述图片
-- 所有公式必须严格使用LaTeX语法，确保可被渲染`;
+- **所有公式必须严格使用LaTeX语法，确保可被渲染**
+- **化学方程式中的反应条件（点燃、加热、催化剂等）要在箭头上下方标注**
+- **绝对禁止**：将公式写成普通文本（如把 H₂O 写成 H2O，把 x² 写成 x2）`;
 
 async function callGeminiVision(base64: string, prompt: string, apiKey: string, model?: string, maxOutputTokens?: number): Promise<string> {
   const { GoogleGenAI } = await import('@google/genai');
@@ -887,6 +909,7 @@ export async function parsePdfWithAIVision(
   }
 
   const arrayBuffer = await file.arrayBuffer();
+  const pdfjsLib = await loadPdfjs();
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
   console.log(`AI 视觉识别 PDF，模型: ${modelName}，页数: ${pdf.numPages}`);
 
@@ -957,6 +980,7 @@ async function tryExtractPdfText(file: File): Promise<{ text: string; pageCount:
   try {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Arr = new Uint8Array(arrayBuffer);
+    const pdfjsLib = await loadPdfjs();
     const pdf = await pdfjsLib.getDocument({ data: uint8Arr }).promise;
     const pageCount = pdf.numPages;
     let fullText = '';
