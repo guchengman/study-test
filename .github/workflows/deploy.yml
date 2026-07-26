@@ -53,6 +53,7 @@ jobs:
           rsync -avz ./package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/
           rsync -avz ./server/package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
           rsync -avz ./server/package-lock.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
+          rsync -avz ./server/migrations/ -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/migrations/
 
       - name: Update environment files
         run: |

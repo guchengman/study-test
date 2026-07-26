@@ -1,0 +1,8 @@
+-- 用户AI设置表：每个用户存储自己的 API Key 配置
+CREATE TABLE IF NOT EXISTS user_ai_settings (
+  user_id INT NOT NULL,
+  settings_json TEXT COMMENT 'JSON 格式的 API 设置',
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
