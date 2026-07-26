@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
+
+// 统一限流（15 分钟 / 每 IP 300 次）
+router.use(apiLimiter);
 
 // 从 localStorage 迁移数据到云端
 router.post('/migrate', authMiddleware, async (req, res) => {

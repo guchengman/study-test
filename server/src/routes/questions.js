@@ -2,8 +2,12 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
+
+// 统一限流（15 分钟 / 每 IP 300 次）
+router.use(apiLimiter);
 
 // 获取题目列表 — 支持共享题目可见性
 router.get('/', authMiddleware, async (req, res) => {

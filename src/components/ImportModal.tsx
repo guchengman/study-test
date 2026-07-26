@@ -4,10 +4,13 @@ import { motion } from 'motion/react';
 import { X, Upload, FileText, Clipboard, Loader2, CheckCircle2, AlertCircle, Cpu, Info, Settings, Sparkles, Wand2, Maximize2, ScanText, ExternalLink, Image } from 'lucide-react';
 import { extractTextFromPDF, extractTextFromDocx, extractHtmlFromDocx, extractTextFromTxt, extractTextFromMd, extractTextFromDoc, parseCSV, extractTextFromPDFWithOCR, extractTextFromPDFWithPaddleOCR, checkIfPDfIsScanned, onlineOCR, parsePdfSmartOCR, parsePdfWithAIVision } from '../services/fileService';
 import { parseQuestionsWithAI, generateQuestionsFromPrompt } from '../services/geminiService';
+import { batchImageToLatex } from '../services/formulaService';
+import { parseQuestionsFromMd } from '../services/mdParserService';
 import { Question, SubjectId, Subject, AISettings } from '../types';
 import { authApi, uploadApi, type AuthUser } from '../services/api';
 import { SettingsModal } from './SettingsModal';
 import { MarkdownEditor } from './MarkdownEditor';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { STORAGE_KEYS } from '../constants/storage';
 
 const MODELS = [
@@ -118,8 +121,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
   const [aiVisionModel, setAiVisionModel] = useState(() => localStorage.getItem('last_ai_vision_model') || 'gemini-3-flash-preview');
   // PaddleOCR API 设置对话框
   const [showPaddleOcrSettings, setShowPaddleOcrSettings] = useState(false);
-  const [paddleOcrApiKey, setPaddleOcrApiKey] = useState(() => localStorage.getItem('paddle_ocr_api_key') || '97f310b23dcf2639d3a2f29ce5140c8eb4591587');
+  const [paddleOcrApiKey, setPaddleOcrApiKey] = useState(() => localStorage.getItem('paddle_ocr_api_key') || import.meta.env.VITE_PADDLEOCR_API_KEY || '');
   const [paddleOcrApiUrl, setPaddleOcrApiUrl] = useState(() => localStorage.getItem('paddle_ocr_api_url') || '');
+  // 公式识别相关状态
+  const [convertFormulaEnabled, setConvertFormulaEnabled] = useState(true);
+  const [isConvertingFormula, setIsConvertingFormula] = useState(false);
+  const [formulaProgress, setFormulaProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   
   useEffect(() => {
     // Modal is controlled by parent, so we always try to fetch settings when mounted
@@ -182,8 +189,87 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       } else if (file.name.endsWith('.docx')) {
         const { html, images } = await extractHtmlFromDocx(file);
         let md = html;
-        // Upload extracted images and replace with Markdown syntax
-        if (images.length > 0) {
+        const imageReplacements: Map<string, string> = new Map();
+
+        if (images.length > 0 && convertFormulaEnabled) {
+          // 有图片且公式识别开启 — 先尝试识别公式
+          setIsConvertingFormula(true);
+          setFormulaProgress({ current: 0, total: images.length, success: 0, failed: 0 });
+
+          let formulaResults: Awaited<ReturnType<typeof batchImageToLatex>> = [];
+          try {
+            formulaResults = await batchImageToLatex(
+              images.map(img => ({ data: img.data })),
+              (current, total, success, failed) => {
+                setFormulaProgress({ current, total, success, failed });
+              }
+            );
+          } catch (err) {
+            console.warn('公式识别整体异常，降级为原图上传:', err);
+          } finally {
+            setIsConvertingFormula(false);
+          }
+
+          // 处理识别结果：公式→LaTeX，非公式→上传原图
+          if (formulaResults.length > 0) {
+            const uploadTasks: Promise<{ name: string; url: string; mime: string; data: string } | null>[] = [];
+            for (let i = 0; i < images.length; i++) {
+              const img = images[i];
+              const result = formulaResults[i];
+              if (result?.isFormula && result.latex) {
+                const dataUri = `data:${img.mime};base64,${img.data}`;
+                imageReplacements.set(dataUri, result.latex);
+              } else {
+                uploadTasks.push(
+                  (async () => {
+                    try {
+                      const byteChars = atob(img.data);
+                      const byteArrays: Uint8Array[] = [];
+                      for (let offset = 0; offset < byteChars.length; offset += 512) {
+                        const slice = byteChars.slice(offset, offset + 512);
+                        const byteNumbers = new Array(slice.length);
+                        for (let i = 0; i < slice.length; i++) byteNumbers[i] = slice.charCodeAt(i);
+                        byteArrays.push(new Uint8Array(byteNumbers));
+                      }
+                      const imgFile = new File(byteArrays, `${img.name}.png`, { type: img.mime });
+                      const { url } = await uploadApi.image(imgFile);
+                      return { name: img.name, url, mime: img.mime, data: img.data };
+                    } catch { return null; }
+                  })()
+                );
+              }
+            }
+            const uploadResults = await Promise.allSettled(uploadTasks);
+            for (const r of uploadResults) {
+              if (r.status === 'fulfilled' && r.value) {
+                imageReplacements.set(`data:${r.value.mime};base64,${r.value.data}`, r.value.url);
+              }
+            }
+          } else {
+            // 公式识别全失败，所有图片原样上传
+            const uploadResults = await Promise.allSettled(
+              images.map(async (img) => {
+                const byteChars = atob(img.data);
+                const byteArrays: Uint8Array[] = [];
+                for (let offset = 0; offset < byteChars.length; offset += 512) {
+                  const slice = byteChars.slice(offset, offset + 512);
+                  const byteNumbers = new Array(slice.length);
+                  for (let i = 0; i < slice.length; i++) byteNumbers[i] = slice.charCodeAt(i);
+                  byteArrays.push(new Uint8Array(byteNumbers));
+                }
+                const imgFile = new File(byteArrays, `${img.name}.png`, { type: img.mime });
+                const { url } = await uploadApi.image(imgFile);
+                return { name: img.name, url, mime: img.mime, data: img.data };
+              })
+            );
+            for (const r of uploadResults) {
+              if (r.status === 'fulfilled') {
+                imageReplacements.set(`data:${r.value.mime};base64,${r.value.data}`, r.value.url);
+              }
+            }
+          }
+        } else if (images.length > 0) {
+          // 有图片但公式识别关闭 — 原样上传所有图片
           const uploadResults = await Promise.allSettled(
             images.map(async (img) => {
               const byteChars = atob(img.data);
@@ -201,18 +287,49 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
           );
           for (const r of uploadResults) {
             if (r.status === 'fulfilled') {
-              md = md.split(`data:${r.value.mime};base64,${r.value.data}`).join(r.value.url);
+              imageReplacements.set(`data:${r.value.mime};base64,${r.value.data}`, r.value.url);
             }
           }
-          md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/g, '![]($1)');
         }
+
+        // 应用替换：LaTeX 代码直接嵌入，图片替换为 URL
+        for (const [dataUri, replacement] of imageReplacements) {
+          md = md.split(dataUri).join(replacement);
+        }
+        md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/g, '![]($1)');
         extractedText = md.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       } else if (file.name.endsWith('.doc')) {
         extractedText = await extractTextFromDoc(file);
       } else if (file.name.endsWith('.txt')) {
         extractedText = await extractTextFromTxt(file);
       } else if (file.name.endsWith('.md')) {
-        extractedText = await extractTextFromMd(file);
+        const mdText = await extractTextFromMd(file);
+        // 尝试直接解析标准化 MD 格式
+        const parsedFromMd = parseQuestionsFromMd(mdText);
+        if (parsedFromMd.length > 0) {
+          const convertedQuestions: Question[] = parsedFromMd.map((pq, idx) => {
+            const tempId = -Date.now() - idx;
+            return {
+              id: tempId,
+              subject: currentSubjectId || 'python' as any,
+              type: pq.type as any,
+              title: pq.title,
+              code: pq.code,
+              options: pq.options,
+              answer: pq.answer,
+              explanation: pq.explanation,
+              points: pq.points || 5,
+              input: pq.input,
+            };
+          });
+          console.log(`MD 标准化解析成功，共 ${convertedQuestions.length} 道题目`);
+          setPreview(convertedQuestions);
+          setIsParsing(false);
+          setUploadingFileName(null);
+          return;
+        }
+        // 不是标准化格式，走原有流程（填充到提示词框 → AI 解析）
+        extractedText = mdText;
       } else if (file.name.endsWith('.csv')) {
         // CSV 文件直接解析为题目，跳过 AI 解析步骤
         const parsedQuestions = await parseCSV(file);
@@ -291,6 +408,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
       setError(err.message || '文件读取失败');
     } finally {
       setIsParsing(false);
+      setIsConvertingFormula(false);
       setUploadingFileName(null);
     }
   };
@@ -485,6 +603,46 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
     }
   };
 
+  // 下载标准化 MD 模板文件
+  const handleDownloadTemplate = () => {
+    const template = `### 单选题 | 分值:5 | 难度:基础 | 知识点:二次函数
+题干：已知二次函数 $f(x)=ax^2+bx+c$ 的对称轴方程为？
+A. $x=-\\frac{b}{2a}$
+B. $x=\\frac{b}{2a}$
+C. $x=-\\frac{c}{a}$
+D. $x=\\frac{c}{a}$
+**答案：A**
+解析：二次函数对称轴公式为 $x=-\\frac{b}{2a}$。
+
+### 多选题 | 分值:8 | 难度:中等 | 知识点:化学方程式
+题干：下列哪些化学方程式书写正确？
+A. $2H_2 + O_2 \\rightarrow 2H_2O$
+B. $H_2 + O_2 \\rightarrow H_2O$
+C. $C + O_2 \\rightarrow CO_2$
+D. $2Mg + O_2 \\rightarrow 2MgO$
+**答案：A,C,D**
+解析：B 选项未配平，正确的应为 $2H_2 + O_2 \\rightarrow 2H_2O$。
+
+### 单选题 | 分值:5 | 难度:困难 | 知识点:英语语法
+题干：Which of the following sentences is grammatically correct?
+A. He **don't** like coffee.
+B. She **doesn't** speaks English.
+C. They **have** already finished their homework.
+D. I **has** seen that movie.
+**答案：C**
+解析：A应为doesn't，B应为speak，D应为have。
+`;
+    const blob = new Blob([template], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '题库导入模板.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // 根据原始科目名获取显示名称
   const getSubjectDisplayName = (subjectName: string | null): string => {
     if (!subjectName) return '未知';
@@ -663,10 +821,53 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                       <span className="text-[9px] text-slate-400">PDF/DOCX/DOC/TXT/MD/CSV/JSON</span>
                       <input type="file" className="hidden" accept=".pdf,.docx,.doc,.txt,.md,.csv,.json" onChange={handleFileChange} />
                     </label>
+                    {/* 公式识别开关 */}
+                    <label className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-all border border-slate-200 hover:border-blue-300 select-none">
+                      <input
+                        type="checkbox"
+                        checked={convertFormulaEnabled}
+                        onChange={(e) => setConvertFormulaEnabled(e.target.checked)}
+                        className="w-3 h-3 accent-blue-600 rounded"
+                      />
+                      <span className="whitespace-nowrap">公式→LaTeX</span>
+                      <span className="text-[9px] text-slate-400 hidden sm:inline">自动识别文档中的公式图片</span>
+                    </label>
+                    {/* 模板下载 */}
+                    <button
+                      onClick={handleDownloadTemplate}
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all border border-transparent hover:border-green-200"
+                      title="下载标准化 MD 模板"
+                    >
+                      <FileText size={12} />
+                      <span className="hidden sm:inline">下载模板</span>
+                    </button>
                     {uploadingFileName && (
                       <span className="text-[10px] text-purple-600 animate-pulse">
                         正在处理: {uploadingFileName}
                       </span>
+                    )}
+                    {/* 公式识别进度 */}
+                    {isConvertingFormula && (
+                      <div className="w-full p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-3">
+                        <div className="shrink-0">
+                          <Loader2 size={16} className="animate-spin text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] text-blue-700 font-medium">
+                            📐 正在识别公式... {formulaProgress.current}/{formulaProgress.total}
+                          </div>
+                          <div className="text-[10px] text-blue-500">
+                            ✅ {formulaProgress.success} 个公式已识别
+                            {formulaProgress.failed > 0 && `  ⚠️ ${formulaProgress.failed} 个跳过或失败`}
+                          </div>
+                          <div className="mt-1 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                              style={{ width: `${formulaProgress.total > 0 ? (formulaProgress.current / formulaProgress.total) * 100 : 0}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -912,29 +1113,54 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImp
                 </div>
 
                 <div className="max-h-96 overflow-y-auto space-y-3">
-                  {preview.map((q, idx) => (
-                    <div key={q.id || idx} className="p-4 border border-slate-200 rounded-xl bg-slate-50/50">
-                      <div className="text-sm text-slate-600 mb-1">第 {idx + 1} 题 ({q.type})</div>
-                      <div className="font-medium text-slate-800 mb-2">{q.title}</div>
-                      {q.options && (
-                        <div className="space-y-1 mb-2">
-                          {q.options.map((opt, i) => (
-                            <div key={i} className="text-sm text-slate-700">• {opt}</div>
-                          ))}
+                  {preview.map((q, idx) => {
+                    const typeLabel: Record<string, string> = {
+                      single: '单选题',
+                      multiple: '多选题',
+                      programming: '编程题',
+                    };
+                    return (
+                      <div key={q.id || idx} className="p-4 border border-slate-200 rounded-xl bg-white hover:shadow-sm transition-shadow">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            {typeLabel[q.type] || q.type}
+                          </span>
+                          <span className="text-[10px] text-slate-400">第 {idx + 1} 题</span>
+                          {q.points && <span className="text-[10px] text-slate-400">{q.points} 分</span>}
                         </div>
-                      )}
-                      <div className="text-sm text-slate-600">
-                        <span className="font-bold">答案:</span>
-                        {Array.isArray(q.answer) ? q.answer.join(', ') : q.answer}
+                        <MarkdownRenderer content={q.title} className="text-sm text-slate-800 mb-3 leading-relaxed" />
+                        {q.options && q.options.length > 0 && (
+                          <div className="space-y-1.5 mb-3 ml-1">
+                            {q.options.map((opt, i) => {
+                              const label = String.fromCharCode(65 + i);
+                              return (
+                                <div key={i} className="flex items-start gap-2 text-sm">
+                                  <span className="font-bold text-slate-500 shrink-0 w-5">{label}.</span>
+                                  <div className="text-slate-700 min-w-0">
+                                    <MarkdownRenderer content={opt} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="text-sm text-slate-600 bg-slate-50 -mx-4 -mb-4 px-4 py-3 rounded-b-xl border-t border-slate-100">
+                          <span className="font-bold text-slate-700">答案：</span>
+                          <span className="text-emerald-700 font-medium">
+                            {Array.isArray(q.answer) ? q.answer.join(', ') : q.answer || '（待补充）'}
+                          </span>
+                          {q.explanation && (
+                            <details className="mt-2">
+                              <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-600 font-medium">查看解析</summary>
+                              <div className="mt-2 text-slate-500 text-sm">
+                                <MarkdownRenderer content={q.explanation} />
+                              </div>
+                            </details>
+                          )}
+                        </div>
                       </div>
-                      {q.explanation && (
-                        <div className="text-sm text-slate-500 mt-1">
-                          <span className="font-bold">解析:</span>
-                          {q.explanation}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </>

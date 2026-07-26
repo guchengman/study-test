@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 import { mkdirSync, existsSync } from 'fs';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rateLimit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,9 @@ const upload = multer({
 });
 
 const router = Router();
+
+// 统一限流（15 分钟 / 每 IP 300 次）
+router.use(apiLimiter);
 
 router.post('/image', authMiddleware, (req, res) => {
   upload.single('file')(req, res, (err) => {

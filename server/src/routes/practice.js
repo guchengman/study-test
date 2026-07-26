@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
+
+// 统一限流（15 分钟 / 每 IP 300 次）
+router.use(apiLimiter);
 
 // === 错题 ===
 
@@ -236,6 +240,19 @@ router.post('/stats', authMiddleware, async (req, res) => {
     }
     if (isNaN(correctNum) || correctNum < 0 || correctNum > totalNum) {
       return res.status(400).json({ error: '正确数必须为0到总数之间的整数' });
+    }
+
+    // 验证 subject_id 存在且用户可访问
+    const [subjectCheck] = await pool.execute(
+      `SELECT id FROM subjects WHERE id = ? AND (
+         created_by = ? OR
+         id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved') OR
+         id IN (SELECT s2.id FROM subjects s2 WHERE (s2.share_scope = 'all' OR s2.share_scope = 'students') AND s2.created_by IN (SELECT teacher_id FROM users WHERE id = ?))
+       )`,
+      [subject_id, req.user.id, req.user.id, req.user.id]
+    );
+    if (subjectCheck.length === 0) {
+      return res.status(400).json({ error: '科目不存在或无权访问' });
     }
 
     await conn.beginTransaction();
