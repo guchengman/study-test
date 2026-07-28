@@ -162,6 +162,14 @@ export function useAuth() {
     localStorage.setItem(VERIFY_CODE_KEY, code);
     localStorage.setItem(VERIFY_EMAIL_KEY, email);
     localStorage.setItem(VERIFY_EXPIRES_KEY, String(Date.now() + 5 * 60 * 1000));
+    // 邮件服务配置检查：若部署环境未配置 EmailJS 密钥，提前返回明确提示，不进入 catch，避免误导为"网络异常"
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      return {
+        success: false,
+        message:
+          '邮件服务未配置：请联系管理员在部署环境配置 EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY',
+      };
+    }
     try {
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: email, passcode: code, time: expireTime, from_name: 'Study-test' }, EMAILJS_PUBLIC_KEY);
       return { success: true, message: '验证码已发送至您的邮箱' };

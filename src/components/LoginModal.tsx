@@ -424,6 +424,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </label>
             <input
               type="email"
+              autoComplete="email"
               value={regEmail}
               onChange={(e) => setRegEmail(e.target.value)}
               placeholder="用于接收验证码和找回密码"
@@ -438,6 +439,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </label>
             <input
               type="password"
+              autoComplete="new-password"
               value={regPassword}
               onChange={(e) => setRegPassword(e.target.value)}
               placeholder="至少6位"
@@ -452,6 +454,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </label>
             <input
               type="password"
+              autoComplete="new-password"
               value={regConfirmPassword}
               onChange={(e) => setRegConfirmPassword(e.target.value)}
               placeholder="再次输入密码"
@@ -787,14 +790,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           密码
         </label>
-        <input
-          type="password"
-          value={loginPassword}
-          onChange={(e) => setLoginPassword(e.target.value)}
-          placeholder="请输入密码"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              placeholder="请输入密码"
+              style={inputStyle}
+              required
+            />
       </div>
 
       {loginError && (
@@ -934,14 +938,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           邮箱地址
         </label>
-        <input
-          type="email"
-          value={resetEmail}
-          onChange={(e) => setResetEmail(e.target.value)}
-          placeholder="请输入注册时的邮箱"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="email"
+              autoComplete="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              placeholder="请输入注册时的邮箱"
+              style={inputStyle}
+              required
+            />
       </div>
 
       <div style={{ marginBottom: '16px' }}>
@@ -982,28 +987,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           新密码
         </label>
-        <input
-          type="password"
-          value={resetNewPassword}
-          onChange={(e) => setResetNewPassword(e.target.value)}
-          placeholder="至少6位"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={resetNewPassword}
+              onChange={(e) => setResetNewPassword(e.target.value)}
+              placeholder="至少6位"
+              style={inputStyle}
+              required
+            />
       </div>
 
       <div style={{ marginBottom: '20px' }}>
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           确认新密码
         </label>
-        <input
-          type="password"
-          value={resetConfirmPassword}
-          onChange={(e) => setResetConfirmPassword(e.target.value)}
-          placeholder="再次输入新密码"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={resetConfirmPassword}
+              onChange={(e) => setResetConfirmPassword(e.target.value)}
+              placeholder="再次输入新密码"
+              style={inputStyle}
+              required
+            />
       </div>
 
       {resetError && (
@@ -1098,28 +1105,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           新密码
         </label>
-        <input
-          type="password"
-          value={setupPassword}
-          onChange={(e) => setSetupPassword(e.target.value)}
-          placeholder="请输入新密码（至少6位）"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={setupPassword}
+              onChange={(e) => setSetupPassword(e.target.value)}
+              placeholder="请输入新密码（至少6位）"
+              style={inputStyle}
+              required
+            />
       </div>
 
       <div style={{ marginBottom: '16px' }}>
         <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
           确认密码
         </label>
-        <input
-          type="password"
-          value={setupConfirmPassword}
-          onChange={(e) => setSetupConfirmPassword(e.target.value)}
-          placeholder="请再次输入新密码"
-          style={inputStyle}
-          required
-        />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={setupConfirmPassword}
+              onChange={(e) => setSetupConfirmPassword(e.target.value)}
+              placeholder="请再次输入新密码"
+              style={inputStyle}
+              required
+            />
       </div>
 
       {setupError && (
