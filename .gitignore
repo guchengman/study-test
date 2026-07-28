@@ -81,3 +81,9 @@ server/uploads/
 !scripts/db/set-reset-flag.cjs
 !server/scripts/verify-data.cjs
 !server/scripts/check-users.cjs
+
+# 离线 OCR 本地资源（由 npm run setup:tesseract 生成，体积较大，不入库）
+public/tesseract/
+
+# 允许提交离线 OCR 资源准备脚本（尽管上方规则忽略了 *.mjs）
+!scripts/setup/tesseract-assets.mjs

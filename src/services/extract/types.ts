@@ -1,8 +1,8 @@
 // 共享类型 + 动态加载 helper（第一批已确认：mammoth / pdfjs-dist 必须函数内动态 import，严禁顶层静态引入）
 
-// PDF.js 配置
-export const PDF_WORKER_URL =
-  'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
+// PDF.js 配置：通过 Vite 的 `?url` 导入把 worker 作为本地资源打包，彻底不再依赖 CDN
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+export const PDF_WORKER_URL = pdfWorkerUrl;
 
 // 懒加载 pdfjs-dist（带缓存，仅首次动态加载并设置 worker）
 let _pdfjsLibCache: typeof import('pdfjs-dist') | null = null;

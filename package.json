@@ -8,6 +8,7 @@
     "dev": "vite --host=0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "setup:tesseract": "node scripts/setup/tesseract-assets.mjs",
     "prebuild": "node scripts/build-scoring.mjs",
     "clean": "rm -rf dist",
     "sync:scoring": "node scripts/build-scoring.mjs",
