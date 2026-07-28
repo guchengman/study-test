@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
@@ -22,8 +23,6 @@ import {
 } from 'lucide-react';
 import { AppHeader } from './AppHeader';
 import { VisitCounter } from '../VisitCounter';
-import { ImportModal } from '../ImportModal';
-import { LoginModal } from '../LoginModal';
 import { ConfirmModal } from '../ConfirmModal';
 import { JoinSubjectModal } from '../JoinSubjectModal';
 import { RoleSwitchModal } from '../RoleSwitchModal';
@@ -36,6 +35,14 @@ import { useBackPrevention } from '../../hooks/useBackPrevention';
 import { subjectApi, authApi, questionApi } from '../../services/api';
 import { QUESTION_BANK as INITIAL_BANK } from '../../questionBank';
 import { CUSTOM_SUBJECT_PREFIX, MAX_OWN_SUBJECTS, SUBJECT_ICONS, suggestSubject } from '../../types';
+
+// 路由级代码分割（R3 / T10a）：ImportModal / LoginModal 改为懒加载，移出主包
+const ImportModal = lazy(() => import('../ImportModal').then((m) => ({ default: m.ImportModal })));
+const LoginModal = lazy(() => import('../LoginModal').then((m) => ({ default: m.LoginModal })));
+
+const ModalFallback = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 text-gray-200">加载中…</div>
+);
 
 export function AppLayout() {
   const location = useLocation();
@@ -100,36 +107,40 @@ export function AppLayout() {
 
       {/* Import Modal */}
       {ctx.isImportModalOpen && (
-        <ImportModal
-          onClose={() => ctx.setIsImportModalOpen(false)}
-          onImport={ctx.handleImport}
-          allSubjects={ctx.allSubjects}
-          currentSubjectId={ctx.currentSubjectId}
-          authUser={ctx.authUser}
-        />
+        <Suspense fallback={<ModalFallback />}>
+          <ImportModal
+            onClose={() => ctx.setIsImportModalOpen(false)}
+            onImport={ctx.handleImport}
+            allSubjects={ctx.allSubjects}
+            currentSubjectId={ctx.currentSubjectId}
+            authUser={ctx.authUser}
+          />
+        </Suspense>
       )}
 
       {/* Login Modal */}
-      <LoginModal
-        isOpen={ctx.isModalOpen}
-        onClose={() => ctx.setIsModalOpen(false)}
-        onLogin={ctx.login}
-        onRegister={ctx.register}
-        onChangePassword={ctx.changePassword}
-        onSendCode={ctx.sendVerificationCode}
-        onVerifyCode={ctx.verifyCode}
-        onResetPassword={ctx.resetPassword}
-        onCheckUsername={ctx.checkUsername}
-        onSetupPassword={ctx.setupPassword}
-        isAdmin={ctx.isAdmin}
-        currentUser={ctx.currentUser}
-      />
+      <Suspense fallback={<ModalFallback />}>
+        <LoginModal
+          isOpen={ctx.isModalOpen}
+          onClose={() => ctx.setIsModalOpen(false)}
+          onLogin={ctx.login}
+          onRegister={ctx.register}
+          onChangePassword={ctx.changePassword}
+          onSendCode={ctx.sendVerificationCode}
+          onVerifyCode={ctx.verifyCode}
+          onResetPassword={ctx.resetPassword}
+          onCheckUsername={ctx.checkUsername}
+          onSetupPassword={ctx.setupPassword}
+          isAdmin={ctx.isAdmin}
+          currentUser={ctx.currentUser}
+        />
+      </Suspense>
 
       {/* Join Subject Modal */}
       <JoinSubjectModal
         isOpen={ctx.isJoinSubjectOpen}
         onClose={() => ctx.setIsJoinSubjectOpen(false)}
-        onJoined={() => window.location.reload()}
+        onJoined={() => ctx.refreshSubjects()}
       />
 
       {/* Student Management Modal */}
@@ -592,7 +603,7 @@ export function AppLayout() {
                                   if (confirm(`确定要退订科目「${subject.name}」吗?退订后该科目将不再显示。`)) {
                                     try {
                                       await subjectApi.leave(subject.id);
-                                      window.location.reload();
+                                      ctx.refreshSubjects();
                                     } catch (e: any) {
                                       ctx.setShowToast(e.message || '退订失败');
                                     }

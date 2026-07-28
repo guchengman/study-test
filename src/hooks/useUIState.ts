@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import type { Subject, SubjectId } from '../types';
-import { DEFAULT_SUBJECTS } from '../types';
 
 export function useUIState() {
   // 退出登录确认

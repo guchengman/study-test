@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Question, ExamResult, MistakeRecord } from '../types';
-import { isAnswerCorrect } from '../utils/examScoring';
+import { isAnswerCorrect } from '../shared/scoring';
 import { practiceApi } from '../services/api';
 
 interface UseExamParams {
@@ -23,7 +23,6 @@ export function useExam({
   examQuestionCount, currentUser, setShowToast,
   setConfirmingDeduplicate, setConfirmingFilter,
   setSearchQuery, setIsSearchOpen,
-  setIsImportModalOpen,
 }: UseExamParams) {
   const [status, setStatus] = useState<'welcome' | 'exam' | 'result'>('welcome');
   const [isRandomMode, setIsRandomMode] = useState(false);
@@ -128,8 +127,7 @@ export function useExam({
     const q = examQuestions.find(q => q.id === questionId);
     if ((isMistakeMode || isFullMode || isRandomMode) && q?.type === 'single') {
       setShowFeedback(true);
-      const correct = typeof answer === 'string' && typeof q.answer === 'string'
-        ? answer.trim() === q.answer.trim() : answer === q.answer;
+      const correct = isAnswerCorrect(q, answer);
       updateMistakeRecord(q.id, correct);
     }
   }, [showFeedback, isMistakeMode, isFullMode, isRandomMode, examQuestions, updateMistakeRecord]);
@@ -147,8 +145,7 @@ export function useExam({
   const checkProgrammingAnswer = useCallback(() => {
     const q = examQuestions[currentIndex];
     const userAns = userAnswers[q.id] as string;
-    const normalize = (s: string) => s?.replace(/\s+/g, '').replace(/['"]/g, '"').toLowerCase() || '';
-    const correct = normalize(userAns) === normalize(q.answer as string);
+    const correct = isAnswerCorrect(q, userAns);
     setShowFeedback(true);
     updateMistakeRecord(q.id, correct);
   }, [examQuestions, currentIndex, userAnswers, updateMistakeRecord]);

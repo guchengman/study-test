@@ -1,6 +1,10 @@
 /**
  * 判分纯函数（Node 端评分权威，移植自 src/utils/examScoring.ts）
  *
+ * ⚠️ 同步声明：本文件须与前端单一事实源 `src/shared/scoring/index.ts` 保持一致，
+ * 请勿手改判分口径。权威版本由 `scripts/build-scoring.mjs` 生成为
+ * `server/src/utils/examScoring.generated.js`。任何调整只改 `src/shared/scoring` 后重新生成。
+ *
  * 与前端 examScoring.ts 保持完全一致的判定逻辑：
  *   - single：去空格 + 可选 A-Z 标签映射（answer 为 "B" 时映射到 options[1] 文本比对）
  *   - multiple：排序后比对，A-Z 标签先映射到选项文本再排序

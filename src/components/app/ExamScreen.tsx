@@ -337,7 +337,7 @@ export function ExamScreen(props: ExamScreenProps) {
                           if (searchMode === 'number') {
                             const numQuery = parseInt(val, 10);
                             if (!isNaN(numQuery)) {
-                              const byIndex = examQuestions.findIndex((q, i) => i + 1 === numQuery);
+                              const byIndex = examQuestions.findIndex((_q, i) => i + 1 === numQuery);
                               if (byIndex >= 0) {
                                 setCurrentIndex(byIndex);
                                 setShowFeedback(false);

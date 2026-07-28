@@ -356,26 +356,26 @@ function updateSubmitButton() {
   document.getElementById('submitAnswer').disabled = !hasSelection;
 }
 
+// 兼容回退：仅当共享评分内核（scoring.js / window.StudyScoring）未加载时使用
+function fallbackCorrectIndices(q) {
+  const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
+  if (Array.isArray(q.answer)) return q.answer.map((a) => keys.indexOf(a)).filter((i) => i >= 0);
+  return [keys.indexOf(q.answer)].filter((i) => i >= 0);
+}
+
 function submitAnswer() {
   const q = practiceQuestions[currentQuestionIndex];
   const selectedItems = questionCard.querySelectorAll('.option-item.selected');
   const selectedIndices = Array.from(selectedItems).map(item => parseInt(item.dataset.index));
   
-  // 计算正确答案
-  let correctIndices = [];
-  if (Array.isArray(q.answer)) {
-    correctIndices = q.answer.map(a => {
-      const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
-      return keys.indexOf(a);
-    }).filter(i => i >= 0);
-  } else {
-    const keys = ['A', 'B', 'C', 'D', 'E', 'F'];
-    correctIndices = [keys.indexOf(q.answer)];
-  }
-  
-  // 判断对错
-  const isCorrect = selectedIndices.length === correctIndices.length && 
-                    selectedIndices.every(i => correctIndices.includes(i));
+  // 计算正确答案（统一引用共享评分内核 scoring.js，带安全回退）
+  const correctIndices = window.StudyScoring
+    ? window.StudyScoring.correctOptionIndices(q)
+    : fallbackCorrectIndices(q);
+  const isCorrect = window.StudyScoring
+    ? window.StudyScoring.scoreByIndices(q, selectedIndices)
+    : (selectedIndices.length === correctIndices.length &&
+       selectedIndices.every((i) => correctIndices.includes(i)));
   
   if (isCorrect) correctCount++;
   

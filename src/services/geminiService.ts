@@ -113,9 +113,11 @@ const SYSTEM_PROMPT = `
 **富文本格式要求：**
 - title、options、explanation 字段均支持 Markdown 格式
 - 数学公式使用 LaTeX：行内公式 $...$，块级公式 $$...$$
+- 化学式使用标准 LaTeX：下标 H\_2O，上标 Na^+，反应式用 $$...$$ 块
 - 使用 **粗体** 标注关键词
 - 代码使用反引号包裹，多行代码块使用三个反引号并标注语言
 - 图片引用格式：![](图片描述)
+- **重要：如果输入文本中包含 ![](url) 公式图片链接，不要丢弃，保留在输出中。如果确定该图片内容是公式，将其替换为对应的 LaTeX 代码**
 
 JSON 结构必须符合以下 TypeScript 接口：
 interface Question {
@@ -164,6 +166,11 @@ const GENERATE_PROMPT = `
 - 在题目标题中引用图片示例：![](https://example.com/img.png) 下列说法正确的是（）
 - 在选项中引用图片示例：A. ![](https://example.com/img.png) 选项描述
 - 如果输入中有多张图片，将它们分配到对应的题目中，不要堆砌在同一道题里
+
+**LaTeX 公式保留要求：**
+- 如果输入文本中包含 $$...$$ 或 $...$ 格式的 LaTeX 公式，必须完整保留，不能修改或删除
+- LaTeX 公式是题目内容的一部分（如数学公式、化学方程式等），绝对不能丢弃
+- 在生成题目的题干、选项、解析中保留原始 LaTeX 公式
 
 **输出格式（直接返回纯文本）：**
 
@@ -244,8 +251,7 @@ D. 2cm²=200mm²
 `;
 
 // 更强大的JSON修复函数，专门处理大量题目被截断的情况
-function repairTruncatedJSON(content: string, originalLength?: number): { questions: any[]; wasTruncated: boolean; recovered: number } {
-  let wasTruncated = false;
+function repairTruncatedJSON(content: string, _originalLength?: number): { questions: any[]; wasTruncated: boolean; recovered: number } {
   
   try {
     // 首先尝试直接解析
@@ -254,8 +260,7 @@ function repairTruncatedJSON(content: string, originalLength?: number): { questi
     return { questions, wasTruncated: false, recovered: questions.length };
   } catch (e) {
     console.warn("Direct JSON parse failed, attempting advanced repair...");
-    wasTruncated = true;
-    
+
     // 清理可能的markdown包装
     let cleaned = content.replace(/```json\n?/, '').replace(/\n?```/, '').trim();
     
@@ -333,7 +338,7 @@ function repairTruncatedJSON(content: string, originalLength?: number): { questi
       return { objects, lastPartial: currentObject };
     };
     
-    const { objects: matches, lastPartial } = extractObjects(cleaned);
+    const { objects: matches } = extractObjects(cleaned);
     if (matches && matches.length > 0) {
       try {
         const questions: any[] = [];
@@ -432,7 +437,7 @@ function repairTruncatedJSON(content: string, originalLength?: number): { questi
 }
 
 // 构建 API 请求体（不同 API 可能有不同的参数要求）
-function buildRequestBody(model: string, messages: any[], temperature: number, maxTokens: number, isGeneration: boolean) {
+function buildRequestBody(model: string, messages: any[], temperature: number, maxTokens: number, _isGeneration: boolean) {
   const baseBody: any = {
     model: model,
     messages: messages,

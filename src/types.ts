@@ -164,6 +164,22 @@ export interface MistakeRecord {
   consecutiveCorrect: number;
 }
 
+/** 领域用户（双轨类型映射的事实源；AuthUser 仅为网络 DTO） */
+export type UserRoleDomain = 'admin' | 'teacher' | 'student' | 'independent';
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: UserRoleDomain;
+  teacherId?: number | null;
+  teacherName?: string | null;
+  phone?: string | null;
+  status?: 'active' | 'pending';
+  passwordReset?: boolean;
+  studentCount?: number;
+  helpRead?: number;
+}
+
 export interface AISettings {
   geminiKey?: string;
   deepseekKey?: string;
