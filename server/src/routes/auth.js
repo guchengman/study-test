@@ -92,6 +92,13 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
       }
     }
 
+    // 检查邮箱唯一性（users 表 email 列有 UNIQUE 约束；此前缺失此校验，
+    // 重复邮箱时 INSERT 会抛 ER_DUP_ENTRY，被外层 catch 捕获后返回 500 "注册失败"）
+    const [emailExist] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (emailExist.length > 0) {
+      return res.status(409).json({ error: '该邮箱已被注册' });
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     let teacherId = null;
     let userStatus = 'active';

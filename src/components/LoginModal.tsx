@@ -410,6 +410,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </label>
             <input
               type="text"
+              autoComplete="username"
               value={regUsername}
               onChange={(e) => setRegUsername(e.target.value)}
               placeholder="3-20位字母、数字或下划线"
@@ -493,7 +494,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#4f46e5', fontWeight: '500' }}>
                 <Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />手机号（必填）
               </label>
-              <input type="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="学生可通过手机号找到您" style={inputStyle} required />
+              <input type="tel" autoComplete="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="学生可通过手机号找到您" style={inputStyle} required />
             </div>
           )}
 
@@ -520,11 +521,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 ))}
               </div>
               {regStudentMethod === 'code' && (
-                <input type="text" value={regInviteCode} onChange={e => setRegInviteCode(e.target.value.toUpperCase())}
+                <input type="text" autoComplete="off" value={regInviteCode} onChange={e => setRegInviteCode(e.target.value.toUpperCase())}
                   placeholder="输入老师提供的注册邀请码" maxLength={20} style={inputStyle} />
               )}
               {regStudentMethod === 'phone' && (
-                <input type="tel" value={regTeacherPhone} onChange={e => setRegTeacherPhone(e.target.value)}
+                <input type="tel" autoComplete="tel" value={regTeacherPhone} onChange={e => setRegTeacherPhone(e.target.value)}
                   placeholder="输入老师的手机号" style={inputStyle} />
               )}
               {regStudentMethod === 'none' && (
@@ -643,6 +644,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
+                autoComplete="one-time-code"
                 value={regCode}
                 onChange={(e) => setRegCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="请输入6位验证码"
@@ -778,6 +780,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </label>
         <input
           type="text"
+          autoComplete="username"
           value={loginUsername}
           onChange={(e) => setLoginUsername(e.target.value)}
           placeholder="请输入用户名"
@@ -956,6 +959,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <div style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"
+            autoComplete="one-time-code"
             value={resetCode}
             onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             placeholder="请输入6位验证码"
