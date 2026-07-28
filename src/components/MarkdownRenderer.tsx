@@ -15,7 +15,15 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[
+          [
+            rehypeKatex,
+            {
+              strict: (errorCode: string) =>
+                errorCode === 'unicodeTextInMathMode' ? 'ignore' : 'warn',
+            },
+          ],
+        ]}
         components={{
           img: ({ src, alt }) => (
             <img
