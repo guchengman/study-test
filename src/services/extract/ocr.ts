@@ -9,6 +9,7 @@ import {
   DEFAULT_PADDLEOCR_API_URL,
 } from './types';
 import type { PaddleOCRResult } from './types';
+import { getToken } from '../api';
 
 // OCR 引擎状态
 let tesseractWorker: any = null;
@@ -339,10 +340,17 @@ export async function extractTextFromPDFWithPaddleOCR(
  * 调用后端代理的百度 OCR 接口
  */
 async function baiduOnlineOCR(imageBase64: string): Promise<string> {
+  const token = getToken();
+  if (!token) {
+    throw new Error('请先登录后再导入扫描版试卷（在线 OCR 需要登录）');
+  }
   const url = getOcrApiUrl();
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ image: imageBase64 }),
   });
 
