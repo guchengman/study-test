@@ -14,6 +14,19 @@ import type { PaddleOCRResult } from './types';
 let tesseractWorker: any = null;
 let tesseractInitialized = false;
 
+// OCR 引擎初始化超时（毫秒）：避免 CDN / 网络异常导致界面无限卡死
+const OCR_INIT_TIMEOUT_MS = 45000;
+
+// 给 Promise 包一层超时保护，超时即 reject，绝不无限等待
+function withTimeout<T>(p: Promise<T>, ms: number, msg: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(msg)), ms)
+    ),
+  ]);
+}
+
 // 初始化 Tesseract OCR
 async function initTesseract(
   onProgress?: (progress: { current: number; total: number; status: string }) => void
@@ -22,21 +35,41 @@ async function initTesseract(
     return tesseractWorker;
   }
 
-  // 动态导入 Tesseract.js
-  const Tesseract = await import('tesseract.js');
+  // 本地资源目录：开发环境为 '/tesseract/'，生产（base: './'）为 './tesseract/'
+  const base = import.meta.env.BASE_URL;
+  const assets = `${base}tesseract/`;
 
-  // 创建 worker
-  tesseractWorker = await Tesseract.createWorker('eng+chi_sim', 1, {
-    logger: (m: any) => {
-      if (m.status === 'recognizing text' && onProgress) {
-        onProgress({
-          current: Math.round(m.progress * 100),
-          total: 100,
-          status: '正在识别文字...',
-        });
-      }
-    },
-  });
+  // 动态导入 Tesseract.js 并创建 worker，全程使用本地资源（不依赖任何 CDN）
+  const initPromise = (async (): Promise<any> => {
+    const Tesseract = await import('tesseract.js');
+    tesseractWorker = await Tesseract.createWorker('eng+chi_sim', 1, {
+      workerPath: `${assets}worker.min.js`,
+      corePath: assets,
+      langPath: assets,
+      logger: (m: any) => {
+        if (m.status === 'recognizing text' && onProgress) {
+          onProgress({
+            current: Math.round(m.progress * 100),
+            total: 100,
+            status: '正在识别文字...',
+          });
+        }
+      },
+    });
+    return tesseractWorker;
+  })();
+
+  const timeoutMsg =
+    'OCR 引擎初始化超时（45s）。请确认已运行 `npm run setup:tesseract` 且浏览器可访问 /tesseract/ 下的本地 WASM 与语言包（离线 OCR 不依赖网络）。';
+
+  try {
+    tesseractWorker = await withTimeout(initPromise, OCR_INIT_TIMEOUT_MS, timeoutMsg);
+  } catch (error) {
+    // 初始化失败或超时：清理半成品状态，避免复用脏 worker
+    tesseractWorker = null;
+    tesseractInitialized = false;
+    throw error;
+  }
 
   tesseractInitialized = true;
   return tesseractWorker;
