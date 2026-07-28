@@ -87,3 +87,6 @@ public/tesseract/
 
 # 允许提交离线 OCR 资源准备脚本（尽管上方规则忽略了 *.mjs）
 !scripts/setup/tesseract-assets.mjs
+
+# 允许提交 prebuild 判分同步脚本（尽管上方规则忽略了 *.mjs，构建前端必需）
+!scripts/build-scoring.mjs
