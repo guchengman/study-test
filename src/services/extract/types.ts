@@ -2,7 +2,10 @@
 
 // PDF.js 配置：通过 Vite 的 `?url` 导入把 worker 作为本地资源打包，彻底不再依赖 CDN
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-export const PDF_WORKER_URL = pdfWorkerUrl;
+// 缓存破除：给 worker URL 追加查询参数 ?v=2，使 Cloudflare 将其视为全新资源而回源，
+// 重新拉取源站已修正为 text/javascript 的 worker 文件，修复 "Setting up fake worker failed" 导致的 PDF 导入失败。
+// （源站 nginx 已为 .mjs 强制 text/javascript，问题纯属 CDN 缓存了修复前的错误 MIME。）
+export const PDF_WORKER_URL = `${pdfWorkerUrl}?v=2`;
 
 // 懒加载 pdfjs-dist（带缓存，仅首次动态加载并设置 worker）
 let _pdfjsLibCache: typeof import('pdfjs-dist') | null = null;
