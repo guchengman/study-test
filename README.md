@@ -52,7 +52,8 @@ cp .env.example server/.env
 # 编辑 server/.env 填入数据库信息和 JWT_SECRET
 
 # 3. 初始化数据库
-# 导入 server/migrations/ 下的 SQL 迁移文件
+# 使用自动化迁移运行器（按序应用 server/migrations/*.sql，幂等）：
+cd server && npm run migrate
 
 # 4. 启动开发服务器（前端 :3000，后端 :3100）
 npm run dev

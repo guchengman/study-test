@@ -9,7 +9,7 @@
   ],
   "host_permissions": [
     "https://www.xiaoyue.shop/*",
-    "https://47.88.52.213/*"
+    "https://xiaoyue.shop/*"
   ],
   "action": {
     "default_popup": "popup.html",

@@ -73,16 +73,19 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
+      emptyOutDir: true,
       chunkSizeWarningLimit: 500,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-motion': ['motion'],
-            'vendor-lucide': ['lucide-react'],
-            'vendor-pdf': ['pdfjs-dist'],
-            'vendor-ai': ['@google/genai'],
-          },
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-motion': ['motion'],
+          'vendor-lucide': ['lucide-react'],
+          'vendor-pdf': ['pdfjs-dist'],
+          'vendor-ai': ['@google/genai'],
+          'vendor-katex': ['katex', 'rehype-katex', 'remark-math'],
+          'vendor-md': ['react-markdown'],
+        },
         },
       },
     },

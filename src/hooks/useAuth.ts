@@ -249,7 +249,7 @@ export function useAuth() {
     } catch (err: any) { return { success: false, error: err.message || '操作失败' }; }
   }, []);
 
-  const setupPassword = useCallback(async (username: string, password: string) => {
+  const setupPassword = useCallback(async (_username: string, password: string) => {
     if (password.length < 6) return { success: false, error: '密码至少6位' };
     try { await authApi.changePassword('', password); return { success: true }; } catch (err: any) { return { success: false, error: err.message || '设置密码失败' }; }
   }, []);

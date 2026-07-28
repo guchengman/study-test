@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mail, Lock, Eye, EyeOff, ShieldCheck, KeyRound, User, ArrowLeft, Check, Phone, BookOpen, UserCircle } from 'lucide-react';
+import { X, Mail, KeyRound, User, ArrowLeft, Check, Phone, BookOpen, UserCircle } from 'lucide-react';
 import type { UserRole } from '../services/api';
 
 type ModalMode = 'register' | 'login' | 'forgotPassword' | 'setupPassword';
@@ -24,14 +24,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onClose,
   onLogin,
   onRegister,
-  onChangePassword,
   onSendCode,
   onVerifyCode,
   onResetPassword,
   onCheckUsername,
   onSetupPassword,
-  isAdmin = false,
-  currentUser,
 }) => {
   // 模式：register=注册, login=登录, forgotPassword=忘记密码, setupPassword=设置密码
   const [mode, setMode] = useState<ModalMode>('register');

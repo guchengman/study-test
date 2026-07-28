@@ -117,11 +117,10 @@ CREATE DATABASE IF NOT EXISTS study_test
   COLLATE utf8mb4_unicode_ci;
 SQL
 
-# 6. 执行数据库迁移
-for f in server/migrations/run-*.js; do
-  echo "Running: $f"
-  node "$f"
-done
+# 6. 执行数据库迁移（自动化运行器，按序应用 server/migrations/*.sql，状态记入 schema_migrations，幂等）
+cd server
+npm run migrate
+cd ..
 
 # 7. 启动服务
 npm run dev &                  # 前端 :3000
@@ -261,11 +260,12 @@ sudo fuser -k 3100/tcp
 
 ### 数据库迁移失败
 
-确保 `server/.env` 配置正确，手动执行：
+确保 `server/.env` 配置正确，使用自动化迁移运行器（不要手动跑单个脚本）：
 
 ```bash
-cd /opt/study-test
-node server/migrations/run-002.js
-node server/migrations/run-003.js
-# ... 依次执行所有 run-*.js 文件
+cd /opt/study-test/server
+npm run migrate          # 自动按序应用所有未执行的迁移
+npm run migrate:status   # 查看已应用 / 待应用
+# 若数据库已在别处初始化过，可仅打基线不重复执行：
+node src/migrate.js --baseline
 ```

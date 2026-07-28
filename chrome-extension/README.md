@@ -89,3 +89,11 @@ chrome-extension/
 - `GET /api/questions/subject/:id` - 获取题目列表
 
 确保您的后端 CORS 配置允许 Chrome 扩展访问。
+
+## 连接到自有服务器（自托管）
+
+默认 API 地址为官方站点 `https://www.xiaoyue.shop/api`，可在扩展弹出页「⚙ 服务器设置」中修改，保存后写入浏览器本地存储（无需重装扩展）。
+
+> **Manifest V3 限制**：`host_permissions` 是静态声明的。若你的服务器域名/IP 不在 `manifest.json` 的 `host_permissions` 列表中，浏览器会拦截请求。自托管时请先在该列表里加上你的源（如 `"https://your.server.com/*"` 或 `"http://192.168.x.x:3100/*"`），再重新「加载已解压的扩展程序」。
+>
+> 如需最大灵活性，可临时把 `host_permissions` 改为 `["<all_urls>"]`（会扩大权限申请范围，仅建议自用）。

@@ -6,7 +6,7 @@
  *  - 错题强化 / 全量 / 随机练习等练习态特性
  * 仅保留：进度条、题型徽标、倒计时、题干、单/多选/编程作答、上一题/下一题/交卷。
  */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, AlarmClock, Send, XCircle } from 'lucide-react';
 import type { ExamAvailableItem, ExamQuestionDetail } from '../../types';
@@ -44,7 +44,6 @@ function typeLabel(type: string, options?: string[]): string {
 
 export function FormalExamScreen(props: FormalExamScreenProps) {
   const {
-    exam,
     questions,
     currentIndex,
     setCurrentIndex,

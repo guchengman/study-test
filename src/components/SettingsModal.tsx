@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { X, Settings, Key, Globe, Save, ShieldCheck, Loader2, Moon, Cloud, Bot, Brain, ChevronDown, ExternalLink, Server } from 'lucide-react';
+import { X, Settings, Key, Globe, Save, ShieldCheck, Loader2, Moon, Cloud, Bot, Brain, ExternalLink, Server } from 'lucide-react';
 import { AISettings } from '../types';
 import { loadApiConfig, saveApiConfig, initializeDefaultConfig, clearAllApiKeys, maskApiKey, BUILD_TIME_CONFIG } from '../config/apiConfig';
 import { authApi, type AuthUser } from '../services/api';

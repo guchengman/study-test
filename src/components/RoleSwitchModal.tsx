@@ -40,7 +40,6 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
   onClose,
   currentRole,
   onConvertRole,
-  onBindTeacher,
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isConverting, setIsConverting] = useState(false);

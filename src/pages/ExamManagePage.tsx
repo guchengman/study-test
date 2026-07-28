@@ -9,7 +9,6 @@
  *  - 调用 examApi，刷新列表。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   ClipboardList,
@@ -41,7 +40,6 @@ function statusMeta(status: ExamStatus): { label: string; cls: string } {
 
 export function ExamManagePage() {
   const ctx = useAppContext();
-  const navigate = useNavigate();
 
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState<boolean>(false);

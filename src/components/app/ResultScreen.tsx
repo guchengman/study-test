@@ -1,7 +1,6 @@
 /**
  * 考试结果与逐题解析
  */
-import React from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, XCircle, Star, Award } from 'lucide-react';
 import type { Question, ExamResult, MistakeRecord } from '../../types';

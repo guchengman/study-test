@@ -305,7 +305,7 @@ export const practiceApi = {
   updateMistake: (questionId: number, consecutiveCorrect: number) => client.put('/practice/mistakes', { question_id: questionId, consecutive_correct: consecutiveCorrect }),
   deleteMistake: (questionId: number) => client.delete(`/practice/mistakes/${questionId}`),
   getFavorites: (subject?: string, signal?: AbortSignal) => client.get<{ favorites: FavoriteItem[] }>(`/practice/favorites${subject ? `?subject=${subject}` : ''}`, signal),
-  addFavorite: (questionId: number, subject: string) => client.post<{ message: string }>('/practice/favorites', { question_id: questionId }),
+  addFavorite: (questionId: number, _subject: string) => client.post<{ message: string }>('/practice/favorites', { question_id: questionId }),
   removeFavorite: (questionId: number) => client.delete(`/practice/favorites/${questionId}`),
   getStats: (subject?: string) => client.get<{ stats: StatsItem[] }>(`/practice/stats${subject ? `?subject=${subject}` : ''}`),
   updateStats: (data: { subject: string; totalQuestions?: number; correctCount?: number; totalAttempts?: number; studyTime?: number; date: string; }) =>
