@@ -97,6 +97,9 @@ export const OcrDialog: React.FC<OcrDialogProps> = ({
                     <li>获取 <code className="bg-slate-200 px-1 rounded text-[10px]">API Key</code> 和 <code className="bg-slate-200 px-1 rounded text-[10px]">Secret Key</code></li>
                     <li>在服务器 <code className="bg-slate-200 px-1 rounded text-[10px]">server/.env</code> 中填入密钥后重启服务</li>
                   </ol>
+                  <p className="text-[11px] text-amber-600 mt-1.5 leading-snug">
+                    ⚠️ 若服务端未配置上述密钥，在线 OCR 将不可用。请联系管理员在 <code className="bg-slate-200 px-1 rounded text-[10px]">server/.env</code> 填写 <code className="bg-slate-200 px-1 rounded text-[10px]">BAIDU_API_KEY</code> / <code className="bg-slate-200 px-1 rounded text-[10px]">BAIDU_SECRET_KEY</code> 后重启服务。
+                  </p>
                   <a href="https://cloud.baidu.com/product/ocr.html" target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 hover:underline font-medium">
                     <ExternalLink size={10} />
                     前往申请百度 OCR API →
