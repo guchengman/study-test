@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Check, GraduationCap } from 'lucide-react';
 import { authApi, subjectApi } from '../services/api';
+import { EmptyState } from './ui/EmptyState';
 
 export function StudentSelectorModal({ subjectId, subjectName, isOpen, onClose, onStudentIdsChange }: { subjectId: string; subjectName: string; isOpen: boolean; onClose: () => void; onStudentIdsChange: (ids: number[]) => void }) {
   const [allStudents, setAllStudents] = useState<{ id: number; username: string }[]>([]);
@@ -87,7 +88,7 @@ export function StudentSelectorModal({ subjectId, subjectName, isOpen, onClose, 
           {loading ? (
             <p className="text-sm text-slate-400 text-center py-6">加载学生列表...</p>
           ) : allStudents.length === 0 ? (
-            <p className="text-sm text-slate-400 text-center py-6">暂无学生，请先添加学生</p>
+            <EmptyState icon={<GraduationCap size={28} />} title="暂无学生" description="请先添加学生" />
           ) : (
             <>
               <div className="flex items-center justify-between mb-3">
@@ -136,7 +137,7 @@ export function StudentSelectorModal({ subjectId, subjectName, isOpen, onClose, 
           <button
             onClick={handleConfirm}
             disabled={saving || (!isAll && selectedIds.length === 0)}
-            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? '保存中...' : isAll ? `全体学生 (${allStudents.length}人)` : `已选 ${selectedIds.length} 人`}
           </button>

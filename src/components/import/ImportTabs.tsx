@@ -2,6 +2,7 @@
 import React from 'react';
 import { Upload, FileText, Loader2, Info, Sparkles, Wand2, Maximize2, Cpu } from 'lucide-react';
 import { MarkdownEditor } from '../MarkdownEditor';
+import { EmptyState } from '../ui/EmptyState';
 
 const MODELS = [
   {
@@ -298,11 +299,12 @@ export const ImportTabs: React.FC<ImportTabsProps> = ({
                 )}
 
                 {promptHistory.length === 0 && (
-                  <div className="px-4 py-6 text-center text-sm text-slate-400">
-                    <Sparkles size={20} className="mx-auto mb-2 opacity-50" />
-                    <div>暂无历史记录</div>
-                    <div className="text-[10px] mt-1">使用默认模板或输入自定义提示词</div>
-                  </div>
+                  <EmptyState
+                    icon={<Sparkles size={20} />}
+                    title="暂无历史记录"
+                    description="使用默认模板或输入自定义提示词"
+                    className="px-4"
+                  />
                 )}
               </div>
             )}
@@ -312,7 +314,7 @@ export const ImportTabs: React.FC<ImportTabsProps> = ({
           <button
             onClick={onGenerateFromPrompt}
             disabled={!promptInput.trim() || isGenerating}
-            className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 disabled:opacity-50 transition-all shadow-lg shadow-purple-100 flex items-center gap-2 whitespace-nowrap"
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-100 flex items-center gap-2 whitespace-nowrap"
           >
             {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <Wand2 size={16} />}
             生成题目

@@ -12,6 +12,8 @@ import { Trophy, CheckCircle2, XCircle, Clock, BookOpen, History, List } from 'l
 import { examApi } from '../../services/examApi';
 import type { ExamAttemptQuestion } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
+import { Spinner } from '../ui/Spinner';
+import { EmptyState } from '../ui/EmptyState';
 
 /** 将单个答案按选项拼成「字母. 文本」；已经是该格式或非字母则原样返回 */
 function formatLetterAnswer(label: string, options?: string[]): string {
@@ -123,16 +125,14 @@ export function FormalResultScreen(props: FormalResultScreenProps) {
 
         {loading && (
           <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-8">
-            <span className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+            <Spinner size="sm" className="text-blue-500" />
             加载答卷详情...
           </div>
         )}
         {error && <p className="text-rose-500 text-sm py-4 text-center">{error}</p>}
 
         {!loading && !error && wrongQuestions.length === 0 && (
-          <p className="text-slate-500 text-sm py-6 text-center">
-            {questions.length === 0 ? '暂无错题记录。' : '🎉 本次考试全部答对，没有错题！'}
-          </p>
+          <EmptyState title={questions.length === 0 ? '暂无错题记录。' : '🎉 本次考试全部答对，没有错题！'} />
         )}
 
         {!loading && !error && wrongQuestions.length > 0 && (
