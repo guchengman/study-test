@@ -76,7 +76,7 @@ export function SubjectShareCode({ subjectId, subjectName, scope = 'all', pendin
       <button
         onClick={generateCode}
         disabled={loading}
-        className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+        className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
       >
         {loading ? '生成中...' : '生成邀请码'}
       </button>
@@ -101,7 +101,7 @@ export function SubjectShareCode({ subjectId, subjectName, scope = 'all', pendin
         {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="text-slate-400" />}
       </button>
       {isExpired && (
-        <button onClick={generateCode} disabled={loading} className="text-xs text-emerald-600 hover:underline">
+        <button onClick={generateCode} disabled={loading} className="text-xs text-blue-600 hover:underline">
           重新生成
         </button>
       )}

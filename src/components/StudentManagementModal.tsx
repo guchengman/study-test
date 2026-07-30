@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { X, Users, Key, Check, UserX, Loader2, Copy, Plus, RefreshCw, BookOpen } from 'lucide-react';
 import { inviteCodeApi, studentApi, subjectApi, type InviteCode, type StudentItem, type PendingSubscription } from '../services/api';
+import { EmptyState } from './ui/EmptyState';
 
 interface StudentManagementModalProps {
   isOpen: boolean;
@@ -136,7 +137,7 @@ export const StudentManagementModal: React.FC<StudentManagementModalProps> = ({ 
                       </button>
                     </div>
                   </div>
-                  {codes.length === 0 ? <p className="text-center text-sm text-slate-400 py-4">暂无注册码</p> : codes.map(c => (
+                  {codes.length === 0 ? <EmptyState title="暂无注册码" /> : codes.map(c => (
                     <div key={c.id} className={`bg-white rounded-lg border p-3 ${isExpired(c.expires_at) ? 'border-slate-200 opacity-50' : 'border-blue-100'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -157,7 +158,7 @@ export const StudentManagementModal: React.FC<StudentManagementModalProps> = ({ 
                 </>
               )}
               {activeTab === 'pending' && (
-                pendingStudents.length === 0 ? <p className="text-center text-sm text-slate-400 py-4">暂无待审核学生</p> : pendingStudents.map(s => (
+                pendingStudents.length === 0 ? <EmptyState title="暂无待审核学生" /> : pendingStudents.map(s => (
                   <div key={s.id} className="bg-amber-50 rounded-lg border border-amber-100 p-3">
                     <div className="flex items-center justify-between">
                       <div><span className="font-medium text-slate-800">{s.username}</span><span className="text-xs text-slate-500 ml-2">{s.email}</span></div>
@@ -170,7 +171,7 @@ export const StudentManagementModal: React.FC<StudentManagementModalProps> = ({ 
                 ))
               )}
               {activeTab === 'students' && (
-                myStudents.length === 0 ? <p className="text-center text-sm text-slate-400 py-4">暂无学生</p> : myStudents.map(s => (
+                myStudents.length === 0 ? <EmptyState title="暂无学生" /> : myStudents.map(s => (
                   <div key={s.id} className="bg-white rounded-lg border border-slate-200 p-3">
                     <div className="flex items-center justify-between">
                       <div><span className="font-medium text-slate-800">{s.username}</span><span className="text-xs text-slate-500 ml-2">{s.email}</span><span className="text-xs text-green-500 ml-2">活跃</span></div>
@@ -183,7 +184,7 @@ export const StudentManagementModal: React.FC<StudentManagementModalProps> = ({ 
                 ))
               )}
               {activeTab === 'subjectPending' && (
-                pendingSubscriptions.length === 0 ? <p className="text-center text-sm text-slate-400 py-4">暂无科目加入申请</p> : pendingSubscriptions.map(sub => (
+                pendingSubscriptions.length === 0 ? <EmptyState title="暂无科目加入申请" /> : pendingSubscriptions.map(sub => (
                   <div key={sub.subscription_id} className="bg-amber-50 rounded-lg border border-amber-100 p-3">
                     <div className="flex items-center justify-between">
                       <div>

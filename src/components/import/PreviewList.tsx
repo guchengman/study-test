@@ -34,7 +34,7 @@ export const PreviewList: React.FC<PreviewListProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
+            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
           >
             <CheckCircle2 size={18} />
             确认导入

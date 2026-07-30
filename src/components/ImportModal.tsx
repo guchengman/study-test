@@ -797,7 +797,7 @@ D. I **has** seen that movie.
                 </button>
                 <button
                   onClick={() => setIsPromptExpanded(false)}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
                 >
                   完成
                 </button>

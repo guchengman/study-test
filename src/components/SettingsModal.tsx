@@ -418,7 +418,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
                 setSettings({ ...BUILD_TIME_CONFIG });
               }
             }}
-            className="px-3 py-2 text-red-500 hover:bg-red-50 rounded-lg transition-all text-xs"
+            className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all text-xs"
           >
             清除所有 Key
           </button>

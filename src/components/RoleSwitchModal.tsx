@@ -309,7 +309,7 @@ export const RoleSwitchModal: React.FC<RoleSwitchModalProps> = ({
             <button
               onClick={handleConvert}
               disabled={isConverting || (selectedRole === 'teacher' && !phone) || (selectedRole === 'student' && bindMethod === 'inviteCode' && !inviteCode) || (selectedRole === 'student' && bindMethod === 'teacherPhone' && !teacherPhone)}
-              className="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5 text-sm"
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm flex items-center gap-1.5 text-sm"
             >
               {isConverting ? <Loader2 className="animate-spin" size={14} /> : null}
               确认切换
