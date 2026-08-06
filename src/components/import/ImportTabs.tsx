@@ -148,8 +148,13 @@ export const ImportTabs: React.FC<ImportTabsProps> = ({
             <label className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer transition-all border border-slate-200 hover:border-purple-300">
               <Upload size={13} />
               <span>上传文件</span>
-              <span className="text-[9px] text-slate-400">PDF/DOCX/DOC/TXT/MD/CSV/JSON</span>
-              <input type="file" className="hidden" accept=".pdf,.docx,.doc,.txt,.md,.csv,.json" onChange={onFileChange} />
+              <span className="text-[9px] text-slate-400">PDF/DOCX/DOC/TXT/MD/CSV/XLSX/JSON</span>
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx,.xls,.json"
+                onChange={onFileChange}
+              />
             </label>
             {/* 公式识别开关 */}
             <label className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-all border border-slate-200 hover:border-blue-300 select-none">

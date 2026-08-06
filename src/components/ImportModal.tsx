@@ -9,6 +9,7 @@ import {
   extractTextFromMd,
   extractTextFromDoc,
   parseCSV,
+  parseXLSX,
   extractTextFromPDFWithOCR,
   parsePdfSmartOCR,
   parsePdfWithAIVision,
@@ -265,6 +266,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         setIsParsing(false);
         setUploadingFileName(null);
         return;
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const parsedQuestions = await parseXLSX(file);
+        const convertedQuestions = convertParsedQuestions(parsedQuestions, currentSubjectId);
+        console.log(`Excel 解析成功，共 ${convertedQuestions.length} 道题目`);
+        setPreview(convertedQuestions);
+        setIsParsing(false);
+        setUploadingFileName(null);
+        return;
       } else if (file.name.endsWith('.json')) {
         const fileText = await file.text();
         let jsonData: any;
@@ -289,7 +298,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         setUploadingFileName(null);
         return;
       } else {
-        throw new Error('不支持的文件格式,请上传 PDF/DOCX/DOC/TXT/MD/CSV/JSON 文件。');
+        throw new Error('不支持的文件格式,请上传 PDF/DOCX/DOC/TXT/MD/CSV/Excel(XLSX/XLS)/JSON 文件。');
       }
 
       console.log(`文件解析成功，提取文字: ${extractedText.length} 字符`);
@@ -683,7 +692,7 @@ D. I **has** seen that movie.
                 <Upload className="text-blue-600" size={24} />
                 导入题目到题库
               </h2>
-              <p className="text-sm text-slate-500 mt-1">支持 Word、PDF、TXT、MD、CSV、JSON 或直接粘贴文本</p>
+              <p className="text-sm text-slate-500 mt-1">支持 Word、PDF、TXT、MD、CSV、Excel/XLSX、JSON 或直接粘贴文本</p>
             </div>
             <div className="flex items-center gap-2">
               <button
