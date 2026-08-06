@@ -10,6 +10,10 @@ import { motion } from 'motion/react';
 import { X, Save, CheckSquare, Square, AlertTriangle, Shuffle, Info } from 'lucide-react';
 import { questionApi, type QuestionItem } from '../../services/api';
 import type { Exam, ExamFormPayload, ExamStatus, Subject } from '../../types';
+import { VirtualList } from '../ui/VirtualList';
+
+/** 选题列表面板高度（px），与原 max-h-72 等价 */
+const QUESTION_PICKER_HEIGHT = 288;
 
 /** 后端 DATETIME 字符串 → datetime-local 值（YYYY-MM-DDTHH:mm） */
 function toLocalInput(value: string | null): string {
@@ -498,11 +502,18 @@ export function ExamForm(props: ExamFormProps) {
           ) : questions.length === 0 ? (
             <div className="text-sm text-slate-400 py-6 text-center">该科目暂无题目，请先导入题目。</div>
           ) : (
-            <div className="max-h-72 overflow-y-auto space-y-2 border border-slate-100 rounded-2xl p-2">
-              {questions.map((q) => {
+            <VirtualList
+              items={questions}
+              itemKey={(q) => q.id}
+              gap={8}
+              estimatedItemHeight={60}
+              viewportHeight={QUESTION_PICKER_HEIGHT}
+              plainMaxHeight={QUESTION_PICKER_HEIGHT}
+              className="border border-slate-100 rounded-2xl p-2"
+              renderItem={(q) => {
                 const isSel = selected[q.id] !== undefined;
                 return (
-                  <div key={q.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50">
+                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50">
                     <button type="button" onClick={() => toggleQuestion(q.id)} className="flex-shrink-0">
                       {isSel ? <CheckSquare size={18} className="text-blue-600" /> : <Square size={18} className="text-slate-300" />}
                     </button>
@@ -525,8 +536,9 @@ export function ExamForm(props: ExamFormProps) {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }}
+            />
+
           )}
         </div>
 

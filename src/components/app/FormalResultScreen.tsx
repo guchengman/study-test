@@ -14,6 +14,7 @@ import type { ExamAttemptQuestion } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { Spinner } from '../ui/Spinner';
 import { EmptyState } from '../ui/EmptyState';
+import { VirtualList, useVirtualViewportHeight } from '../ui/VirtualList';
 
 /** 将单个答案按选项拼成「字母. 文本」；已经是该格式或非字母则原样返回 */
 function formatLetterAnswer(label: string, options?: string[]): string {
@@ -67,6 +68,9 @@ export function FormalResultScreen(props: FormalResultScreenProps) {
   const [questions, setQuestions] = React.useState<ExamAttemptQuestion[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // 错题数超过阈值时，回顾列表改为窗口化滚动（阈值内维持整页流式渲染）
+  const viewportHeight = useVirtualViewportHeight();
 
   React.useEffect(() => {
     let active = true;
@@ -136,9 +140,14 @@ export function FormalResultScreen(props: FormalResultScreenProps) {
         )}
 
         {!loading && !error && wrongQuestions.length > 0 && (
-          <div className="space-y-4">
-            {wrongQuestions.map((q, idx) => (
-              <div key={q.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50">
+          <VirtualList
+            items={wrongQuestions}
+            itemKey={(q) => q.id}
+            gap={16}
+            estimatedItemHeight={240}
+            viewportHeight={viewportHeight}
+            renderItem={(q, idx) => (
+              <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50">
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-bold text-slate-400 mt-0.5">#{idx + 1}</span>
                   <MarkdownRenderer content={q.title} className="font-bold text-slate-800 text-sm flex-1" />
@@ -160,11 +169,18 @@ export function FormalResultScreen(props: FormalResultScreenProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                   <div className="p-2 rounded-lg bg-white border border-rose-100">
                     <div className="text-[11px] font-bold text-rose-500 mb-1">你的答案</div>
-                    <div className="text-slate-600 font-mono break-words">{formatAnswerWithOption(q.user_answer, q.options)}</div>
+                    {/* 答案内含选项原文，可能带 LaTeX，走 MarkdownRenderer 兜底 */}
+                    <MarkdownRenderer
+                      content={formatAnswerWithOption(q.user_answer, q.options)}
+                      className="text-slate-600 font-mono break-words"
+                    />
                   </div>
                   <div className="p-2 rounded-lg bg-white border border-emerald-100">
                     <div className="text-[11px] font-bold text-emerald-500 mb-1">正确答案</div>
-                    <div className="text-slate-600 font-mono break-words">{formatAnswerWithOption(q.correct_answer, q.options)}</div>
+                    <MarkdownRenderer
+                      content={formatAnswerWithOption(q.correct_answer, q.options)}
+                      className="text-slate-600 font-mono break-words"
+                    />
                   </div>
                 </div>
 
@@ -177,8 +193,8 @@ export function FormalResultScreen(props: FormalResultScreenProps) {
                   </div>
                 ) : null}
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </div>
 

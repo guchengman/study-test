@@ -24,6 +24,10 @@ import type { Question, MistakeRecord } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { EmptyState } from '../ui/EmptyState';
 import { PrimaryButton, GhostButton } from '../ui/Button';
+import { VirtualList } from '../ui/VirtualList';
+
+/** 搜索结果面板高度（px），与原 max-h-40 等价 */
+const SEARCH_PANEL_HEIGHT = 160;
 
 export interface ExamScreenProps {
   examQuestions: Question[];
@@ -109,6 +113,19 @@ export function ExamScreen(props: ExamScreenProps) {
   } = props;
 
   const [searchMode, setSearchMode] = React.useState<'text' | 'number'>('text');
+
+  // 搜索结果提到渲染函数外并 memo：既避免每次渲染重建数组，也让虚拟列表拿到稳定数据源
+  const searchResults = React.useMemo<Question[]>(() => {
+    if (!searchQuery) return [];
+    if (searchMode === 'number') {
+      const keyword = searchQuery.trim();
+      return examQuestions.filter(
+        (q, i) => String(i + 1).startsWith(keyword) || String(q.id).startsWith(keyword)
+      );
+    }
+    const keyword = searchQuery.toLowerCase();
+    return examQuestions.filter((q) => q.title.toLowerCase().includes(keyword));
+  }, [examQuestions, searchMode, searchQuery]);
 
   if (examQuestions.length === 0) {
     return (
@@ -415,23 +432,23 @@ export function ExamScreen(props: ExamScreenProps) {
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               {searchMode === 'number' ? '题号匹配:' : '搜索结果:'}
             </div>
-            <div className="max-h-40 overflow-y-auto border border-slate-100 rounded-xl p-2 space-y-1">
-              {(() => {
-                const filtered = searchMode === 'number'
-                  ? examQuestions.filter((q, i) => {
-                      const qNum = String(i + 1);
-                      const qId = String(q.id);
-                      return qNum.startsWith(searchQuery.trim()) || qId.startsWith(searchQuery.trim());
-                    })
-                  : examQuestions.filter((q) => q.title.toLowerCase().includes(searchQuery.toLowerCase()));
-                if (filtered.length === 0) {
-                  return <div className="text-center py-4 text-slate-400 text-xs">未找到匹配题目</div>;
-                }
-                return filtered.map((q) => {
+            {searchResults.length === 0 ? (
+              <div className="border border-slate-100 rounded-xl p-2">
+                <div className="text-center py-4 text-slate-400 text-xs">未找到匹配题目</div>
+              </div>
+            ) : (
+              <VirtualList
+                items={searchResults}
+                itemKey={(q) => q.id}
+                gap={4}
+                estimatedItemHeight={36}
+                viewportHeight={SEARCH_PANEL_HEIGHT}
+                plainMaxHeight={SEARCH_PANEL_HEIGHT}
+                className="border border-slate-100 rounded-xl p-2"
+                renderItem={(q) => {
                   const idx = examQuestions.findIndex((eq) => eq.id === q.id) + 1;
                   return (
                     <button
-                      key={q.id}
                       onClick={() => {
                         setCurrentIndex(idx - 1);
                         setShowFeedback(false);
@@ -445,9 +462,9 @@ export function ExamScreen(props: ExamScreenProps) {
                       {q.title.length > 50 ? q.title.substring(0, 50) + '...' : q.title}
                     </button>
                   );
-                });
-              })()}
-            </div>
+                }}
+              />
+            )}
           </div>
         )}
 
