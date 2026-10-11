@@ -55,6 +55,8 @@ jobs:
           rsync -avz ./server/package.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
           rsync -avz ./server/package-lock.json -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/
           rsync -avz ./server/migrations/ -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:${{ env.SERVER_PATH }}/server/migrations/
+          # P2-9：同步 nginx 配置到临时路径（服务器现役位置未知，由下方步骤定位后原子替换）
+          rsync -avz ./nginx-study-test.conf -e "ssh -i ~/.ssh/private_key" root@${{ env.SERVER_HOST }}:/tmp/study-nginx-new.conf
 
       - name: Update environment files
         run: |
@@ -91,7 +93,19 @@ jobs:
             pm2 set pm2-logrotate:retain 7
             pm2 set pm2-logrotate:compress true
             pm2 save
-            nginx -t && nginx -s reload
+            # P2-9：用仓库配置更新现役 nginx conf（差异则备份→替换→nginx -t 校验，失败自动回滚，保证站点不因配置错误断流）
+            CONF=$(grep -rl 'study-test/dist' /etc/nginx/ 2>/dev/null | head -1)
+            if [ -n "$CONF" ] && ! cmp -s /tmp/study-nginx-new.conf "$CONF"; then
+              cp "$CONF" "$CONF.bak.$(date +%s)"
+              cp /tmp/study-nginx-new.conf "$CONF"
+              if nginx -t 2>/dev/null; then
+                nginx -s reload && echo "✅ nginx 配置已更新并 reload"
+              else
+                cp "$CONF".bak.* "$CONF" && nginx -t && echo "⚠️ nginx 新配置校验失败，已回滚"
+              fi
+            else
+              nginx -t && nginx -s reload
+            fi
           SSHEOF
 
       - name: Health check
