@@ -85,6 +85,11 @@ jobs:
             npm ci --production
             node src/migrate.js || echo "⚠️ 数据库迁移步骤未成功完成（不影响代码部署），请检查日志"
             pm2 restart study-server || pm2 start src/index.js --name study-server
+            # 日志轮转（P1-7）：首次部署自动安装 pm2-logrotate，单文件 10MB、保留 7 份、gzip 压缩
+            pm2 describe pm2-logrotate >/dev/null 2>&1 || pm2 install pm2-logrotate
+            pm2 set pm2-logrotate:max_size 10M
+            pm2 set pm2-logrotate:retain 7
+            pm2 set pm2-logrotate:compress true
             pm2 save
             nginx -t && nginx -s reload
           SSHEOF

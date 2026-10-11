@@ -10,6 +10,7 @@ import {
   sendVerificationEmail,
   isEmailVerificationEnforced,
 } from '../utils/emailVerification.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -68,12 +69,12 @@ router.post('/send-code', sendCodeLimiter, async (req, res) => {
     try {
       await sendVerificationEmail(email, created.code, purpose);
     } catch (sendErr) {
-      console.error('发送验证邮件失败:', sendErr.message);
+      log.error('发送验证邮件失败:', sendErr.message);
       return res.status(502).json({ error: '邮件服务暂时不可用，请稍后重试' });
     }
     return res.json({ message: GENERIC, enabled: true });
   } catch (err) {
-    console.error('发送验证码错误:', err);
+    log.error('发送验证码错误:', err);
     res.status(500).json({ error: '发送失败，请稍后重试' });
   }
 });
@@ -109,7 +110,7 @@ router.post('/reset-with-code', loginRegisterLimiter, async (req, res) => {
     await pool.execute('UPDATE users SET password_hash = ?, password_reset = 0 WHERE id = ?', [hash, rows[0].id]);
     res.json({ message: GENERIC, success: true });
   } catch (err) {
-    console.error('验证码重置密码错误:', err);
+    log.error('验证码重置密码错误:', err);
     res.status(500).json({ error: '重置失败，请稍后重试' });
   }
 });
@@ -124,7 +125,7 @@ router.get('/check-username', async (req, res) => {
     const [rows] = await pool.execute('SELECT id FROM users WHERE username = ?', [username]);
     res.json({ exists: rows.length > 0 });
   } catch (err) {
-    console.error('检查用户名错误:', err);
+    log.error('检查用户名错误:', err);
     res.status(500).json({ error: '检查失败' });
   }
 });
@@ -308,9 +309,9 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
               );
             } catch (e) { /* 忽略单题复制失败 */ }
           }
-          console.log(`从 ${subj.systemId} 复制 ${systemQuestions.length} 道题目到 ${subj.id}`);
-        } catch (e) { console.warn('复制系统题库失败:', subj.systemId, e.message); }
-      } catch (e) { console.warn('创建默认科目失败:', subj.name, e.message); }
+          log.info(`从 ${subj.systemId} 复制 ${systemQuestions.length} 道题目到 ${subj.id}`);
+        } catch (e) { log.warn('复制系统题库失败:', subj.systemId, e.message); }
+      } catch (e) { log.warn('创建默认科目失败:', subj.name, e.message); }
     }
 
     const token = generateToken({
@@ -337,7 +338,7 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('注册错误:', err);
+    log.error('注册错误:', err);
     res.status(500).json({ error: '注册失败' });
   }
 });
@@ -396,7 +397,7 @@ router.post('/login', loginRegisterLimiter, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('登录错误:', err);
+    log.error('登录错误:', err);
     res.status(500).json({ error: '登录失败' });
   }
 });
@@ -440,7 +441,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('获取用户信息错误:', err);
+    log.error('获取用户信息错误:', err);
     res.status(500).json({ error: '获取用户信息失败' });
   }
 });
@@ -481,7 +482,7 @@ router.put('/password', authMiddleware, async (req, res) => {
     await pool.execute('UPDATE users SET password_hash = ?, password_reset = 0 WHERE id = ?', [hash, req.user.id]);
     res.json({ message: '密码修改成功' });
   } catch (err) {
-    console.error('修改密码错误:', err);
+    log.error('修改密码错误:', err);
     res.status(500).json({ error: '修改密码失败' });
   }
 });
@@ -593,7 +594,7 @@ router.post('/convert-role', authMiddleware, async (req, res) => {
       user: { ...user, teacher_name: teacherName, passwordReset: false }
     });
   } catch (err) {
-    console.error('角色转换错误:', err);
+    log.error('角色转换错误:', err);
     res.status(500).json({ error: '角色转换失败' });
   }
 });
@@ -666,7 +667,7 @@ router.post('/bind-teacher', authMiddleware, async (req, res) => {
       message: userStatus === 'pending' ? '已提交申请，等待老师审核' : '已成功绑定老师'
     });
   } catch (err) {
-    console.error('绑定老师错误:', err);
+    log.error('绑定老师错误:', err);
     res.status(500).json({ error: '绑定老师失败' });
   }
 });
@@ -687,7 +688,7 @@ router.get('/list', authMiddleware, async (req, res) => {
     );
     res.json({ users: rows });
   } catch (err) {
-    console.error('获取用户列表错误:', err);
+    log.error('获取用户列表错误:', err);
     res.status(500).json({ error: '获取用户列表失败' });
   }
 });
@@ -715,7 +716,7 @@ router.get('/teacher-students/:teacherId', authMiddleware, async (req, res) => {
     );
     res.json({ students: rows });
   } catch (err) {
-    console.error('获取老师学生列表错误:', err);
+    log.error('获取老师学生列表错误:', err);
     res.status(500).json({ error: '获取学生列表失败' });
   }
 });
@@ -735,7 +736,7 @@ router.put('/reset-password', authMiddleware, async (req, res) => {
     await pool.execute('UPDATE users SET password_hash = ?, password_reset = 1 WHERE id = ?', [defaultHash, userId]);
     res.json({ message: '密码已重置成功，临时密码已生成（出于安全考虑不在响应中返回，请通过其他渠道通知用户）' });
   } catch (err) {
-    console.error('重置密码错误:', err);
+    log.error('重置密码错误:', err);
     res.status(500).json({ error: '重置密码失败' });
   }
 });
@@ -829,7 +830,7 @@ router.delete('/user/:id', authMiddleware, async (req, res) => {
     res.json({ message: '用户已删除' });
   } catch (err) {
     await conn.rollback();
-    console.error('删除用户错误:', err);
+    log.error('删除用户错误:', err);
     res.status(500).json({ error: '删除用户失败: ' + err.message });
   } finally {
     conn.release();
@@ -856,7 +857,7 @@ router.get('/settings', authMiddleware, async (req, res) => {
       res.json({ settings: null });
     }
   } catch (err) {
-    console.error('获取设置错误:', err);
+    log.error('获取设置错误:', err);
     res.status(500).json({ error: '获取设置失败' });
   }
 });
@@ -874,7 +875,7 @@ router.put('/settings', authMiddleware, async (req, res) => {
     );
     res.json({ message: '设置保存成功' });
   } catch (err) {
-    console.error('保存设置错误:', err);
+    log.error('保存设置错误:', err);
     res.status(500).json({ error: '保存设置失败' });
   }
 });
@@ -890,7 +891,7 @@ router.put('/help-read', authMiddleware, async (req, res) => {
     );
     res.json({ message: 'ok' });
   } catch (err) {
-    console.error('标记帮助阅读错误:', err);
+    log.error('标记帮助阅读错误:', err);
     res.status(500).json({ error: '操作失败' });
   }
 });
@@ -973,7 +974,7 @@ router.delete('/account', authMiddleware, async (req, res) => {
     res.json({ message: '账号已注销' });
   } catch (err) {
     await conn.rollback();
-    console.error('注销账号错误:', err);
+    log.error('注销账号错误:', err);
     res.status(500).json({ error: '注销失败: ' + err.message });
   } finally {
     conn.release();

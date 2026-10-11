@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get('/pending', authMiddleware, async (req, res) => {
     );
     res.json({ students: rows });
   } catch (err) {
-    console.error('获取待审核学生错误:', err);
+    log.error('获取待审核学生错误:', err);
     res.status(500).json({ error: '获取待审核学生失败' });
   }
 });
@@ -38,7 +39,7 @@ router.put('/approve/:id', authMiddleware, async (req, res) => {
     }
     res.json({ message: '学生已通过审核' });
   } catch (err) {
-    console.error('审核学生错误:', err);
+    log.error('审核学生错误:', err);
     res.status(500).json({ error: '审核操作失败' });
   }
 });
@@ -65,7 +66,7 @@ router.put('/reject/:id', authMiddleware, async (req, res) => {
     res.json({ message: '已拒绝该学生，已转为独立用户' });
   } catch (err) {
     await conn.rollback();
-    console.error('拒绝学生错误:', err);
+    log.error('拒绝学生错误:', err);
     res.status(500).json({ error: '拒绝操作失败' });
   } finally {
     conn.release();
@@ -84,7 +85,7 @@ router.get('/my', authMiddleware, async (req, res) => {
     );
     res.json({ students: rows });
   } catch (err) {
-    console.error('获取学生列表错误:', err);
+    log.error('获取学生列表错误:', err);
     res.status(500).json({ error: '获取学生列表失败' });
   }
 });
@@ -111,7 +112,7 @@ router.put('/remove/:id', authMiddleware, async (req, res) => {
     res.json({ message: '学生已移除，已转为独立用户' });
   } catch (err) {
     await conn.rollback();
-    console.error('移除学生错误:', err);
+    log.error('移除学生错误:', err);
     res.status(500).json({ error: '移除学生失败' });
   } finally {
     conn.release();
@@ -141,7 +142,7 @@ router.put('/reset-password/:id', authMiddleware, async (req, res) => {
     );
     res.json({ message: `密码已重置`, tempPassword: newPassword });
   } catch (err) {
-    console.error('重置学生密码错误:', err);
+    log.error('重置学生密码错误:', err);
     res.status(500).json({ error: '重置密码失败' });
   }
 });

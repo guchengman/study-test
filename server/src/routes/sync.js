@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -112,7 +113,7 @@ router.post('/migrate', authMiddleware, async (req, res) => {
     res.json({ migrated, message: '数据迁移完成' });
   } catch (err) {
     await conn.rollback();
-    console.error('数据迁移错误:', err);
+    log.error('数据迁移错误:', err);
     res.status(500).json({ error: '数据迁移失败' });
   } finally {
     conn.release();
@@ -156,7 +157,7 @@ router.get('/export', authMiddleware, async (req, res) => {
       data: { subjects, questions, mistakes, favorites, stats },
     });
   } catch (err) {
-    console.error('导出数据错误:', err);
+    log.error('导出数据错误:', err);
     res.status(500).json({ error: '导出数据失败' });
   }
 });

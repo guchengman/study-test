@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -126,7 +127,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ subjects: rows });
   } catch (err) {
-    console.error('获取科目列表错误:', err);
+    log.error('获取科目列表错误:', err);
     res.status(500).json({ error: '获取科目列表失败' });
   }
 });
@@ -175,7 +176,7 @@ router.post('/', authMiddleware, async (req, res) => {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: '科目ID已存在' });
     }
-    console.error('创建科目错误:', err);
+    log.error('创建科目错误:', err);
     res.status(500).json({ error: '科目创建失败' });
   }
 });
@@ -252,7 +253,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     res.json({ message: '科目更新成功' });
   } catch (err) {
     await conn.rollback();
-    console.error('更新科目错误:', err);
+    log.error('更新科目错误:', err);
     res.status(500).json({ error: '科目更新失败' });
   } finally {
     conn.release();
@@ -285,7 +286,7 @@ router.get('/:id/students', authMiddleware, async (req, res) => {
       isAllStudents: accessRows.length === 0 // 没有白名单=全体
     });
   } catch (err) {
-    console.error('获取科目学生列表错误:', err);
+    log.error('获取科目学生列表错误:', err);
     res.status(500).json({ error: '获取失败' });
   }
 });
@@ -328,7 +329,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.json({ message: '科目及关联数据删除成功', deletedQuestions: questions.length });
   } catch (err) {
     await conn.rollback();
-    console.error('删除科目错误:', err);
+    log.error('删除科目错误:', err);
     res.status(500).json({ error: '科目删除失败' });
   } finally {
     conn.release();
@@ -370,7 +371,7 @@ router.post('/:id/initialize', authMiddleware, async (req, res) => {
 
     res.json({ message: '科目已初始化，所有题目和练习记录已清空', deletedQuestions: questions.length });
   } catch (err) {
-    console.error('初始化科目错误:', err);
+    log.error('初始化科目错误:', err);
     res.status(500).json({ error: '初始化科目失败' });
   }
 });
@@ -442,7 +443,7 @@ router.post('/join', authMiddleware, async (req, res) => {
       status: subStatus
     });
   } catch (err) {
-    console.error('加入共享科目错误:', err);
+    log.error('加入共享科目错误:', err);
     res.status(500).json({ error: '加入共享科目失败' });
   }
 });
@@ -459,7 +460,7 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
     }
     res.json({ message: '已退订共享科目' });
   } catch (err) {
-    console.error('退订科目错误:', err);
+    log.error('退订科目错误:', err);
     res.status(500).json({ error: '退订科目失败' });
   }
 });
@@ -478,7 +479,7 @@ router.get('/subscribed', authMiddleware, async (req, res) => {
     );
     res.json({ subjects: rows });
   } catch (err) {
-    console.error('获取订阅科目错误:', err);
+    log.error('获取订阅科目错误:', err);
     res.status(500).json({ error: '获取订阅科目失败' });
   }
 });
@@ -501,7 +502,7 @@ router.get('/pending-subscriptions', authMiddleware, async (req, res) => {
     );
     res.json({ subscriptions: rows });
   } catch (err) {
-    console.error('获取待审核订阅错误:', err);
+    log.error('获取待审核订阅错误:', err);
     res.status(500).json({ error: '获取待审核订阅失败' });
   }
 });
@@ -535,7 +536,7 @@ router.put('/subscriptions/:id/approve', authMiddleware, async (req, res) => {
     );
     res.json({ message: '已通过审核' });
   } catch (err) {
-    console.error('审核通过错误:', err);
+    log.error('审核通过错误:', err);
     res.status(500).json({ error: '审核操作失败' });
   }
 });
@@ -566,7 +567,7 @@ router.put('/subscriptions/:id/reject', authMiddleware, async (req, res) => {
     await pool.execute('DELETE FROM subject_subscriptions WHERE id = ?', [subscriptionId]);
     res.json({ message: '已拒绝该申请' });
   } catch (err) {
-    console.error('拒绝订阅错误:', err);
+    log.error('拒绝订阅错误:', err);
     res.status(500).json({ error: '拒绝操作失败' });
   }
 });

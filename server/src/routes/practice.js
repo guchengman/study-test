@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/mistakes', authMiddleware, async (req, res) => {
     });
     res.json({ mistakes: rows });
   } catch (err) {
-    console.error('获取错题列表错误:', err);
+    log.error('获取错题列表错误:', err);
     res.status(500).json({ error: '获取错题列表失败' });
   }
 });
@@ -97,7 +98,7 @@ router.post('/mistakes', authMiddleware, async (req, res) => {
       return res.json({ message: '答题正确', mastered: false });
     }
   } catch (err) {
-    console.error('记录错题错误:', err);
+    log.error('记录错题错误:', err);
     res.status(500).json({ error: '记录错题失败' });
   }
 });
@@ -117,7 +118,7 @@ router.put('/mistakes', authMiddleware, async (req, res) => {
     );
     res.json({ message: '错题记录已更新' });
   } catch (err) {
-    console.error('更新错题错误:', err);
+    log.error('更新错题错误:', err);
     res.status(500).json({ error: '更新错题失败' });
   }
 });
@@ -136,7 +137,7 @@ router.post('/mistakes/add', authMiddleware, async (req, res) => {
     );
     res.json({ message: '已加入错题本' });
   } catch (err) {
-    console.error('添加错题错误:', err);
+    log.error('添加错题错误:', err);
     res.status(500).json({ error: '添加错题失败' });
   }
 });
@@ -150,7 +151,7 @@ router.delete('/mistakes/:question_id', authMiddleware, async (req, res) => {
     );
     res.json({ message: '已移出错题本' });
   } catch (err) {
-    console.error('删除错题错误:', err);
+    log.error('删除错题错误:', err);
     res.status(500).json({ error: '删除错题失败' });
   }
 });
@@ -174,7 +175,7 @@ router.get('/favorites', authMiddleware, async (req, res) => {
     });
     res.json({ favorites: rows });
   } catch (err) {
-    console.error('获取收藏列表错误:', err);
+    log.error('获取收藏列表错误:', err);
     res.status(500).json({ error: '获取收藏列表失败' });
   }
 });
@@ -192,7 +193,7 @@ router.post('/favorites', authMiddleware, async (req, res) => {
     );
     res.json({ favorited: true, message: '已收藏' });
   } catch (err) {
-    console.error('添加收藏错误:', err);
+    log.error('添加收藏错误:', err);
     res.status(500).json({ error: '添加收藏失败' });
   }
 });
@@ -206,7 +207,7 @@ router.delete('/favorites/:question_id', authMiddleware, async (req, res) => {
     );
     res.json({ message: '已取消收藏' });
   } catch (err) {
-    console.error('取消收藏错误:', err);
+    log.error('取消收藏错误:', err);
     res.status(500).json({ error: '取消收藏失败' });
   }
 });
@@ -221,7 +222,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
     );
     res.json({ stats: rows });
   } catch (err) {
-    console.error('获取统计错误:', err);
+    log.error('获取统计错误:', err);
     res.status(500).json({ error: '获取统计数据失败' });
   }
 });
@@ -300,7 +301,7 @@ router.post('/stats', authMiddleware, async (req, res) => {
     res.json({ message: '统计更新成功' });
   } catch (err) {
     await conn.rollback();
-    console.error('更新统计错误:', err);
+    log.error('更新统计错误:', err);
     res.status(500).json({ error: '更新统计失败' });
   } finally {
     conn.release();

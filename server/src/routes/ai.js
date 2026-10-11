@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { authMiddleware } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.post('/gemini/generate', authMiddleware, aiLimiter, async (req, res) => {
     });
     res.json({ text: response.text });
   } catch (err) {
-    console.error('Gemini 代理错误:', err?.message || err);
+    log.error('Gemini 代理错误:', err?.message || err);
     res.status(500).json({ error: err?.message || 'Gemini 调用失败' });
   }
 });

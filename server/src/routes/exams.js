@@ -17,6 +17,7 @@ import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { gradeQuestion } from '../utils/examScoring.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -114,7 +115,7 @@ async function sweepExpiredAttempts(examId = null, userId = null, excludeAttempt
       autoSubmitted += 1;
     } catch (err) {
       await conn.rollback();
-      console.error('sweepExpiredAttempts 单条失败:', err);
+      log.error('sweepExpiredAttempts 单条失败:', err);
     } finally {
       conn.release();
     }
@@ -251,7 +252,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     res.json({ id: result.insertId, status: 'draft' });
   } catch (err) {
-    console.error('创建考试错误:', err);
+    log.error('创建考试错误:', err);
     res.status(500).json({ error: '创建考试失败' });
   }
 });
@@ -331,7 +332,7 @@ router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
 
     res.json({ message: '考试已更新' });
   } catch (err) {
-    console.error('更新考试错误:', err);
+    log.error('更新考试错误:', err);
     res.status(500).json({ error: '更新考试失败' });
   }
 });
@@ -350,7 +351,7 @@ router.delete('/:id(\\d+)', authMiddleware, async (req, res) => {
     await pool.execute('DELETE FROM exams WHERE id = ?', [examId]);
     res.json({ message: '考试已删除' });
   } catch (err) {
-    console.error('删除考试错误:', err);
+    log.error('删除考试错误:', err);
     res.status(500).json({ error: '删除考试失败' });
   }
 });
@@ -378,7 +379,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ exams });
   } catch (err) {
-    console.error('获取我的考试列表错误:', err);
+    log.error('获取我的考试列表错误:', err);
     res.status(500).json({ error: '获取考试列表失败' });
   }
 });
@@ -446,7 +447,7 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('获取考试详情错误:', err);
+    log.error('获取考试详情错误:', err);
     res.status(500).json({ error: '获取考试详情失败' });
   }
 });
@@ -502,7 +503,7 @@ router.get('/available', authMiddleware, async (req, res) => {
 
     res.json({ exams });
   } catch (err) {
-    console.error('获取可参加列表错误:', err);
+    log.error('获取可参加列表错误:', err);
     res.status(500).json({ error: '获取可参加考试失败' });
   }
 });
@@ -611,7 +612,7 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
       total_points: exam.total_points,
     });
   } catch (err) {
-    console.error('开始考试错误:', err);
+    log.error('开始考试错误:', err);
     res.status(500).json({ error: '开始考试失败' });
   }
 });
@@ -700,7 +701,7 @@ router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
     try {
       await conn.rollback();
     } catch {}
-    console.error('提交考试错误:', err);
+    log.error('提交考试错误:', err);
     res.status(500).json({ error: '提交考试失败' });
   } finally {
     if (conn) conn.release();
@@ -779,7 +780,7 @@ router.get('/attempts/:attemptId', authMiddleware, async (req, res) => {
       questions,
     });
   } catch (err) {
-    console.error('查看答卷错误:', err);
+    log.error('查看答卷错误:', err);
     res.status(500).json({ error: '查看答卷失败' });
   }
 });
@@ -831,7 +832,7 @@ router.get('/my-history', authMiddleware, async (req, res) => {
 
     res.json({ history, bestScores });
   } catch (err) {
-    console.error('获取历史成绩错误:', err);
+    log.error('获取历史成绩错误:', err);
     res.status(500).json({ error: '获取历史成绩失败' });
   }
 });
@@ -926,7 +927,7 @@ router.get('/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('考试分析错误:', err);
+    log.error('考试分析错误:', err);
     res.status(500).json({ error: '获取考试分析失败' });
   }
 });
@@ -963,7 +964,7 @@ router.get('/:id(\\d+)/attempts', authMiddleware, async (req, res) => {
 
     res.json({ attempts });
   } catch (err) {
-    console.error('获取答卷列表错误:', err);
+    log.error('获取答卷列表错误:', err);
     res.status(500).json({ error: '获取答卷列表失败' });
   }
 });
@@ -982,7 +983,7 @@ router.post('/:id(\\d+)/sweep', authMiddleware, async (req, res) => {
     const autoSubmitted = await sweepExpiredAttempts(examId, null);
     res.json({ autoSubmitted });
   } catch (err) {
-    console.error('批量自动交卷错误:', err);
+    log.error('批量自动交卷错误:', err);
     res.status(500).json({ error: '批量自动交卷失败' });
   }
 });

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -75,7 +76,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ questions: rows, total, page: pageNum, limit: limitNum });
   } catch (err) {
-    console.error('获取题目列表错误:', err);
+    log.error('获取题目列表错误:', err);
     res.status(500).json({ error: '获取题目列表失败' });
   }
 });
@@ -101,7 +102,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     rows[0].is_owner = (rows[0].created_by === userId);
     res.json({ question: rows[0] });
   } catch (err) {
-    console.error('获取题目错误:', err);
+    log.error('获取题目错误:', err);
     res.status(500).json({ error: '获取题目失败' });
   }
 });
@@ -159,7 +160,7 @@ router.post('/', authMiddleware, async (req, res) => {
     );
     res.json({ id: result.insertId, message: '题目创建成功' });
   } catch (err) {
-    console.error('创建题目错误:', err);
+    log.error('创建题目错误:', err);
     res.status(500).json({ error: '创建题目失败' });
   }
 });
@@ -231,7 +232,7 @@ router.post('/batch', authMiddleware, async (req, res) => {
     res.json({ ids: results, count: results.length, message: `成功导入 ${results.length} 道题目` });
   } catch (err) {
     await conn.rollback();
-    console.error('批量创建题目错误:', err);
+    log.error('批量创建题目错误:', err);
     res.status(500).json({ error: '批量创建题目失败' });
   } finally {
     conn.release();
@@ -263,7 +264,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     );
     res.json({ message: '题目更新成功' });
   } catch (err) {
-    console.error('更新题目错误:', err);
+    log.error('更新题目错误:', err);
     res.status(500).json({ error: '题目更新失败' });
   }
 });
@@ -281,7 +282,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
     res.json({ message: '题目删除成功' });
   } catch (err) {
-    console.error('删除题目错误:', err);
+    log.error('删除题目错误:', err);
     res.status(500).json({ error: '题目删除失败' });
   }
 });
@@ -299,7 +300,7 @@ router.post('/:id/share', authMiddleware, async (req, res) => {
     }
     res.json({ shareCode, message: '分享码生成成功' });
   } catch (err) {
-    console.error('生成分享码错误:', err);
+    log.error('生成分享码错误:', err);
     res.status(500).json({ error: '分享码生成失败' });
   }
 });
@@ -313,7 +314,7 @@ router.get('/shared/:code', authMiddleware, async (req, res) => {
     }
     res.json({ question: rows[0] });
   } catch (err) {
-    console.error('获取分享题目错误:', err);
+    log.error('获取分享题目错误:', err);
     res.status(500).json({ error: '获取分享题目失败' });
   }
 });

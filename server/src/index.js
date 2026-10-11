@@ -7,14 +7,15 @@ import { existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const envPath = path.resolve(__dirname, '../.env');
-console.log('Loading .env from:', envPath);
-console.log('File exists:', existsSync(envPath));
+import log from './utils/logger.js';
+log.info(`Loading .env from: ${envPath} (exists: ${existsSync(envPath)})`);
 dotenv.config({ path: envPath });
 
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import axios from 'axios';
+import { pinoHttp } from 'pino-http';
 import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import questionRoutes from './routes/questions.js';
@@ -37,7 +38,7 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 if (process.env.NODE_ENV === 'production') {
   const j = process.env.JWT_SECRET;
   if (!j || String(j).trim().length < 16) {
-    console.error('FATAL: 生产环境必须在环境变量中设置 JWT_SECRET（建议≥32字符）');
+    log.fatal('FATAL: 生产环境必须在环境变量中设置 JWT_SECRET（建议≥32字符）');
     process.exit(1);
   }
 }
@@ -54,7 +55,7 @@ let isFirstTokenFetch = true;
 async function getBaiduAccessToken() {
   if (!BAIDU_API_KEY || !BAIDU_SECRET_KEY) {
     if (isFirstTokenFetch) {
-      console.warn('百度 OCR 未配置 BAIDU_API_KEY / BAIDU_SECRET_KEY');
+      log.warn('百度 OCR 未配置 BAIDU_API_KEY / BAIDU_SECRET_KEY');
     }
     return null;
   }
@@ -67,12 +68,12 @@ async function getBaiduAccessToken() {
     baiduAccessToken = res.data.access_token;
     // 只在首次获取时输出成功日志
     if (isFirstTokenFetch) {
-      console.log('百度 OCR token 获取成功');
+      log.info('百度 OCR token 获取成功');
     }
     isFirstTokenFetch = false;
     return baiduAccessToken;
   } catch (err) {
-    console.error('百度 OCR token 获取失败:', err.message);
+    log.error({ err }, '百度 OCR token 获取失败');
     return null;
   }
 }
@@ -100,6 +101,16 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
+
+// 结构化访问日志（P1-7）：每请求一行 JSON，含 reqId/耗时/状态码；探活与埋点高频端点不记
+app.use(pinoHttp({
+  logger: log,
+  autoLogging: {
+    ignore: (req) => req.url === '/api/health' || req.url === '/api/visit',
+  },
+  customLogLevel: (_req, res, err) =>
+    err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+}));
 
 // 须在 SPA 兜底路由之前注册，供监控与负载均衡探活
 app.get('/api/health', (req, res) => {
@@ -149,14 +160,14 @@ app.post('/api/ocr/baidu', authMiddleware, ocrBaiduLimiter, async (req, res) => 
     );
     res.json(result.data);
   } catch (err) {
-    console.error('百度 OCR 请求失败:', err.message);
+    log.error({ err }, '百度 OCR 请求失败');
     res.status(500).json({ error: '识别失败' });
   }
 });
 
 // 静态文件服务（必须在 API 路由之后）
 const distPath = path.join(__dirname, '../../dist');
-console.log('Serving static files from:', distPath);
+log.info(`Serving static files from: ${distPath}`);
 if (existsSync(distPath)) {
   app.use(express.static(distPath, {
     setHeaders: (res, path) => {
@@ -188,16 +199,19 @@ if (existsSync(distPath)) {
     }
   });
 } else {
-  console.warn('dist directory not found, static files not served');
+  log.warn('dist directory not found, static files not served');
 }
 
 // 错误处理
 app.use((err, req, res, next) => {
-  console.error('未处理错误:', err);
+  req.log ? req.log.error(err, '未处理错误') : log.error(err, '未处理错误');
   res.status(500).json({ error: '服务器内部错误' });
 });
 
+// 全局异常钩子：避免裸 console 堆消失在 pm2 混杂日志中
+process.on('unhandledRejection', (reason) => log.error({ reason: reason instanceof Error ? { message: reason.message, stack: reason.stack } : String(reason) }, 'unhandledRejection'));
+process.on('uncaughtException', (err) => { log.fatal({ err }, 'uncaughtException'); process.exit(1); });
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Study API 运行在 http://0.0.0.0:${PORT}`);
-  console.log(`环境: ${process.env.NODE_ENV || 'development'}`);
+  log.info(`Study API 运行在 http://0.0.0.0:${PORT} (环境: ${process.env.NODE_ENV || 'development'})`);
 });

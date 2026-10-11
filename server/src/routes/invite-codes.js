@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
+import log from '../utils/logger.js';
 
 const router = Router();
 
@@ -56,7 +57,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ codes: result });
   } catch (err) {
-    console.error('获取邀请码列表错误:', err);
+    log.error('获取邀请码列表错误:', err);
     res.status(500).json({ error: '获取邀请码列表失败' });
   }
 });
@@ -144,7 +145,7 @@ router.post('/', authMiddleware, async (req, res) => {
       message: '邀请码生成成功'
     });
   } catch (err) {
-    console.error('生成邀请码错误:', err);
+    log.error('生成邀请码错误:', err);
     res.status(500).json({ error: '生成邀请码失败' });
   }
 });
@@ -169,7 +170,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
     res.json({ message: '邀请码已删除' });
   } catch (err) {
-    console.error('删除邀请码错误:', err);
+    log.error('删除邀请码错误:', err);
     res.status(500).json({ error: '删除邀请码失败' });
   }
 });

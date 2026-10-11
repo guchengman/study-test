@@ -9,6 +9,7 @@
  *  - pool 作为参数注入，便于单元测试 mock
  */
 import crypto from 'crypto';
+import log from './logger.js';
 
 export const CODE_TTL_MS = 5 * 60 * 1000;      // 有效期 5 分钟
 export const RESEND_INTERVAL_S = 60;            // 重发间隔 60 秒
@@ -109,7 +110,7 @@ export function isEmailVerificationEnforced() {
   if (process.env.NODE_ENV === 'production') return true; // 生产缺配置 → 发送时报错，不放行
   if (!_warned) {
     _warned = true;
-    console.warn('[emailVerification] 开发环境未配置 EMAILJS_* 密钥，邮箱验证码校验临时跳过（生产环境强制启用）');
+    log.warn('[emailVerification] 开发环境未配置 EMAILJS_* 密钥，邮箱验证码校验临时跳过（生产环境强制启用）');
   }
   return false;
 }
