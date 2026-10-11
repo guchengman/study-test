@@ -147,7 +147,8 @@ export function useAuth() {
   }, []);
 
   // 发送验证码（服务端生成+发送，前端不再持有验证码）
-  const sendVerificationCode = useCallback(async (email: string, purpose: 'register' | 'reset' = 'register'): Promise<{ success: boolean; message: string }> => {
+  // P2-10：透传 status，供 UI 区分网络失败/限频/邮件服务不可用的降级文案
+  const sendVerificationCode = useCallback(async (email: string, purpose: 'register' | 'reset' = 'register'): Promise<{ success: boolean; message: string; status?: number }> => {
     if (!email.includes('@')) return { success: false, message: '请输入有效的邮箱地址' };
     try {
       const res = await authApi.sendCode(email, purpose);
@@ -156,7 +157,11 @@ export function useAuth() {
       }
       return { success: true, message: res.message || '验证码已发送至您的邮箱（5分钟内有效）' };
     } catch (error: any) {
-      return { success: false, message: error?.message || '邮件发送失败，请稍后重试' };
+      return {
+        success: false,
+        message: error?.message || '邮件发送失败，请稍后重试',
+        status: typeof error?.status === 'number' ? error.status : undefined,
+      };
     }
   }, []);
 

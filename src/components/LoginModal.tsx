@@ -13,13 +13,33 @@ import {
 
 type ModalMode = 'register' | 'login' | 'forgotPassword' | 'setupPassword';
 
+/**
+ * P2-10：验证码发送失败的降级提示文案
+ * 按服务端状态码区分场景，网络/邮件服务失败时给用户可操作的引导
+ */
+const sendCodeFailureText = (result: { message?: string; status?: number } | undefined): string => {
+  switch (result?.status) {
+    case 429: // 限频：服务端话术已含建议，直接透传
+    case 400:
+      return result?.message || '发送失败，请稍后重试';
+    case 502: // EmailJS 发信失败：不吞掉原因，补充可操作引导
+      return `${result?.message || '邮件服务暂时不可用'}；若持续失败，请稍后重试或联系管理员`;
+    case 503:
+      return result?.message || '邮件验证服务未启用，请联系管理员';
+    case 0: // 网络连接失败（api.ts 统一话术）
+      return '网络连接失败，请检查网络后重试';
+    default:
+      return result?.message || '邮件发送失败，请稍后重试';
+  }
+};
+
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (username: string, password: string) => Promise<{ success: boolean; needSetupPassword?: boolean; error?: string }>;
   onRegister: (data: { username: string; password: string; email: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; emailCode?: string; }) => Promise<{ success: boolean; error?: string }>;
   onChangePassword?: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  onSendCode?: (email: string, purpose: 'register' | 'reset') => Promise<{ success: boolean; message: string }>;
+  onSendCode?: (email: string, purpose: 'register' | 'reset') => Promise<{ success: boolean; message: string; status?: number }>;
   onResetPassword?: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   onCheckUsername?: (username: string) => Promise<{ exists: boolean }>;
   onSetupPassword?: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -240,7 +260,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setRegStep(2);
       setRegCountdown(60);
     } else {
-      setRegError(result?.message || '发送失败');
+      setRegError(sendCodeFailureText(result));
     }
   };
 
@@ -346,7 +366,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setResetCountdown(60);
       setResetError('');
     } else {
-      setResetError(result?.message || '发送失败');
+      setResetError(sendCodeFailureText(result));
     }
   };
 
