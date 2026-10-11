@@ -1,5 +1,7 @@
 # 配置说明（Configuration）
 
+> 文档基准：2026-10-11（与 main 分支代码核对对齐）· 文档索引见 [docs/README.md](docs/README.md)
+
 本项目为 **React 19 + TypeScript + Vite（前端）/ Express + MySQL（后端）** 全栈应用。
 密钥与敏感配置通过环境变量管理，**切勿在源码中硬编码**。
 

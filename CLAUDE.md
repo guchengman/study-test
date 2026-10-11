@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> Docs baseline: 2026-10-11 (verified against main-branch code repo-wide). Index: [docs/README.md](docs/README.md)
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands

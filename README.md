@@ -1,5 +1,7 @@
 # 学习题库系统
 
+> 文档基准：2026-10-11（与 main 分支代码全仓核对对齐）· 文档索引见 [docs/README.md](docs/README.md)
+
 <div align="center">
 
 ```
