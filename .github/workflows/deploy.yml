@@ -36,7 +36,7 @@ jobs:
         if: github.event.inputs.skip_build != 'true'
         run: |
           npm ci
-          cd server && npm ci && cd ..
+          cd server && npm ci && npx vitest run && cd ..
           npx vitest run
           npm run build
 
