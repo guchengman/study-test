@@ -55,13 +55,16 @@ sudo apt-get install -y curl git openssl
 一行命令，代码自动克隆到 `/opt/study-test`：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash
+# 注意：脚本位于仓库的 scripts/setup/ 目录（根目录没有 install.sh）
+curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/scripts/setup/install.sh | bash
 ```
+
+> 若上述地址 404（远程分支路径未同步），请改用方式二本地安装。
 
 带数据库密码参数：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.sh | bash -s -- \
+curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/scripts/setup/install.sh | bash -s -- \
   --db-host=localhost \
   --db-user=root \
   --db-password=your_mysql_password \
@@ -75,7 +78,7 @@ curl -fsSL https://raw.githubusercontent.com/guchengman/study-test/main/install.
 ```bash
 git clone https://github.com/guchengman/study-test.git
 cd study-test
-sudo bash install.sh
+sudo bash scripts/setup/install.sh
 ```
 
 ### 方式三：全手动安装
@@ -93,12 +96,12 @@ cd server
 npm install --legacy-peer-deps
 cd ..
 
-# 4. 配置后端环境变量
-cp .env.example server/.env
+# 4. 配置后端环境变量（以后端模板为准；根目录 .env.example 是前端编译期注入用，勿混淆）
+cp server/.env.example server/.env
 nano server/.env
 ```
 
-`server/.env` 内容：
+`server/.env` 最小内容：
 
 ```env
 DB_HOST=localhost
@@ -107,6 +110,15 @@ DB_USER=root
 DB_PASSWORD=your_mysql_password
 DB_NAME=study_test
 JWT_SECRET=请用 openssl rand -hex 32 生成
+```
+
+可选项（不填则用默认值）：
+
+```env
+PORT=3100                                  # 后端端口
+ALLOWED_ORIGINS=http://your-domain.com     # 跨域白名单，逗号分隔；为空则仅允许同源
+TRUST_PROXY=1                              # Nginx 反代后需真实 IP 时开启
+JWT_EXPIRES_IN=7d                          # JWT 有效期，默认 7 天
 ```
 
 ```bash
@@ -182,12 +194,22 @@ npm run build          # 产出到 dist/
 
 ### 使用 PM2 管理进程
 
+**形态一：单后端 app（与线上 CI 部署一致，推荐）**
+
 ```bash
 npm install -g pm2
 pm2 start server/src/index.js --name study-server
 pm2 save
 pm2 startup           # 设置开机自启
 ```
+
+**形态二：仓库自带的双 app 配置（自托管前后端一起跑）**
+
+```bash
+pm2 start ecosystem.config.cjs   # 启动 study-quiz-frontend(Vite:5173) + study-quiz-backend(:3100)
+```
+
+> ⚠️ 两种形态不要同时启动（后端端口 3100 冲突）。线上服务器由 GitHub Actions（deploy.yml）管理 `study-server` 单 app，不使用 ecosystem 配置。
 
 ### 配置 Nginx 反向代理
 

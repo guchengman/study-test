@@ -20,12 +20,14 @@
 | 变量 | 说明 |
 |------|------|
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | MySQL 连接信息 |
-| `JWT_SECRET` | 生产必填，≥16 字符（建议 ≥32） |
+| `JWT_SECRET` | 生产必填，≥16 字符（生产环境启动时强制校验；建议 ≥32） |
+| `JWT_EXPIRES_IN` | JWT 有效期，默认 `7d`（可选） |
 | `GEMINI_API_KEY` | 服务端 Gemini 代理密钥（可选） |
 | `BAIDU_API_KEY` / `BAIDU_SECRET_KEY` | 百度 OCR（可选） |
 | `ALLOWED_ORIGINS` | 允许跨域的源，逗号分隔（如 `http://localhost:3000,http://localhost:5173`）；为空则仅允许同源 |
 | `PORT` | 后端端口，默认 3100 |
 | `TRUST_PROXY` | 反向代理后需真实 IP 时设为 `1` |
+| `NODE_ENV` | 设为 `production` 时启用 JWT_SECRET 长度强制校验并托管 `dist/` 静态文件 |
 
 ## 安全须知
 
