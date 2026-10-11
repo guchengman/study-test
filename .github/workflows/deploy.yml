@@ -36,6 +36,8 @@ jobs:
         if: github.event.inputs.skip_build != 'true'
         run: |
           npm ci
+          # P2-9：OCR 本地资产（public/tesseract 被 gitignore，需在 CI 内生成，否则 rsync --delete 会清掉线上语言包导致 OCR 不可用）
+          npm run setup:tesseract
           cd server && npm ci && npx vitest run && cd ..
           npx vitest run
           npm run build
