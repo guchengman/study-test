@@ -34,6 +34,10 @@ jobs:
 
       - name: Install and Build
         if: github.event.inputs.skip_build != 'true'
+        env:
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
         run: |
           npm ci
           cd server && npm ci && cd ..
