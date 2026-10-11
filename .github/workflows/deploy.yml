@@ -34,13 +34,10 @@ jobs:
 
       - name: Install and Build
         if: github.event.inputs.skip_build != 'true'
-        env:
-          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
-          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
-          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
         run: |
           npm ci
           cd server && npm ci && cd ..
+          npx vitest run
           npm run build
 
       - name: Configure SSH
@@ -75,6 +72,9 @@ jobs:
             "BAIDU_API_KEY=${{ secrets.BAIDU_API_KEY }}" \
             "BAIDU_SECRET_KEY=${{ secrets.BAIDU_SECRET_KEY }}" \
             "DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" \
+            "EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID }}" \
+            "EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID }}" \
+            "EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY }}" \
             | ssh -i ~/.ssh/private_key root@${{ env.SERVER_HOST }} "mkdir -p ${{ env.SERVER_PATH }}/server && cat > ${{ env.SERVER_PATH }}/server/.env && chmod 600 ${{ env.SERVER_PATH }}/server/.env"
 
       - name: Install dependencies and restart

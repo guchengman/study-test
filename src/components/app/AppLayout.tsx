@@ -127,7 +127,6 @@ export function AppLayout() {
           onRegister={ctx.register}
           onChangePassword={ctx.changePassword}
           onSendCode={ctx.sendVerificationCode}
-          onVerifyCode={ctx.verifyCode}
           onResetPassword={ctx.resetPassword}
           onCheckUsername={ctx.checkUsername}
           onSetupPassword={ctx.setupPassword}

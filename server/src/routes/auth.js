@@ -4,6 +4,12 @@ import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
+import {
+  createVerificationCode,
+  consumeVerificationCode,
+  sendVerificationEmail,
+  isEmailVerificationEnforced,
+} from '../utils/emailVerification.js';
 
 const router = Router();
 
@@ -14,6 +20,98 @@ const loginRegisterLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: '登录/注册尝试过于频繁，请约 15 分钟后再试' },
+});
+
+/** 验证码发送限流：每 IP 15 分钟最多 20 次（邮箱维度限频由服务层 60s 间隔控制） */
+const sendCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '发送请求过于频繁，请稍后再试' },
+});
+
+// ── 邮箱验证码（服务端权威校验，P0 安全修复）──────────────────
+
+/**
+ * POST /api/auth/send-code { email, purpose: 'register'|'reset' }
+ * 防枚举：无论邮箱是否已注册/存在，均返回同一话术；不合法输入才报错。
+ */
+router.post('/send-code', sendCodeLimiter, async (req, res) => {
+  try {
+    const { email, purpose } = req.body || {};
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: '请输入有效的邮箱地址' });
+    }
+    if (purpose !== 'register' && purpose !== 'reset') {
+      return res.status(400).json({ error: '无效的验证码用途' });
+    }
+    const GENERIC = '若该邮箱可用，验证码已发送（5分钟内有效），请查收';
+
+    // 业务预检：register 要求邮箱未被占用；reset 要求邮箱已注册 —— 不满足时静默返回成功（防枚举）
+    const [exist] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (purpose === 'register' && exist.length > 0) return res.json({ message: GENERIC });
+    if (purpose === 'reset' && exist.length === 0) return res.json({ message: GENERIC });
+
+    // 开发环境未配置邮件服务：直接返回未启用标记，前端降级提示
+    if (!isEmailVerificationEnforced()) {
+      return res.json({ message: GENERIC, enabled: false });
+    }
+
+    const created = await createVerificationCode(pool, email, purpose);
+    if (!created.ok) {
+      if (created.reason === 'too_soon') {
+        return res.status(429).json({ error: '发送过于频繁，请 60 秒后再试' });
+      }
+      return res.status(400).json({ error: '验证码发送失败，请稍后重试' });
+    }
+    try {
+      await sendVerificationEmail(email, created.code, purpose);
+    } catch (sendErr) {
+      console.error('发送验证邮件失败:', sendErr.message);
+      return res.status(502).json({ error: '邮件服务暂时不可用，请稍后重试' });
+    }
+    return res.json({ message: GENERIC, enabled: true });
+  } catch (err) {
+    console.error('发送验证码错误:', err);
+    res.status(500).json({ error: '发送失败，请稍后重试' });
+  }
+});
+
+/**
+ * POST /api/auth/reset-with-code { email, code, newPassword }
+ * 忘记密码自助重置：服务端校验验证码后直接更新密码（无需 JWT）。
+ */
+router.post('/reset-with-code', loginRegisterLimiter, async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body || {};
+    const GENERIC = '若邮箱已注册且验证码正确，密码已重置';
+    if (typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: '请输入有效的邮箱地址' });
+    }
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: '验证码应为6位数字' });
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 50) {
+      return res.status(400).json({ error: '新密码需为6-50位字符' });
+    }
+    // 开发环境未配置邮件服务：拒绝走此通道（避免无校验改密码）
+    if (!isEmailVerificationEnforced()) {
+      return res.status(503).json({ error: '邮件验证服务未启用，请联系管理员重置' });
+    }
+    const verified = await consumeVerificationCode(pool, email, 'reset', code);
+    if (!verified.ok) {
+      return res.status(400).json({ error: verified.reason === 'wrong_code' ? '验证码错误' : '验证码已失效，请重新获取' });
+    }
+    const [rows] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (rows.length === 0) return res.json({ message: GENERIC }); // 理论上不会发生（reset 码仅发给已注册邮箱）
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.execute('UPDATE users SET password_hash = ?, password_reset = 0 WHERE id = ?', [hash, rows[0].id]);
+    res.json({ message: GENERIC, success: true });
+  } catch (err) {
+    console.error('验证码重置密码错误:', err);
+    res.status(500).json({ error: '重置失败，请稍后重试' });
+  }
 });
 
 // 检查用户名是否已存在（公开接口）
@@ -45,7 +143,7 @@ router.get('/visit', async (req, res) => {
 // 注册 — 支持三种角色
 router.post('/register', loginRegisterLimiter, async (req, res) => {
   try {
-    const { username, password, email, role = 'independent', phone, inviteCode, teacherPhone } = req.body;
+    const { username, password, email, role = 'independent', phone, inviteCode, teacherPhone, emailCode } = req.body;
 
     // 基本验证
     if (!username || !password || !email) {
@@ -62,6 +160,17 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
     }
     if (typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({ error: '请输入有效的邮箱地址' });
+    }
+
+    // 邮箱验证码服务端校验（P0：取代原 localStorage 假验证；开发环境未配邮件服务时跳过）
+    if (isEmailVerificationEnforced()) {
+      if (typeof emailCode !== 'string' || !/^\d{6}$/.test(emailCode)) {
+        return res.status(400).json({ error: '请输入6位邮箱验证码' });
+      }
+      const verified = await consumeVerificationCode(pool, email, 'register', emailCode);
+      if (!verified.ok) {
+        return res.status(400).json({ error: verified.reason === 'wrong_code' ? '验证码错误' : '验证码已失效，请重新获取' });
+      }
     }
 
     // 角色验证

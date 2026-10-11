@@ -1,14 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import emailjs from '@emailjs/browser';
 import { authApi, setToken, removeToken, getToken, type AuthUser, type UserRole } from '../services/api';
-
-const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID || '';
-const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID || '';
-const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY || '';
-
-const VERIFY_CODE_KEY = 'verification_code';
-const VERIFY_EMAIL_KEY = 'verification_email';
-const VERIFY_EXPIRES_KEY = 'verification_expires';
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -77,6 +68,7 @@ export function useAuth() {
     phone?: string;
     inviteCode?: string;
     teacherPhone?: string;
+    emailCode?: string;
   }): Promise<{ success: boolean; error?: string }> => {
     if (data.username.length < 3) return { success: false, error: '用户名至少3个字符' };
     if (!/^[a-zA-Z0-9_]+$/.test(data.username)) return { success: false, error: '用户名只能包含字母、数字和下划线' };
@@ -154,39 +146,18 @@ export function useAuth() {
     } catch {}
   }, []);
 
-  // 发送验证码
-  const sendVerificationCode = useCallback(async (email: string): Promise<{ success: boolean; message: string }> => {
+  // 发送验证码（服务端生成+发送，前端不再持有验证码）
+  const sendVerificationCode = useCallback(async (email: string, purpose: 'register' | 'reset' = 'register'): Promise<{ success: boolean; message: string }> => {
     if (!email.includes('@')) return { success: false, message: '请输入有效的邮箱地址' };
-    const code = Math.random().toString().slice(2, 8);
-    const expireTime = new Date(Date.now() + 5 * 60 * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    localStorage.setItem(VERIFY_CODE_KEY, code);
-    localStorage.setItem(VERIFY_EMAIL_KEY, email);
-    localStorage.setItem(VERIFY_EXPIRES_KEY, String(Date.now() + 5 * 60 * 1000));
-    // 邮件服务配置检查：若部署环境未配置 EmailJS 密钥，提前返回明确提示，不进入 catch，避免误导为"网络异常"
-    if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
-      return {
-        success: false,
-        message:
-          '邮件服务未配置：请联系管理员在部署环境配置 EMAILJS_SERVICE_ID / EMAILJS_TEMPLATE_ID / EMAILJS_PUBLIC_KEY',
-      };
-    }
     try {
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { to_email: email, passcode: code, time: expireTime, from_name: 'Study-test' }, EMAILJS_PUBLIC_KEY);
-      return { success: true, message: '验证码已发送至您的邮箱' };
+      const res = await authApi.sendCode(email, purpose);
+      if (res.enabled === false) {
+        return { success: true, message: '开发环境未配置邮件服务，验证码校验已跳过（可输入任意 6 位数字）' };
+      }
+      return { success: true, message: res.message || '验证码已发送至您的邮箱（5分钟内有效）' };
     } catch (error: any) {
-      const reason = error?.text || error?.message || error?.status || '网络异常，请稍后重试';
-      return { success: false, message: `邮件发送失败: ${reason}` };
+      return { success: false, message: error?.message || '邮件发送失败，请稍后重试' };
     }
-  }, []);
-
-  // 验证验证码
-  const verifyCode = useCallback((email: string, code: string): Promise<{ success: boolean; error?: string }> => {
-    const storedCode = localStorage.getItem(VERIFY_CODE_KEY);
-    const storedEmail = localStorage.getItem(VERIFY_EMAIL_KEY);
-    const expires = parseInt(localStorage.getItem(VERIFY_EXPIRES_KEY) || '0');
-    if (Date.now() > expires) return Promise.resolve({ success: false, error: '验证码已过期' });
-    if (code !== storedCode || email !== storedEmail) return Promise.resolve({ success: false, error: '验证码错误' });
-    return Promise.resolve({ success: true });
   }, []);
 
   // 修改密码
@@ -201,21 +172,13 @@ export function useAuth() {
     }
   }, [currentUser]);
 
-  // 重置密码
+  // 重置密码（忘记密码：服务端校验验证码后重置，无需登录）
   const resetPassword = useCallback(async (email: string, code: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
     if (!email.includes('@')) return { success: false, error: '请输入有效的邮箱地址' };
-    if (code.length !== 6) return { success: false, error: '验证码应为6位数字' };
+    if (!/^\d{6}$/.test(code)) return { success: false, error: '验证码应为6位数字' };
     if (newPassword.length < 6) return { success: false, error: '新密码至少6位' };
-    const storedCode = localStorage.getItem(VERIFY_CODE_KEY);
-    const storedEmail = localStorage.getItem(VERIFY_EMAIL_KEY);
-    const expires = parseInt(localStorage.getItem(VERIFY_EXPIRES_KEY) || '0');
-    if (Date.now() > expires) return { success: false, error: '验证码已过期' };
-    if (code !== storedCode || email !== storedEmail) return { success: false, error: '验证码错误' };
-    localStorage.removeItem(VERIFY_CODE_KEY);
-    localStorage.removeItem(VERIFY_EMAIL_KEY);
-    localStorage.removeItem(VERIFY_EXPIRES_KEY);
     try {
-      await authApi.changePassword('', newPassword);
+      await authApi.resetWithCode(email, code, newPassword);
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || '重置密码失败' };
@@ -277,6 +240,6 @@ export function useAuth() {
     currentUser, isAdmin, isTeacher, isLoading, isModalOpen, setIsModalOpen, authUser,
     login, logout, register, changePassword, convertRole, bindTeacher, refreshUser,
     getUserList, clearUserPassword, setupPassword, deleteUser,
-    sendVerificationCode, verifyCode, resetPassword, checkUsername,
+    sendVerificationCode, resetPassword, checkUsername,
   };
 }

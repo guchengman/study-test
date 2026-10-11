@@ -195,8 +195,14 @@ export interface StatsItem { id: number; subject: string; totalQuestions: number
 // ─── 认证 API ───────────────────────────────────────────────
 
 export const authApi = {
-  register: (data: { username: string; password: string; email?: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; }) =>
+  register: (data: { username: string; password: string; email?: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; emailCode?: string; }) =>
     client.post<LoginResponse>('/auth/register', data),
+  /** 发送邮箱验证码（服务端生成并通过 EmailJS REST 发送，前端不接触验证码） */
+  sendCode: (email: string, purpose: 'register' | 'reset') =>
+    client.post<{ message: string; enabled?: boolean }>('/auth/send-code', { email, purpose }),
+  /** 忘记密码：服务端校验验证码后直接重置（无需 JWT） */
+  resetWithCode: (email: string, code: string, newPassword: string) =>
+    client.post<{ message: string; success?: boolean }>('/auth/reset-with-code', { email, code, newPassword }),
   login: (username: string, password: string) =>
     client.post<LoginResponse>('/auth/login', { username, password }),
   me: () => client.get<{ user: AuthUser }>('/auth/me'),

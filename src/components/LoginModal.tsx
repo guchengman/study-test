@@ -8,10 +8,9 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: (username: string, password: string) => Promise<{ success: boolean; needSetupPassword?: boolean; error?: string }>;
-  onRegister: (data: { username: string; password: string; email: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; }) => Promise<{ success: boolean; error?: string }>;
+  onRegister: (data: { username: string; password: string; email: string; role?: UserRole; phone?: string; inviteCode?: string; teacherPhone?: string; emailCode?: string; }) => Promise<{ success: boolean; error?: string }>;
   onChangePassword?: (oldPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  onSendCode?: (email: string) => Promise<{ success: boolean; message: string }>;
-  onVerifyCode?: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  onSendCode?: (email: string, purpose: 'register' | 'reset') => Promise<{ success: boolean; message: string }>;
   onResetPassword?: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   onCheckUsername?: (username: string) => Promise<{ exists: boolean }>;
   onSetupPassword?: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -25,7 +24,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onLogin,
   onRegister,
   onSendCode,
-  onVerifyCode,
   onResetPassword,
   onCheckUsername,
   onSetupPassword,
@@ -236,7 +234,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    const result = await onSendCode?.(regEmail);
+    const result = await onSendCode?.(regEmail, 'register');
     setRegLoading(false);
 
     if (result?.success) {
@@ -259,14 +257,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     setRegLoading(true);
     try {
-      const verifyResult = await onVerifyCode?.(regEmail, regCode);
-      
-      if (!verifyResult?.success) {
-        setRegLoading(false);
-        setRegError(verifyResult?.error || '验证码错误');
-        return;
-      }
-
+      // 验证码随注册提交，由服务端校验并消费（一次性）
       const regResult = await onRegister?.({
         username: regUsername,
         password: regPassword,
@@ -275,6 +266,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         phone: regRole === 'teacher' ? regPhone : undefined,
         inviteCode: regRole === 'student' && regStudentMethod === 'code' ? regInviteCode : undefined,
         teacherPhone: regRole === 'student' && regStudentMethod === 'phone' ? regTeacherPhone : undefined,
+        emailCode: regCode,
       });
       setRegLoading(false);
 
@@ -350,7 +342,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
     setResetError('');
-    await onSendCode?.(resetEmail);
+    await onSendCode?.(resetEmail, 'reset');
     setResetCountdown(60);
   };
 
