@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mail, KeyRound, User, ArrowLeft, Check, Phone, BookOpen, UserCircle } from 'lucide-react';
+import { X, Check, KeyRound, ArrowLeft } from 'lucide-react';
 import type { UserRole } from '../services/api';
+import {
+  RegisterForm, initialRegisterValues, type RegisterValues,
+} from './login/RegisterForm';
+import {
+  ForgotPasswordForm, initialForgotValues, type ForgotValues,
+} from './login/ForgotPasswordForm';
+import {
+  labelStyle, inputStyle, errorBoxStyle, primaryButton, linkBtnStyle, backBtnStyle, iconCircle,
+} from './login/formStyles';
 
 type ModalMode = 'register' | 'login' | 'forgotPassword' | 'setupPassword';
 
@@ -18,6 +27,10 @@ interface LoginModalProps {
   currentUser?: string | null;
 }
 
+/**
+ * 登录/注册/忘记密码/设置密码弹窗编排器（P1-8 拆分）
+ * 表单 UI 与受控值类型见 ./login/RegisterForm 与 ./login/ForgotPasswordForm
+ */
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
@@ -30,18 +43,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   // 模式：register=注册, login=登录, forgotPassword=忘记密码, setupPassword=设置密码
   const [mode, setMode] = useState<ModalMode>('register');
-  
-  // 注册状态
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [regCode, setRegCode] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('independent');
-  const [regPhone, setRegPhone] = useState('');
-  const [regInviteCode, setRegInviteCode] = useState('');
-  const [regTeacherPhone, setRegTeacherPhone] = useState('');
-  const [regStudentMethod, setRegStudentMethod] = useState<'code' | 'phone' | 'none'>('none');
+
+  // 注册状态（受控值对象归 RegisterForm，状态留在此处编排）
+  const [reg, setReg] = useState<RegisterValues>(initialRegisterValues);
   const [regStep, setRegStep] = useState<1 | 2>(1); // 1: 填写信息, 2: 验证邮箱
   const [regError, setRegError] = useState('');
   const [regLoading, setRegLoading] = useState(false);
@@ -54,10 +58,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loginLoading, setLoginLoading] = useState(false);
 
   // 忘记密码状态
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetCode, setResetCode] = useState('');
-  const [resetNewPassword, setResetNewPassword] = useState('');
-  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [reset, setReset] = useState<ForgotValues>(initialForgotValues);
   const [resetError, setResetError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetCountdown, setResetCountdown] = useState(0);
@@ -77,6 +78,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // 追踪是否在注册流程中（已到验证码步骤）
   const inRegFlowRef = useRef(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const setRegField = <K extends keyof RegisterValues>(key: K, value: RegisterValues[K]) =>
+    setReg(prev => ({ ...prev, [key]: value }));
+  const setResetField = <K extends keyof ForgotValues>(key: K, value: ForgotValues[K]) =>
+    setReset(prev => ({ ...prev, [key]: value }));
 
   // Escape 键关闭弹窗
   useEffect(() => {
@@ -136,21 +142,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   // 重置所有表单
   const resetAllForms = () => {
-    setRegUsername('');
-    setRegEmail('');
-    setRegPassword('');
-    setRegConfirmPassword('');
-    setRegCode('');
+    setReg({ ...initialRegisterValues });
     setRegStep(1);
     setRegError('');
     setRegCountdown(0);
     setLoginUsername('');
     setLoginPassword('');
     setLoginError('');
-    setResetEmail('');
-    setResetCode('');
-    setResetNewPassword('');
-    setResetConfirmPassword('');
+    setReset({ ...initialForgotValues });
     setResetError('');
     setResetCountdown(0);
     setSetupPasswordUsername('');
@@ -177,64 +176,64 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 发送注册验证码
+  // 发送注册验证码（第一步提交 / 第二步重发共用）
   const handleSendRegCode = async () => {
     setRegError('');
-    
+
     // 首先检查用户名格式
-    if (regUsername.length < 3) {
+    if (reg.username.length < 3) {
       setRegError('用户名至少3个字符');
       return;
     }
-    if (!/^[a-zA-Z0-9_]+$/.test(regUsername)) {
+    if (!/^[a-zA-Z0-9_]+$/.test(reg.username)) {
       setRegError('用户名只能包含字母、数字和下划线');
       return;
     }
-    
+
     // 检查用户名是否已被注册（优先检测）
     setRegLoading(true);
     if (onCheckUsername) {
-      const checkResult = await onCheckUsername(regUsername);
+      const checkResult = await onCheckUsername(reg.username);
       if (checkResult.exists) {
         setRegLoading(false);
         setRegError('用户名已被注册');
         return;
       }
     }
-    
+
     // 邮箱必填校验
-    if (!regEmail || !regEmail.includes('@')) {
+    if (!reg.email || !reg.email.includes('@')) {
       setRegLoading(false);
       setRegError('请输入有效的邮箱地址');
       return;
     }
-    if (regPassword.length < 6) {
+    if (reg.password.length < 6) {
       setRegLoading(false);
       setRegError('密码至少6位');
       return;
     }
-    if (regRole === 'teacher' && !regPhone) {
+    if (reg.role === 'teacher' && !reg.phone) {
       setRegLoading(false);
       setRegError('老师注册必须填写手机号');
       return;
     }
-    if (regRole === 'student' && regStudentMethod === 'code' && !regInviteCode) {
+    if (reg.role === 'student' && reg.studentMethod === 'code' && !reg.inviteCode) {
       setRegLoading(false);
       setRegError('请输入注册邀请码');
       return;
     }
-    if (regRole === 'student' && regStudentMethod === 'phone' && !regTeacherPhone) {
+    if (reg.role === 'student' && reg.studentMethod === 'phone' && !reg.teacherPhone) {
       setRegLoading(false);
       setRegError('请输入老师手机号');
       return;
     }
-    if (regPassword !== regConfirmPassword) {
+    if (reg.password !== reg.confirmPassword) {
       setRegLoading(false);
       setRegError('两次输入的密码不一致');
       return;
     }
 
-    const result = await onSendCode?.(regEmail, 'register');
+    const result = await onSendCode?.(reg.email, 'register');
     setRegLoading(false);
 
     if (result?.success) {
@@ -249,8 +248,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleCompleteReg = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
-    
-    if (regCode.length !== 6) {
+
+    if (reg.code.length !== 6) {
       setRegError('请输入6位验证码');
       return;
     }
@@ -259,14 +258,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     try {
       // 验证码随注册提交，由服务端校验并消费（一次性）
       const regResult = await onRegister?.({
-        username: regUsername,
-        password: regPassword,
-        email: regEmail,
-        role: regRole,
-        phone: regRole === 'teacher' ? regPhone : undefined,
-        inviteCode: regRole === 'student' && regStudentMethod === 'code' ? regInviteCode : undefined,
-        teacherPhone: regRole === 'student' && regStudentMethod === 'phone' ? regTeacherPhone : undefined,
-        emailCode: regCode,
+        username: reg.username,
+        password: reg.password,
+        email: reg.email,
+        role: reg.role,
+        phone: reg.role === 'teacher' ? reg.phone : undefined,
+        inviteCode: reg.role === 'student' && reg.studentMethod === 'code' ? reg.inviteCode : undefined,
+        teacherPhone: reg.role === 'student' && reg.studentMethod === 'phone' ? reg.teacherPhone : undefined,
+        emailCode: reg.code,
       });
       setRegLoading(false);
 
@@ -274,7 +273,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         inRegFlowRef.current = false;
         setSuccessMessage('注册成功！请登录。');
         setMode('login');
-        setLoginUsername(regUsername);
+        setLoginUsername(reg.username);
         setRegStep(1);
       } else {
         setRegError(regResult?.error || '注册失败');
@@ -337,385 +336,44 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   // 发送重置密码验证码
   const handleSendResetCode = async () => {
-    if (!resetEmail.includes('@')) {
+    if (!reset.email.includes('@')) {
       setResetError('请输入有效的邮箱地址');
       return;
     }
     setResetError('');
-    await onSendCode?.(resetEmail, 'reset');
-    setResetCountdown(60);
+    const result = await onSendCode?.(reset.email, 'reset');
+    if (result?.success) {
+      setResetCountdown(60);
+      setResetError('');
+    } else {
+      setResetError(result?.message || '发送失败');
+    }
   };
 
   // 重置密码处理
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setResetError('');
-    if (resetNewPassword !== resetConfirmPassword) {
+    if (reset.newPassword !== reset.confirmPassword) {
       setResetError('两次输入的密码不一致');
       return;
     }
-    if (resetNewPassword.length < 6) {
+    if (reset.newPassword.length < 6) {
       setResetError('新密码至少6位');
       return;
     }
     setResetLoading(true);
-    const result = await onResetPassword?.(resetEmail, resetCode, resetNewPassword);
+    const result = await onResetPassword?.(reset.email, reset.code, reset.newPassword);
     setResetLoading(false);
     if (result?.success) {
       setSuccessMessage('密码重置成功！请使用新密码登录。');
       setMode('login');
       setLoginUsername('');
-      setResetEmail('');
-      setResetCode('');
-      setResetNewPassword('');
-      setResetConfirmPassword('');
+      setReset({ ...initialForgotValues });
     } else {
       setResetError(result?.error || '重置失败');
     }
   };
-
-  // 通用输入框样式
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '12px 14px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '10px',
-    fontSize: '14px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
-  };
-
-  // 渲染注册表单
-  const renderRegisterForm = () => (
-    <form onSubmit={regStep === 1 ? (e) => { e.preventDefault(); handleSendRegCode(); } : handleCompleteReg}>
-      {regStep === 1 ? (
-        <>
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-slate-800 mb-1">创建账号</h2>
-            <p className="text-sm text-slate-500">加入我们，开始学习之旅</p>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              用户名
-            </label>
-            <input
-              type="text"
-              autoComplete="username"
-              value={regUsername}
-              onChange={(e) => setRegUsername(e.target.value)}
-              placeholder="3-20位字母、数字或下划线"
-              style={inputStyle}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              邮箱
-            </label>
-            <input
-              type="email"
-              autoComplete="email"
-              value={regEmail}
-              onChange={(e) => setRegEmail(e.target.value)}
-              placeholder="用于接收验证码和找回密码"
-              style={inputStyle}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              密码
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={regPassword}
-              onChange={(e) => setRegPassword(e.target.value)}
-              placeholder="至少6位"
-              style={inputStyle}
-              required
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              确认密码
-            </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={regConfirmPassword}
-              onChange={(e) => setRegConfirmPassword(e.target.value)}
-              placeholder="再次输入密码"
-              style={inputStyle}
-              required
-            />
-          </div>
-
-          {/* 角色选择 */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              选择角色
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {[
-                { role: 'teacher' as UserRole, label: '老师', icon: BookOpen, color: '#4f46e5' },
-                { role: 'student' as UserRole, label: '学生', icon: User, color: '#059669' },
-                { role: 'independent' as UserRole, label: '独立用户', icon: UserCircle, color: '#64748b' },
-              ].map(opt => (
-                <button key={opt.role} type="button" onClick={() => { setRegRole(opt.role); setRegStudentMethod('none'); }}
-                  style={{
-                    flex: 1, padding: '10px 8px', borderRadius: '10px', border: regRole === opt.role ? `2px solid ${opt.color}` : '2px solid #e2e8f0',
-                    background: regRole === opt.role ? `${opt.color}10` : '#fff', cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', transition: 'all 0.2s',
-                  }}>
-                  <opt.icon size={18} style={{ color: regRole === opt.role ? opt.color : '#94a3b8' }} />
-                  <span style={{ fontSize: '12px', fontWeight: regRole === opt.role ? '600' : '400', color: regRole === opt.role ? opt.color : '#64748b' }}>{opt.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 老师额外字段：手机号 */}
-          {regRole === 'teacher' && (
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#4f46e5', fontWeight: '500' }}>
-                <Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />手机号（必填）
-              </label>
-              <input type="tel" autoComplete="tel" value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="学生可通过手机号找到您" style={inputStyle} required />
-            </div>
-          )}
-
-          {/* 学生额外字段：关联老师 */}
-          {regRole === 'student' && (
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#059669', fontWeight: '500' }}>
-                关联老师方式
-              </label>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                {[
-                  { key: 'code', label: '邀请码' },
-                  { key: 'phone', label: '老师手机号' },
-                  { key: 'none', label: '暂不关联' },
-                ].map(opt => (
-                  <button key={opt.key} type="button" onClick={() => setRegStudentMethod(opt.key as any)}
-                    style={{
-                      flex: 1, padding: '6px', borderRadius: '8px', border: regStudentMethod === opt.key ? '2px solid #059669' : '2px solid #e2e8f0',
-                      background: regStudentMethod === opt.key ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: '12px',
-                      color: regStudentMethod === opt.key ? '#059669' : '#64748b', fontWeight: regStudentMethod === opt.key ? '600' : '400',
-                    }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              {regStudentMethod === 'code' && (
-                <input type="text" autoComplete="off" value={regInviteCode} onChange={e => setRegInviteCode(e.target.value.toUpperCase())}
-                  placeholder="输入老师提供的注册邀请码" maxLength={20} style={inputStyle} />
-              )}
-              {regStudentMethod === 'phone' && (
-                <input type="tel" autoComplete="tel" value={regTeacherPhone} onChange={e => setRegTeacherPhone(e.target.value)}
-                  placeholder="输入老师的手机号" style={inputStyle} />
-              )}
-              {regStudentMethod === 'none' && (
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>注册后可在设置中绑定老师</p>
-              )}
-            </div>
-          )}
-
-          {regError && (
-            <div style={{ 
-              padding: '12px', 
-              backgroundColor: '#fef2f2', 
-              border: '1px solid #fecaca',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '13px',
-              color: '#dc2626'
-            }}>
-              {regError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={regLoading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: regLoading ? '#94a3b8' : '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: regLoading ? 'not-allowed' : 'pointer',
-              marginBottom: '16px',
-              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
-            }}
-          >
-            {regLoading ? '发送中...' : '注册'}
-          </button>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '16px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              退出
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                resetAllForms();
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#3b82f6',
-                fontWeight: '600',
-                cursor: 'pointer',
-              }}
-            >
-              已有账号？立即登录
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={() => setRegStep(1)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              color: '#64748b',
-              fontSize: '14px',
-              cursor: 'pointer',
-              marginBottom: '16px',
-            }}
-          >
-            <ArrowLeft size={16} /> 返回修改信息
-          </button>
-
-          <div className="text-center mb-6">
-            <div style={{
-              width: '56px',
-              height: '56px',
-              backgroundColor: '#dbeafe',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-            }}>
-              <Mail size={24} color="#3b82f6" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-1">验证邮箱</h2>
-            <p className="text-sm text-slate-500">验证码已发送至</p>
-            <p style={{ fontWeight: '600', color: '#3b82f6', marginTop: '4px' }}>{regEmail}</p>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-              输入验证码
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                autoComplete="one-time-code"
-                value={regCode}
-                onChange={(e) => setRegCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="请输入6位验证码"
-                maxLength={6}
-                style={{ ...inputStyle, textAlign: 'center', fontSize: '20px', letterSpacing: '8px' }}
-                required
-              />
-            </div>
-            <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>
-              验证码5分钟内有效
-            </p>
-          </div>
-
-          {regError && (
-            <div style={{ 
-              padding: '12px', 
-              backgroundColor: '#fef2f2', 
-              border: '1px solid #fecaca',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '13px',
-              color: '#dc2626'
-            }}>
-              {regError}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={regLoading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: regLoading ? '#94a3b8' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: regLoading ? 'not-allowed' : 'pointer',
-              marginBottom: '12px',
-              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-            }}
-          >
-            {regLoading ? '验证中...' : '完成注册'}
-          </button>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-              }}
-            >
-              退出
-            </button>
-            <button
-              type="button"
-              onClick={handleSendRegCode}
-              disabled={regCountdown > 0}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: regCountdown > 0 ? '#94a3b8' : '#3b82f6',
-                fontSize: '14px',
-                cursor: regCountdown > 0 ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {regCountdown > 0 ? `${regCountdown}秒后可重新发送` : '没收到？重新发送'}
-            </button>
-          </div>
-        </>
-      )}
-    </form>
-  );
 
   // 渲染登录表单
   const renderLoginForm = () => (
@@ -767,9 +425,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          用户名
-        </label>
+        <label style={labelStyle}>用户名</label>
         <input
           type="text"
           autoComplete="username"
@@ -782,303 +438,50 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       </div>
 
       <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          密码
-        </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
-              placeholder="请输入密码"
-              style={inputStyle}
-              required
-            />
+        <label style={labelStyle}>密码</label>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={loginPassword}
+          onChange={(e) => setLoginPassword(e.target.value)}
+          placeholder="请输入密码"
+          style={inputStyle}
+          required
+        />
       </div>
 
-      {loginError && (
-        <div style={{ 
-          padding: '12px', 
-          backgroundColor: '#fef2f2', 
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          fontSize: '13px',
-          color: '#dc2626'
-        }}>
-          {loginError}
-        </div>
-      )}
+      {loginError && <div style={errorBoxStyle}>{loginError}</div>}
 
-      <button
-        type="submit"
-        disabled={loginLoading}
-        style={{
-          width: '100%',
-          padding: '14px',
-          backgroundColor: loginLoading ? '#94a3b8' : '#3b82f6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '10px',
-          fontSize: '15px',
-          fontWeight: '600',
-          cursor: loginLoading ? 'not-allowed' : 'pointer',
-          marginBottom: '16px',
-          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
-        }}
-      >
+      <button type="submit" disabled={loginLoading} style={primaryButton('#3b82f6', loginLoading, 'rgba(59, 130, 246, 0.3)')}>
         {loginLoading ? '登录中...' : '登录'}
       </button>
 
       {/* 新用户注册提示 */}
-      <div style={{
-        marginTop: '20px',
-        paddingTop: '16px',
-        borderTop: '1px solid #e2e8f0',
-        textAlign: 'center'
-      }}>
+      <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0', textAlign: 'center' }}>
         <span style={{ color: '#64748b', fontSize: '14px' }}>
           新用户？{' '}
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              resetAllForms();
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#3b82f6',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
+          <button type="button" onClick={() => { setMode('register'); resetAllForms(); }} style={linkBtnStyle('#3b82f6', true)}>
             请注册
           </button>
         </span>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '12px' }}>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#94a3b8',
-            cursor: 'pointer',
-          }}
-        >
-          退出
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('forgotPassword')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#64748b',
-            cursor: 'pointer',
-          }}
-        >
-          忘记密码？
-        </button>
+        <button type="button" onClick={onClose} style={linkBtnStyle('#94a3b8')}>退出</button>
+        <button type="button" onClick={() => setMode('forgotPassword')} style={linkBtnStyle('#64748b')}>忘记密码？</button>
       </div>
-    </form>
-  );
-
-  // 渲染忘记密码表单
-  const renderForgotPasswordForm = () => (
-    <form onSubmit={handleResetPassword}>
-      <button
-        type="button"
-        onClick={() => {
-          setMode('login');
-          resetAllForms();
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          background: 'none',
-          border: 'none',
-          color: '#64748b',
-          fontSize: '14px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={16} /> 返回
-      </button>
-
-      <div className="text-center mb-6">
-        <div style={{
-          width: '56px',
-          height: '56px',
-          backgroundColor: '#ede9fe',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 12px',
-        }}>
-          <KeyRound size={24} color="#8b5cf6" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-800 mb-1">重置密码</h2>
-        <p className="text-sm text-slate-500">通过邮箱验证找回密码</p>
-      </div>
-
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          邮箱地址
-        </label>
-            <input
-              type="email"
-              autoComplete="email"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              placeholder="请输入注册时的邮箱"
-              style={inputStyle}
-              required
-            />
-      </div>
-
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          验证码
-        </label>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            type="text"
-            autoComplete="one-time-code"
-            value={resetCode}
-            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="请输入6位验证码"
-            maxLength={6}
-            style={{ ...inputStyle, flex: 1, textAlign: 'center', fontSize: '16px', letterSpacing: '4px' }}
-            required
-          />
-          <button
-            type="button"
-            onClick={handleSendResetCode}
-            disabled={resetCountdown > 0}
-            style={{
-              padding: '12px 16px',
-              backgroundColor: resetCountdown > 0 ? '#e2e8f0' : '#8b5cf6',
-              color: resetCountdown > 0 ? '#94a3b8' : 'white',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '14px',
-              cursor: resetCountdown > 0 ? 'not-allowed' : 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {resetCountdown > 0 ? `${resetCountdown}s` : '获取验证码'}
-          </button>
-        </div>
-      </div>
-
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          新密码
-        </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={resetNewPassword}
-              onChange={(e) => setResetNewPassword(e.target.value)}
-              placeholder="至少6位"
-              style={inputStyle}
-              required
-            />
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          确认新密码
-        </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={resetConfirmPassword}
-              onChange={(e) => setResetConfirmPassword(e.target.value)}
-              placeholder="再次输入新密码"
-              style={inputStyle}
-              required
-            />
-      </div>
-
-      {resetError && (
-        <div style={{ 
-          padding: '12px', 
-          backgroundColor: '#fef2f2', 
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          fontSize: '13px',
-          color: '#dc2626'
-        }}>
-          {resetError}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={resetLoading}
-        style={{
-          width: '100%',
-          padding: '14px',
-          backgroundColor: resetLoading ? '#94a3b8' : '#8b5cf6',
-          color: 'white',
-          border: 'none',
-          borderRadius: '10px',
-          fontSize: '15px',
-          fontWeight: '600',
-          cursor: resetLoading ? 'not-allowed' : 'pointer',
-          boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
-        }}
-      >
-        {resetLoading ? '重置中...' : '重置密码'}
-      </button>
     </form>
   );
 
   // 渲染设置密码表单
   const renderSetupPasswordForm = () => (
     <form onSubmit={handleSetupPassword}>
-      <button
-        type="button"
-        onClick={() => {
-          setMode('login');
-          resetAllForms();
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          background: 'none',
-          border: 'none',
-          color: '#64748b',
-          fontSize: '14px',
-          cursor: 'pointer',
-          marginBottom: '16px',
-        }}
-      >
+      <button type="button" onClick={() => { setMode('login'); resetAllForms(); }} style={backBtnStyle}>
         <ArrowLeft size={16} /> 返回
       </button>
 
       <div className="text-center mb-6">
-        <div style={{
-          width: '56px',
-          height: '56px',
-          backgroundColor: '#fef3c7',
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 12px',
-        }}>
+        <div style={iconCircle('#fef3c7')}>
           <KeyRound size={24} color="#d97706" />
         </div>
         <h2 className="text-xl font-bold text-slate-800 mb-1">设置新密码</h2>
@@ -1086,9 +489,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          用户名
-        </label>
+        <label style={labelStyle}>用户名</label>
         <input
           type="text"
           value={setupPasswordUsername}
@@ -1098,65 +499,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          新密码
-        </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={setupPassword}
-              onChange={(e) => setSetupPassword(e.target.value)}
-              placeholder="请输入新密码（至少6位）"
-              style={inputStyle}
-              required
-            />
+        <label style={labelStyle}>新密码</label>
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={setupPassword}
+          onChange={(e) => setSetupPassword(e.target.value)}
+          placeholder="请输入新密码（至少6位）"
+          style={inputStyle}
+          required
+        />
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', color: '#475569', fontWeight: '500' }}>
-          确认密码
-        </label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={setupConfirmPassword}
-              onChange={(e) => setSetupConfirmPassword(e.target.value)}
-              placeholder="请再次输入新密码"
-              style={inputStyle}
-              required
-            />
+        <label style={labelStyle}>确认密码</label>
+        <input
+          type="password"
+          autoComplete="new-password"
+          value={setupConfirmPassword}
+          onChange={(e) => setSetupConfirmPassword(e.target.value)}
+          placeholder="请再次输入新密码"
+          style={inputStyle}
+          required
+        />
       </div>
 
-      {setupError && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: '#fef2f2',
-          border: '1px solid #fecaca',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          fontSize: '13px',
-          color: '#dc2626'
-        }}>
-          {setupError}
-        </div>
-      )}
+      {setupError && <div style={errorBoxStyle}>{setupError}</div>}
 
-      <button
-        type="submit"
-        disabled={setupLoading}
-        style={{
-          width: '100%',
-          padding: '14px',
-          backgroundColor: setupLoading ? '#94a3b8' : '#d97706',
-          color: 'white',
-          border: 'none',
-          borderRadius: '10px',
-          fontSize: '15px',
-          fontWeight: '600',
-          cursor: setupLoading ? 'not-allowed' : 'pointer',
-          boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
-        }}
-      >
+      <button type="submit" disabled={setupLoading} style={primaryButton('#d97706', setupLoading, 'rgba(217, 119, 6, 0.3)')}>
         {setupLoading ? '设置中...' : '设置密码'}
       </button>
     </form>
@@ -1173,7 +543,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         aria-modal="true"
         aria-label="登录注册"
       >
-        <button 
+        <button
           onClick={onClose}
           style={{
             position: 'absolute',
@@ -1196,9 +566,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </button>
 
         <div style={{ padding: '32px 28px' }}>
-          {mode === 'register' && renderRegisterForm()}
+          {mode === 'register' && (
+            <RegisterForm
+              values={reg}
+              setValue={setRegField}
+              step={regStep}
+              error={regError}
+              loading={regLoading}
+              countdown={regCountdown}
+              onSendCode={handleSendRegCode}
+              onComplete={handleCompleteReg}
+              onBack={() => setRegStep(1)}
+              onExit={onClose}
+              onSwitchToLogin={() => { setMode('login'); resetAllForms(); }}
+            />
+          )}
           {mode === 'login' && renderLoginForm()}
-          {mode === 'forgotPassword' && renderForgotPasswordForm()}
+          {mode === 'forgotPassword' && (
+            <ForgotPasswordForm
+              values={reset}
+              setValue={setResetField}
+              error={resetError}
+              loading={resetLoading}
+              countdown={resetCountdown}
+              onSendCode={handleSendResetCode}
+              onSubmit={handleResetPassword}
+              onBack={() => { setMode('login'); resetAllForms(); }}
+            />
+          )}
           {mode === 'setupPassword' && renderSetupPasswordForm()}
         </div>
       </div>
