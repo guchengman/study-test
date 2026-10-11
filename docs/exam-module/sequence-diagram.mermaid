@@ -1,0 +1,81 @@
+sequenceDiagram
+    autonumber
+    actor Owner as owner(教师/管理员)
+    actor Student as 学员
+    participant UI as ExamManagePage / useFormalExam
+    participant API as examApi(前端)
+    participant Srv as ExamsRoute(后端)
+    participant Score as examScoring.js
+    participant DB as MySQL
+
+    %% 1) owner 出题
+    Owner->>UI: 选择科目/题目/分值/限时/时间窗
+    UI->>API: examApi.create(payload)
+    API->>Srv: POST /api/exams
+    Srv->>DB: INSERT exams(question_set JSON)
+    DB-->>Srv: exam.id
+    Srv-->>API: {id, status:'draft'}
+    Owner->>API: examApi.update(id, {status:'published'})
+    API->>Srv: PUT /api/exams/:id
+    Srv->>DB: UPDATE exams SET status='published'
+
+    %% 2) 学员参试（允许多次参考，复用进行中 attempt）
+    Student->>UI: 打开可参加列表
+    UI->>API: examApi.listAvailable()
+    API->>Srv: GET /api/exams/available
+    Srv->>DB: SELECT exams(published+窗口内+科目可访问)
+    DB-->>Srv: exams[](attempt_state)
+    Srv-->>UI: 可参加列表
+    Student->>UI: 点击开始
+    UI->>API: examApi.start(examId)
+    API->>Srv: POST /api/exams/:id/start
+    Srv->>DB: 校验窗口/权限
+    Srv->>DB: 查本用户本场 in_progress 且未超时 attempt
+    alt 存在未超时进行中 attempt
+        Srv-->>UI: {attemptId, reused:true, questions(无答案), deadline}
+    else 否则新建
+        Srv->>DB: INSERT exam_attempts(in_progress, deadline)
+        Srv->>DB: SELECT questions(剥离 answer/explanation)
+        DB-->>Srv: paper[]
+        Srv-->>UI: {attemptId, reused:false, questions(无答案), deadline}
+    end
+    UI->>UI: 客户端计时(基于 deadline) + 逐题作答
+
+    %% 3) 提交评分 + 强制自动交卷
+    Student->>UI: 交卷(或倒计时归零自动 submit)
+    UI->>API: examApi.submit(examId, {attemptId, answers})
+    API->>Srv: POST /api/exams/:id/submit
+    Srv->>Srv: 入口先 sweepExpiredAttempts(惰性自动交卷)
+    Srv->>DB: 校验 attempt / 窗口
+    Srv->>DB: SELECT questions(含 answer)
+    Srv->>Score: isAnswerCorrect(q, userAns) 逐题
+    Note right of Score: 编程题 is_correct=null, earned=0, needs_manual=true
+    Score-->>Srv: 每题 is_correct / earned(编程题不计)
+    Srv->>DB: UPDATE exam_attempts(answers,details,score,status)
+    Srv-->>API: {score, correctness, details(含 correct_answer+explanation)}
+    UI->>UI: FormalResultScreen 透出正确答案+解析(含编程题待定)
+
+    Note over Srv,DB: 超时兜底(无后台调度器)
+    Owner->>API: examApi.sweep(examId)
+    API->>Srv: POST /api/exams/:id/sweep
+    Srv->>DB: 本题 in_progress 且 deadline<NOW() 的 attempt 评分并 auto_submitted
+    Srv-->>API: {autoSubmitted:n}
+    Note over UI,DB: 任意读请求入口也会惰性触发 sweepExpiredAttempts
+
+    %% 4) 错题 / 历史(最高分) / 分析(每学生最高分口径)
+    Student->>UI: 查看本次错题
+    UI->>API: examApi.getAttempt(attemptId)
+    API->>Srv: GET /api/exams/attempts/:id
+    Srv->>DB: SELECT attempt.details
+    Srv-->>UI: 错题+正确答案+解析(含编程题待定)
+    Student->>UI: 我的历史成绩
+    UI->>API: examApi.myHistory()
+    API->>Srv: GET /api/exams/my-history
+    Srv->>DB: SELECT attempts WHERE user_id(全部)
+    Srv->>Srv: 聚合 bestScores(每场最高分)
+    Srv-->>UI: 历史列表(is_best) + bestScores
+    Owner->>UI: 考试分析
+    UI->>API: examApi.analysis(examId)
+    API->>Srv: GET /api/exams/:id/analysis
+    Srv->>DB: 聚合 exam_attempts(每学生取最高分 attempt)
+    Srv-->>UI: 参考人数/平均分/及格率/每题错误率(最高分口径)

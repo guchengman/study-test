@@ -1,0 +1,115 @@
+classDiagram
+    %% ── 数据模型 ──
+    class Exam {
+      +int id
+      +string subject_id
+      +string title
+      +string description
+      +int created_by
+      +ExamQuestionItem[] question_set
+      +int total_points
+      +int duration_minutes
+      +DateTime start_time
+      +DateTime end_time
+      +int pass_score
+      +enum status
+      +DateTime created_at
+      +DateTime updated_at
+    }
+    class ExamQuestionItem {
+      +int question_id
+      +int points
+    }
+    class ExamAttempt {
+      +int id
+      +int exam_id
+      +int user_id
+      +enum status
+      +object answers
+      +ExamAttemptDetail[] details
+      +int score
+      +int correct_count
+      +int total_count
+      +DateTime started_at
+      +DateTime submitted_at
+      +DateTime deadline
+    }
+    class ExamAttemptDetail {
+      +int question_id
+      +string~[]~ user_answer
+      +string~[]~ correct_answer
+      +bool is_correct
+      +int points
+      +int earned
+      +string explanation
+      +bool needs_manual
+    }
+    class Subject {
+      +string id
+      +int created_by
+    }
+    class User {
+      +int id
+      +enum role
+    }
+    class Question {
+      +int id
+      +string subject_id
+      +enum type
+      +JSON options
+      +JSON answer
+      +string explanation
+    }
+
+    Exam "1" *-- "many" ExamQuestionItem : question_set
+    Exam "1" *-- "many" ExamAttempt : attempts(可多条/同学生)
+    Subject "1" *-- "many" Exam : subject_id
+    User "1" *-- "many" Exam : created_by
+    User "1" *-- "many" ExamAttempt : user_id(非唯一)
+    ExamAttempt "1" *-- "many" ExamAttemptDetail : details
+    Question "1" *-- "many" ExamQuestionItem : references
+    Question "1" *-- "many" ExamAttemptDetail : snapshot
+
+    %% ── 服务 / 组件 ──
+    class ExamsRoute {
+      +Router router
+      +createExam()
+      +updateExam()
+      +deleteExam()
+      +listOwner()
+      +listAvailable()
+      +getDetail()
+      +startAttempt() 复用/新建
+      +submitAttempt()
+      +sweepExpiredAttempts() 惰性自动交卷
+      +getAttempt()
+      +myHistory() 聚合bestScores
+      +analysis() 每学生最高分口径
+      +sweep()
+    }
+    class examScoring {
+      +isAnswerCorrect(q, userAns) bool
+    }
+    class ExamApi {
+      +create() +update() +listOwner()
+      +listAvailable() +getDetail()
+      +start() +submit() +getAttempt()
+      +myHistory() +analysis()
+    }
+    class useFormalExam {
+      +state machine
+      +startAttempt()
+      +submit()
+      +fetchResult()
+    }
+    class FormalExamScreen
+    class FormalResultScreen
+    class ExamManagePage
+
+    ExamApi ..> ExamsRoute : HTTP /api/exams
+    useFormalExam ..> ExamApi : calls
+    FormalExamScreen ..> useFormalExam : uses
+    FormalResultScreen ..> useFormalExam : uses
+    ExamManagePage ..> ExamApi : create/update
+    ExamsRoute ..> examScoring : 评分
+    ExamsRoute ..> Question : 读取答案
