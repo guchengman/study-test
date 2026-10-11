@@ -40,7 +40,7 @@ describe('questionItemToQuestion (R6)', () => {
     const q = questionItemToQuestion(item as never);
     expect(q.subject).toBe('math');
     // 反向推导：领域 subject 严格等于 DTO subject_id
-    expect((q as Record<string, unknown>).subject).toBe((item as Record<string, unknown>).subject_id);
+    expect((q as unknown as Record<string, unknown>).subject).toBe((item as Record<string, unknown>).subject_id);
   });
 
   it('未知题型回退 single', () => {
@@ -64,7 +64,7 @@ describe('questionItemToQuestion (R6)', () => {
   });
 
   it('DTO 专属字段不得泄漏到领域类型', () => {
-    const q = questionItemToQuestion(item as never) as Record<string, unknown>;
+    const q = questionItemToQuestion(item as never) as unknown as Record<string, unknown>;
     expect(q.userId).toBeUndefined();
     expect(q.createdAt).toBeUndefined();
     expect(q.shareCode).toBeUndefined();

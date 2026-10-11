@@ -11,7 +11,7 @@
  * 说明：mammoth / pdfjs-dist 在测试中用 vi.mock 桩替代，避免真实加载重型依赖，
  * 这同时验证了「动态 import 机制」本身（loader 内部 import('mammoth') 能被解析）。
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import * as mammoth from 'mammoth';
 import * as pdfjs from 'pdfjs-dist';
 import {
@@ -43,9 +43,9 @@ function makeFile(content: string): File {
 }
 
 beforeEach(() => {
-  (mammoth.convertToHtml as unknown as vi.Mock).mockReset();
-  (mammoth.extractRawText as unknown as vi.Mock).mockReset();
-  (pdfjs.getDocument as unknown as vi.Mock).mockReset();
+  (mammoth.convertToHtml as unknown as Mock).mockReset();
+  (mammoth.extractRawText as unknown as Mock).mockReset();
+  (pdfjs.getDocument as unknown as Mock).mockReset();
 });
 
 describe('loader: loadMammoth（动态 import 机制）', () => {
@@ -108,7 +108,7 @@ describe('getOcrApiUrl（环境相关）', () => {
 
 describe('docxExtract（mammoth 桩）', () => {
   it('extractTextFromDocx 剥离 HTML 标签得到纯文本', async () => {
-    (mammoth.convertToHtml as unknown as vi.Mock).mockResolvedValue({
+    (mammoth.convertToHtml as unknown as Mock).mockResolvedValue({
       value: '<p>Hello</p> <p>World</p>',
     });
     const text = await extractTextFromDocx(makeFile('dummy.docx'));
@@ -116,7 +116,7 @@ describe('docxExtract（mammoth 桩）', () => {
   });
 
   it('extractHtmlFromDocx 抽取 data URI 图片', async () => {
-    (mammoth.convertToHtml as unknown as vi.Mock).mockResolvedValue({
+    (mammoth.convertToHtml as unknown as Mock).mockResolvedValue({
       value: '<img src="data:image/png;base64,AAA" alt="x"><div>body</div>',
     });
     const { html, images } = await extractHtmlFromDocx(makeFile('dummy.docx'));

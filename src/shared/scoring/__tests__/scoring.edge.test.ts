@@ -15,24 +15,26 @@ import {
   formatTime,
 } from '../index';
 
-// 构造最小 Question 形状（运行时无需完整字段）
-const single = (over: Record<string, unknown> = {}) => ({
+import type { Question } from '../../../types';
+
+// 构造最小 Question 形状（运行时无需完整字段，类型上以 unknown 断言满足 Question 以便编译检查）
+const single = (over: Record<string, unknown> = {}): Question => ({
   type: 'single',
   options: ['Apple', 'Banana', 'Cat', 'Dog'],
   answer: 'B',
   ...over,
-});
-const multiple = (over: Record<string, unknown> = {}) => ({
+} as unknown as Question);
+const multiple = (over: Record<string, unknown> = {}): Question => ({
   type: 'multiple',
   options: ['1', '2', '3', '4'],
   answer: ['B', 'D'],
   ...over,
-});
-const programming = (over: Record<string, unknown> = {}) => ({
+} as unknown as Question);
+const programming = (over: Record<string, unknown> = {}): Question => ({
   type: 'programming',
   answer: 'print(1)',
   ...over,
-});
+} as unknown as Question);
 
 describe('isAnswerCorrect —— 边界 / 异常输入', () => {
   it('用户未作答（null/undefined/空串/0/false）一律判错', () => {
@@ -129,7 +131,7 @@ describe('gradeQuestion —— 边界', () => {
   });
 
   it('分值非法（NaN / undefined / 字符串）按 Number 解析，失败回退 0', () => {
-    expect(gradeQuestion(single(), 'Banana', '10').earned).toBe(10);
+    expect(gradeQuestion(single(), 'Banana', '10' as unknown as number).earned).toBe(10);
     expect(gradeQuestion(single(), 'Banana', NaN).earned).toBe(0);
     expect(gradeQuestion(single(), 'Banana', undefined as unknown as number).earned).toBe(0);
   });
