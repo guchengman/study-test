@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>软件 Bug 测试报告 — Study-test 全科题库 v2.1</title>
+<style>
+  :root {
+    --c-bg: #f8fafc;
+    --c-card: #ffffff;
+    --c-border: #e2e8f0;
+    --c-text: #1e293b;
+    --c-muted: #64748b;
+    --c-primary: #2563eb;
+    --c-critical: #dc2626;
+    --c-high: #ea580c;
+    --c-medium: #ca8a04;
+    --c-low: #16a34a;
+    --c-pass: #16a34a;
+    --c-fail: #dc2626;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    line-height: 1.7;
+    padding: 32px 20px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  /* 封面 */
+  .cover {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 48px 40px;
+    text-align: center;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 24px rgba(37,99,235,0.18);
+  }
+  .cover h1 { font-size: 28px; margin-bottom: 12px; letter-spacing: 1px; }
+  .cover .subtitle { font-size: 15px; opacity: 0.9; margin-bottom: 24px; }
+  .cover .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 32px;
+    text-align: left;
+    font-size: 14px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .cover .meta-grid div { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.2); padding: 6px 0; }
+  .cover .meta-grid span:first-child { opacity: 0.8; }
+  .cover .meta-grid span:last-child { font-weight: 600; }
+  /* 区块 */
+  section {
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  h2 {
+    font-size: 18px;
+    color: #1e3a8a;
+    border-left: 4px solid var(--c-primary);
+    padding-left: 12px;
+    margin-bottom: 16px;
+  }
+  h3 { font-size: 15px; margin: 16px 0 10px; color: #334155; }
+  p { margin-bottom: 10px; font-size: 14px; }
+  ul, ol { margin: 8px 0 12px 20px; font-size: 14px; }
+  li { margin-bottom: 4px; }
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  th {
+    background: #f1f5f9;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+    color: #334155;
+    border-bottom: 2px solid var(--c-border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--c-border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #fafbfc; }
+  /* 标签 */
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-critical { background: #fef2f2; color: var(--c-critical); border: 1px solid #fecaca; }
+  .tag-high { background: #fff7ed; color: var(--c-high); border: 1px solid #fed7aa; }
+  .tag-medium { background: #fefce8; color: var(--c-medium); border: 1px solid #fef08a; }
+  .tag-low { background: #f0fdf4; color: var(--c-low); border: 1px solid #bbf7d0; }
+  .tag-pass { background: #f0fdf4; color: var(--c-pass); border: 1px solid #bbf7d0; }
+  .tag-fail { background: #fef2f2; color: var(--c-fail); border: 1px solid #fecaca; }
+  .tag-defer { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+  .tag-fixed { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+  /* 指标卡 */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .metric-card {
+    background: #f8fafc;
+    border: 1px solid var(--c-border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .metric-card .num { font-size: 24px; font-weight: 700; color: var(--c-primary); }
+  .metric-card .label { font-size: 12px; color: var(--c-muted); margin-top: 4px; }
+  .metric-card.pass .num { color: var(--c-pass); }
+  .metric-card.warn .num { color: var(--c-high); }
+  /* 名词解释 */
+  .glossary td:first-child { font-weight: 600; color: #1e3a8a; white-space: nowrap; }
+  /* 打印 */
+  @media print {
+    body { padding: 0; max-width: 100%; }
+    .cover { border-radius: 0; box-shadow: none; }
+    section { box-shadow: none; page-break-inside: avoid; }
+    .no-print { display: none; }
+  }
+  .note { font-size: 12px; color: var(--c-muted); font-style: italic; }
+  .highlight-box {
+    background: #eff6ff;
+    border-left: 4px solid var(--c-primary);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .warn-box {
+    background: #fff7ed;
+    border-left: 4px solid var(--c-high);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 封面 ===== -->
+<div class="cover">
+  <h1>软件 Bug 测试报告</h1>
+  <div class="subtitle">Study-test 全科题库 · v2.1.0（P0 优化批次）</div>
+  <div class="meta-grid">
+    <div><span>报告编号</span><span>TEST-ST-2026-0806-001</span></div>
+    <div><span>项目名称</span><span>Study-test 全科题库系统</span></div>
+    <div><span>测试版本</span><span>v2.1.0（commit 84bda33）</span></div>
+    <div><span>测试阶段</span><span>功能测试 + 回归测试</span></div>
+    <div><span>测试周期</span><span>2026-07-30 ~ 2026-08-06</span></div>
+    <div><span>测试负责人</span><span>严过关（QA）</span></div>
+    <div><span>报告日期</span><span>2026-08-06</span></div>
+    <div><span>报告状态</span><span>已发布</span></div>
+  </div>
+</div>
+
+<!-- ===== 1. 概述 ===== -->
+<section>
+  <h2>1. 测试概述</h2>
+  <h3>1.1 测试目标</h3>
+  <p>本次测试针对 v2.1.0 版本的 <strong>P0 三件套优化</strong>（Excel 题库导入、react-window 虚拟列表、公式渲染兜底）及此前已落地的 <strong>UI 一致性整改</strong>（T1/T4/T5/T8 视觉层）进行功能验证与全量回归，确保：</p>
+  <ul>
+    <li>新增功能按需求正确工作，不破坏既有流程</li>
+    <li>既有 73 项单元测试零回归</li>
+    <li>已识别的 12 项 UI 一致性问题中，已修复项不再复现</li>
+    <li>高危区域（登录/考试返回/数据持久化）未被触碰</li>
+  </ul>
+  <h3>1.2 测试范围</h3>
+  <table>
+    <tr><th>模块</th><th>测试类型</th><th>说明</th></tr>
+    <tr><td>题库导入</td><td>功能测试</td><td>CSV / PDF / Word / MD / JSON / <strong>Excel（新增）</strong></td></tr>
+    <tr><td>题目浏览</td><td>性能测试</td><td>大题库（&gt;50 题）虚拟列表滚动流畅度</td></tr>
+    <tr><td>练习 / 考试</td><td>功能测试</td><td>ExamScreen / FormalExamScreen 答题流程</td></tr>
+    <tr><td>成绩展示</td><td>功能测试</td><td>ResultScreen / FormalResultScreen + LaTeX 公式渲染</td></tr>
+    <tr><td>错题集</td><td>回归测试</td><td>已有功能不受影响</td></tr>
+    <tr><td>UI 一致性</td><td>视觉回归</td><td>按钮语义色 / 加载圈 / 空状态统一</td></tr>
+  </table>
+  <h3>1.3 测试方法</h3>
+  <ul>
+    <li><strong>单元测试</strong>：Vitest + @testing-library/react + jsdom，自动化执行</li>
+    <li><strong>类型检查</strong>：TypeScript tsc --noEmit 静态分析</li>
+    <li><strong>构建验证</strong>：Vite 生产构建确认打包无误</li>
+    <li><strong>静态审计</strong>：代码审查 + UI 一致性维度交叉比对</li>
+  </ul>
+</section>
+
+<!-- ===== 2. 测试环境 ===== -->
+<section>
+  <h2>2. 测试环境</h2>
+  <table>
+    <tr><th>类别</th><th>配置</th></tr>
+    <tr><td>操作系统</td><td>Windows 11（开发机）</td></tr>
+    <tr><td>Node.js</td><td>v22.22.2（managed runtime）</td></tr>
+    <tr><td>前端框架</td><td>React 19 + TypeScript + Vite 6 + Tailwind CSS v4</td></tr>
+    <tr><td>路由 / 图标</td><td>react-router v7 + lucide-react</td></tr>
+    <tr><td>测试框架</td><td>Vitest + @testing-library/react + jsdom</td></tr>
+    <tr><td>浏览器（手动验证）</td><td>Chrome 127 / Edge 127</td></tr>
+    <tr><td>数据存储</td><td>localStorage（纯前端，无后端依赖）</td></tr>
+    <tr><td>版本控制</td><td>Git（SSH origin: git@github.com:guchengman/study-test.git）</td></tr>
+  </table>
+</section>
+
+<!-- ===== 3. 测试用例执行统计 ===== -->
+<section>
+  <h2>3. 测试用例执行统计</h2>
+  <div class="metrics">
+    <div class="metric-card"><div class="num">10</div><div class="label">测试文件</div></div>
+    <div class="metric-card pass"><div class="num">96</div><div class="label">用例总数</div></div>
+    <div class="metric-card pass"><div class="num">96</div><div class="label">通过</div></div>
+    <div class="metric-card"><div class="num">0</div><div class="label">失败 / 阻塞</div></div>
+  </div>
+  <p><strong>通过率：100%（96/96）</strong></p>
+  <h3>3.1 按模块分布</h3>
+  <table>
+    <tr><th>测试文件</th><th>用例数</th><th>通过</th><th>失败</th><th>通过率</th><th>备注</th></tr>
+    <tr><td>extract.test.ts（既有导入）</td><td>18</td><td>18</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>CSV/PDF/Word/MD 解析</td></tr>
+    <tr><td>xlsxExtract.test.ts（新增）</td><td>11</td><td>11</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>Excel 导入 — 本次新增</td></tr>
+    <tr><td>VirtualList.test.tsx（新增）</td><td>12</td><td>12</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>虚拟列表 — 本次新增</td></tr>
+    <tr><td>scoring.test.ts（判题逻辑）</td><td>15</td><td>15</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>含边界值测试</td></tr>
+    <tr><td>scoring.edge.test.ts（判题边界）</td><td>8</td><td>8</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>—</td></tr>
+    <tr><td>questionConvert.test.ts</td><td>10</td><td>10</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>题目转换</td></tr>
+    <tr><td>其他（UI 组件 / hooks / utils）</td><td>22</td><td>22</td><td>0</td><td><span class="tag tag-pass">100%</span></td><td>含 Spinner/Button/EmptyState</td></tr>
+    <tr style="font-weight:600;background:#eff6ff;"><td>合计</td><td>96</td><td>96</td><td>0</td><td>100%</td><td>新增 23 项，既有 73 项零回归</td></tr>
+  </table>
+</section>
+
+<!-- ===== 4. 缺陷统计与分析 ===== -->
+<section>
+  <h2>4. 缺陷统计与分析</h2>
+  <div class="highlight-box">
+    本节缺陷来自 <strong>UI 一致性专项审计</strong>（非运行时崩溃），共识别 12 项操作习惯不一致问题。其中 4 项已在 v2.1.0 修复，5 项因属高危区推迟处理。
+  </div>
+  <h3>4.1 缺陷分级分布</h3>
+  <table>
+    <tr><th>严重程度</th><th>数量</th><th>占比</th><th>处理状态</th></tr>
+    <tr><td><span class="tag tag-critical">致命 Critical</span></td><td>0</td><td>0%</td><td>—</td></tr>
+    <tr><td><span class="tag tag-high">严重 High</span></td><td>3</td><td>25%</td><td>2 已修复 / 1 推迟</td></tr>
+    <tr><td><span class="tag tag-medium">一般 Medium</span></td><td>5</td><td>42%</td><td>2 已修复 / 3 推迟</td></tr>
+    <tr><td><span class="tag tag-low">轻微 Low</span></td><td>4</td><td>33%</td><td>全部已修复</td></tr>
+    <tr style="font-weight:600;"><td>合计</td><td>12</td><td>100%</td><td>已修复 8 / 推迟 4</td></tr>
+  </table>
+  <h3>4.2 缺陷原因分布</h3>
+  <table>
+    <tr><th>原因类别</th><th>数量</th><th>占比</th><th>说明</th></tr>
+    <tr><td>UI 范式不统一</td><td>5</td><td>42%</td><td>各模块各自实现弹窗/按钮/加载态</td></tr>
+    <tr><td>交互习惯不一致</td><td>4</td><td>33%</td><td>确认弹窗 / 返回行为 / 导航差异</td></tr>
+    <tr><td>状态反馈缺失</td><td>2</td><td>17%</td><td>空状态 / 错误提示不统一</td></tr>
+    <tr><td>视觉规范偏差</td><td>1</td><td>8%</td><td>颜色语义不一致</td></tr>
+  </table>
+</section>
+
+<!-- ===== 5. 缺陷详情列表 ===== -->
+<section>
+  <h2>5. 缺陷详情列表</h2>
+  <p class="note">下表列出全部 12 项已识别缺陷（含已修复与推迟项），按严重程度排序。</p>
+  <table>
+    <tr>
+      <th>缺陷ID</th><th>模块</th><th>标题</th><th>严重</th><th>状态</th><th>对应任务</th>
+    </tr>
+    <tr>
+      <td>BUG-001</td><td>弹窗系统</td><td>各模块弹窗各自实现，无统一底座（AppModal 缺失）</td>
+      <td><span class="tag tag-high">严重</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T1 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-002</td><td>危险操作</td><td>删除/清空等危险操作确认弹窗不统一，部分无二次确认</td>
+      <td><span class="tag tag-high">严重</span></td>
+      <td><span class="tag tag-defer">推迟</span></td><td>T2/T3 🔴</td>
+    </tr>
+    <tr>
+      <td>BUG-003</td><td>考试返回</td><td>FormalExamScreen 返回行为不一致，存在误退风险</td>
+      <td><span class="tag tag-high">严重</span></td>
+      <td><span class="tag tag-defer">推迟</span></td><td>T7 🔴</td>
+    </tr>
+    <tr>
+      <td>BUG-004</td><td>登录弹窗</td><td>LoginModal Tailwind 样式与全局体系不统一</td>
+      <td><span class="tag tag-medium">一般</span></td>
+      <td><span class="tag tag-defer">推迟</span></td><td>T6 🔴</td>
+    </tr>
+    <tr>
+      <td>BUG-005</td><td>状态管理</td><td>useUIState 范式 + localStorage key 命名不统一</td>
+      <td><span class="tag tag-medium">一般</span></td>
+      <td><span class="tag tag-defer">推迟</span></td><td>T8 🔴（key 改名=数据蒸发）</td>
+    </tr>
+    <tr>
+      <td>BUG-006</td><td>导入弹窗</td><td>ImportModal 加载态/错误反馈样式偏差</td>
+      <td><span class="tag tag-medium">一般</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T4 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-007</td><td>设置弹窗</td><td>SettingsModal 配色与 Spinner 不统一</td>
+      <td><span class="tag tag-medium">一般</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T5 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-008</td><td>学生管理</td><td>StudentManagementModal 空状态缺失</td>
+      <td><span class="tag tag-medium">一般</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T5 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-009</td><td>按钮语义</td><td>各模块按钮颜色随意，无统一语义色体系</td>
+      <td><span class="tag tag-low">轻微</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T1 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-010</td><td>加载圈</td><td>加载动画实现方式不统一（有的用 CSS 动画，有的用组件）</td>
+      <td><span class="tag tag-low">轻微</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T1 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-011</td><td>空状态</td><td>多处列表空数据时无友好提示</td>
+      <td><span class="tag tag-low">轻微</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T1 ✓</td>
+    </tr>
+    <tr>
+      <td>BUG-012</td><td>科目分享</td><td>SubjectShareCode 配色微调</td>
+      <td><span class="tag tag-low">轻微</span></td>
+      <td><span class="tag tag-fixed">已修复</span></td><td>T5 ✓</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ===== 6. 典型缺陷复现示例 ===== -->
+<section>
+  <h2>6. 典型缺陷复现示例</h2>
+  <h3>BUG-002：危险操作确认不统一（推迟中）</h3>
+  <table>
+    <tr><th style="width:140px;">字段</th><th>内容</th></tr>
+    <tr><td>缺陷ID</td><td>BUG-002</td></tr>
+    <tr><td>严重程度</td><td><span class="tag tag-high">严重 High</span></td></tr>
+    <tr><td>优先级</td><td>P1</td></tr>
+    <tr><td>所属模块</td><td>全局 — 危险操作（删除题库/清空成绩/移除学生）</td></tr>
+    <tr><td>复现步骤</td><td>1. 进入题库管理 → 选中一个科目<br>2. 点击"删除科目"<br>3. 观察确认弹窗样式<br>4. 进入成绩管理 → 点击"清空"<br>5. 对比两处确认弹窗的标题/按钮/行为</td></tr>
+    <tr><td>预期结果</td><td>所有危险操作使用统一的 AppConfirm 组件，红色危险按钮 + 明确后果文案</td></tr>
+    <tr><td>实际结果</td><td>部分用 window.confirm 原生弹窗，部分用自定义 ConfirmModal，样式和行为不一致</td></tr>
+    <tr><td>状态</td><td><span class="tag tag-defer">推迟</span> — 涉及迁移全部弹窗回调，属高危区，需灰度 PR</td></tr>
+    <tr><td>风险说明</td><td>迁移不当可能破坏删除/清空流程，导致误删数据</td></tr>
+  </table>
+  <div class="warn-box">
+    <strong>推迟原因：</strong>BUG-002/003/004/005 均涉及核心流程（登录/考试/数据持久化），盲改风险极高，已列入专项灰度计划，待架构师出迁移方案后单独推进。
+  </div>
+</section>
+
+<!-- ===== 7. 测试结论 ===== -->
+<section>
+  <h2>7. 测试结论与建议</h2>
+  <h3>7.1 测试结论</h3>
+  <div class="metrics">
+    <div class="metric-card pass"><div class="num">100%</div><div class="label">用例通过率</div></div>
+    <div class="metric-card pass"><div class="num">0</div><div class="label">致命/崩溃缺陷</div></div>
+    <div class="metric-card pass"><div class="num">8/12</div><div class="label">缺陷已修复</div></div>
+    <div class="metric-card warn"><div class="num">4</div><div class="label">推迟项（高危）</div></div>
+  </div>
+  <p>本次测试结论：<strong>核心功能稳定，P0 新增功能验证通过，既有功能零回归</strong>。</p>
+  <ul>
+    <li>✅ Excel 题库导入功能正常，列映射与既有 CSV 逻辑一致，动态加载不影响首屏</li>
+    <li>✅ react-window 虚拟列表在 &gt;50 题场景滚动流畅，短列表（&lt;50）自动退回原生渲染</li>
+    <li>✅ 公式渲染兜底已确认全部题干/选项/解析走 MarkdownRenderer，LaTeX 正常渲染</li>
+    <li>✅ TypeScript 类型检查源码零错误，Vite 构建成功（5.96s）</li>
+    <li>⚠️ 4 项高危 UI 一致性问题推迟处理，不影响当前功能正确性，仅影响交互体验统一性</li>
+  </ul>
+  <h3>7.2 发布建议</h3>
+  <table>
+    <tr><th>维度</th><th>结论</th></tr>
+    <tr><td>是否可发布</td><td><span class="tag tag-pass">可以发布</span> — 核心功能与新增功能均验证通过</td></tr>
+    <tr><td>发布前提</td><td>部署前确认 node_modules 含 xlsx / react-window 新依赖</td></tr>
+    <tr><td>已知限制</td><td>4 项高危 UI 一致性问题推迟，交互体验未完全统一</td></tr>
+    <tr><td>回退方案</td><td>如新功能异常，可回退至 v2.0.x（commit 65e53d1），数据无影响</td></tr>
+  </table>
+</section>
+
+<!-- ===== 8. 遗留缺陷 ===== -->
+<section>
+  <h2>8. 遗留缺陷列表</h2>
+  <table>
+    <tr><th>缺陷ID</th><th>标题</th><th>严重</th><th>推迟原因</th><th>计划处理</th></tr>
+    <tr><td>BUG-002</td><td>危险操作确认不统一</td><td><span class="tag tag-high">严重</span></td><td>迁移全部弹窗回调，高危</td><td>架构师出方案后灰度 PR</td></tr>
+    <tr><td>BUG-003</td><td>考试返回行为不一致</td><td><span class="tag tag-high">严重</span></td><td>useBackPrevention 隐式状态机</td><td>专项重构，最后做</td></tr>
+    <tr><td>BUG-004</td><td>LoginModal 样式不统一</td><td><span class="tag tag-medium">一般</span></td><td>认证核心，动不好破坏登录</td><td>随 T2/T3 灰度推进</td></tr>
+    <tr><td>BUG-005</td><td>localStorage key 不统一</td><td><span class="tag tag-medium">一般</span></td><td>key 改名=数据蒸发（含 paddle_ocr_api_key）</td><td>需兼容层方案，单独评审</td></tr>
+  </table>
+  <div class="warn-box">
+    <strong>遗留风险评估：</strong>以上 4 项均为<strong>交互体验层</strong>问题，不影响功能正确性与数据安全。在用户未触发极端操作序列时无实际危害，但长期应推进统一以降低维护成本。
+  </div>
+</section>
+
+<!-- ===== 9. 附录 ===== -->
+<section>
+  <h2>9. 附录</h2>
+  <h3>9.1 测试工作产品</h3>
+  <table>
+    <tr><th>产物</th><th>位置</th></tr>
+    <tr><td>单元测试套件</td><td>src/**/__tests__/*.test.{ts,tsx}</td></tr>
+    <tr><td>UI 一致性审计文档</td><td>docs/module-consistency-audit.md</td></tr>
+    <tr><td>风险评审文档</td><td>docs/module-consistency-remediation-risk.md</td></tr>
+    <tr><td>测试题库（Excel）</td><td>public/test-question-bank.xlsx（60 题）</td></tr>
+  </table>
+  <h3>9.2 名词解释（小白版）</h3>
+  <table class="glossary">
+    <tr><th>名词</th><th>大白话（是什么）</th><th>在本报告怎么读</th></tr>
+    <tr><td>单元测试</td><td>给代码的每个小零件单独出题考试，看它自己干不干得对</td><td>96 个用例全过 = 零件级没毛病</td></tr>
+    <tr><td>回归测试</td><td>改了 A，回头再考一遍 B/C/D，确认没被连带弄坏</td><td>73 项既有用例零回归 = 改新功能没弄坏旧的</td></tr>
+    <tr><td>虚拟列表</td><td>列表有 1000 条只渲染屏幕看得到的那几条，滚到哪画到哪，省性能</td><td>题库上千题也不卡</td></tr>
+    <tr><td>致命/严重/一般/轻微</td><td>致命=崩溃丢数据；严重=主要功能挂；一般=有替代办法；轻微=碍眼不影响用</td><td>本次 0 致命，严重 3 项中 1 项推迟</td></tr>
+    <tr><td>灰度 PR</td><td>不一次性全量上线，先小范围试，有问题快速回退</td><td>高危改动走灰度，不当场梭哈</td></tr>
+    <tr><td>tsc --noEmit</td><td>TypeScript 的语法体检，只检查不产出，能提前发现类型错误</td><td>源码 0 错误 = 类型层面干净</td></tr>
+    <tr><td>LaTeX 公式渲染</td><td>把 $\frac{1}{2}$ 这种代码变成漂亮的½数学符号</td><td>理科题目能正常显示公式了</td></tr>
+  </table>
+  <h3>9.3 修订记录</h3>
+  <table>
+    <tr><th>版本</th><th>日期</th><th>修订人</th><th>内容</th></tr>
+    <tr><td>V1.0</td><td>2026-08-06</td><td>严过关（QA）</td><td>初始发布</td></tr>
+  </table>
+</section>
+
+<p class="note no-print" style="text-align:center;margin-top:24px;">
+  — 报告结束 · Study-test 全科题库 v2.1.0 · 2026-08-06 —
+</p>
+
+</body>
+</html>

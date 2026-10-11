@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug 反馈记录表</title>
+<style>
+/* ================================================================
+   Bug 反馈记录表 —— 单文件 HTML 工具
+   所有 CSS/JS 内联，双击即用，无需任何开发环境
+   ================================================================ */
+
+/* ========== CSS 变量：统一管理颜色主题 ========== */
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --primary-dark: #1e40af;
+  --bg: #f1f5f9;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --text-light: #94a3b8;
+  --border: #e2e8f0;
+  --border-dark: #cbd5e1;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --warning: #ea580c;
+  --warning-light: #fff7ed;
+  --info: #ca8a04;
+  --info-light: #fefce8;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+/* ========== 基础重置 ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ========== 顶部页头 ========== */
+.app-header {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #fff;
+  padding: 18px 24px;
+  box-shadow: var(--shadow-md);
+}
+.app-header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.app-title {
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-title .bug-icon { font-size: 28px; }
+.app-subtitle {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ========== 通用按钮 ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-light {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+.btn-light:hover { background: rgba(255,255,255,0.3); }
+.btn-outline {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border-dark);
+}
+.btn-outline:hover { background: var(--bg); border-color: var(--primary); }
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover { background: #b91c1c; }
+.btn-success {
+  background: var(--success);
+  color: #fff;
+}
+.btn-success:hover { background: #15803d; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+}
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ========== 主容器 ========== */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px 60px;
+}
+
+/* ========== 统计卡片区域 ========== */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1.2;
+  margin-top: 4px;
+}
+.stat-card .stat-sub {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.stat-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ========== 卡片通用样式 ========== */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-body { padding: 20px; }
+
+/* ========== 表单样式 ========== */
+.form-section .card-header {
+  cursor: pointer;
+  user-select: none;
+}
+.form-section .card-header:hover { background: var(--bg); }
+.form-toggle-icon {
+  transition: transform 0.2s ease;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.form-section.collapsed .form-toggle-icon { transform: rotate(-90deg); }
+.form-section.collapsed .card-body { display: none; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.form-grid .full-width { grid-column: 1 / -1; }
+
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.required-mark { color: var(--danger); }
+.form-hint { font-size: 12px; color: var(--text-light); }
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="search"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error {
+  border-color: var(--danger);
+  background: var(--danger-light);
+}
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-group input[readonly] {
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+/* 单选按钮组 */
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 2px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.radio-item input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.radio-item:hover { border-color: var(--primary); }
+.radio-item.checked { border-color: currentColor; }
+.radio-item .radio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border-dark);
+  transition: all 0.15s ease;
+}
+.radio-item.checked .radio-dot {
+  background: currentColor;
+  border-color: currentColor;
+}
+/* 严重程度颜色 */
+.radio-item.sev-fatal { color: var(--danger); }
+.radio-item.sev-fatal.checked { background: var(--danger-light); }
+.radio-item.sev-serious { color: var(--warning); }
+.radio-item.sev-serious.checked { background: var(--warning-light); }
+.radio-item.sev-normal { color: var(--info); }
+.radio-item.sev-normal.checked { background: var(--info-light); }
+.radio-item.sev-minor { color: var(--success); }
+.radio-item.sev-minor.checked { background: var(--success-light); }
+/* 优先级颜色 */
+.radio-item.pri-urgent { color: var(--danger); }
+.radio-item.pri-urgent.checked { background: var(--danger-light); }
+.radio-item.pri-high { color: var(--warning); }
+.radio-item.pri-high.checked { background: var(--warning-light); }
+.radio-item.pri-medium { color: var(--primary); }
+.radio-item.pri-medium.checked { background: var(--primary-light); }
+.radio-item.pri-low { color: var(--text-secondary); }
+.radio-item.pri-low.checked { background: var(--bg); }
+
+/* tooltip 大白话提示 */
+.radio-item .tooltip-text {
+  visibility: hidden;
+  background: #1e293b;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 6px 12px;
+  position: absolute;
+  z-index: 100;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.radio-item .tooltip-text::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1e293b;
+}
+.radio-item:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+/* ========== 截图上传区 ========== */
+.screenshot-upload {
+  border: 2px dashed var(--border-dark);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.screenshot-upload:hover { border-color: var(--primary); background: var(--primary-light); }
+.screenshot-upload.dragover { border-color: var(--primary); background: var(--primary-light); }
+.screenshot-upload .upload-icon { font-size: 24px; }
+.screenshot-upload .upload-text { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+.screenshot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.screenshot-thumb {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg);
+}
+.screenshot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.screenshot-thumb .remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.9);
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.screenshot-thumb .remove-btn:hover { background: var(--danger); }
+
+/* 表单操作按钮区 */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.draft-indicator {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-left: auto;
+  align-self: center;
+}
+
+/* ========== 工具栏（搜索+筛选） ========== */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbfc;
+}
+.toolbar .search-box {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+.toolbar .search-box input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+}
+.toolbar .search-box input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+.toolbar .search-box .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  font-size: 14px;
+}
+.toolbar select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  cursor: pointer;
+}
+.toolbar select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.filter-clear-btn {
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+/* ========== 批量操作栏 ========== */
+.batch-bar {
+  padding: 10px 20px;
+  background: var(--primary-light);
+  border-bottom: 1px solid var(--border);
+  display: none;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.batch-bar.visible { display: flex; }
+.batch-bar .selected-count { font-weight: 700; color: var(--primary-dark); }
+
+/* ========== Bug 列表表格 ========== */
+.table-wrapper { overflow-x: auto; }
+table.bug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.bug-table th,
+table.bug-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+table.bug-table th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+table.bug-table th.sortable { cursor: pointer; user-select: none; }
+table.bug-table th.sortable:hover { color: var(--primary); }
+table.bug-table th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.4; }
+table.bug-table th.sorted-asc .sort-arrow,
+table.bug-table th.sorted-desc .sort-arrow { opacity: 1; color: var(--primary); }
+
+table.bug-table tbody tr:hover { background: #f8fafc; }
+table.bug-table tbody tr.selected { background: var(--primary-light); }
+
+.bug-id-cell { font-weight: 700; color: var(--primary); font-family: monospace; white-space: nowrap; }
+.bug-title-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 严重程度色标 */
+.severity-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.severity-tag .sev-dot { width: 8px; height: 8px; border-radius: 50%; }
+.sev-fatal { background: var(--danger-light); color: var(--danger); }
+.sev-fatal .sev-dot { background: var(--danger); }
+.sev-serious { background: var(--warning-light); color: var(--warning); }
+.sev-serious .sev-dot { background: var(--warning); }
+.sev-normal { background: var(--info-light); color: var(--info); }
+.sev-normal .sev-dot { background: var(--info); }
+.sev-minor { background: var(--success-light); color: var(--success); }
+.sev-minor .sev-dot { background: var(--success); }
+
+/* 优先级标签 */
+.priority-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pri-urgent-tag { background: var(--danger-light); color: var(--danger); }
+.pri-high-tag { background: var(--warning-light); color: var(--warning); }
+.pri-medium-tag { background: var(--primary-light); color: var(--primary); }
+.pri-low-tag { background: var(--bg); color: var(--text-secondary); }
+
+/* 状态标签 */
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-new { background: #dbeafe; color: #2563eb; }
+.status-confirming { background: #f1f5f9; color: #64748b; }
+.status-fixing { background: #ffedd5; color: #ea580c; }
+.status-fixed { background: #dcfce7; color: #16a34a; }
+.status-verified { background: #cffafe; color: #0891b2; }
+.status-closed { background: #e2e8f0; color: #475569; }
+
+/* 行内状态快速切换 */
+.status-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* 行操作按钮 */
+.row-actions { display: flex; gap: 4px; white-space: nowrap; }
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-light);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state .empty-text { font-size: 15px; }
+.empty-state .empty-hint { font-size: 13px; margin-top: 4px; }
+
+/* ========== 分页 ========== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-dark);
+  background: #fff;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.pagination button:hover:not(:disabled) { background: var(--primary-light); border-color: var(--primary); }
+.pagination button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination .page-info { font-size: 13px; color: var(--text-secondary); margin: 0 8px; }
+
+/* ========== Toast 提示 ========== */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastSlideIn 0.3s ease;
+  max-width: 360px;
+}
+.toast-success { background: var(--success); color: #fff; }
+.toast-error { background: var(--danger); color: #fff; }
+.toast-info { background: var(--primary); color: #fff; }
+.toast-warning { background: var(--warning); color: #fff; }
+@keyframes toastSlideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes toastSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+.toast.removing { animation: toastSlideOut 0.3s ease forwards; }
+
+/* ========== 模态框（详情/确认/lightbox） ========== */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 8000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.visible { display: flex; }
+.modal-box {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalIn 0.2s ease;
+}
+@keyframes modalIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-light);
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.modal-close:hover { background: var(--bg); color: var(--text); }
+.modal-body { padding: 20px; }
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* 确认对话框 */
+.confirm-modal .modal-box { max-width: 420px; }
+.confirm-modal .modal-body { text-align: center; font-size: 15px; white-space: pre-wrap; word-break: break-word; }
+.confirm-modal .confirm-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* Lightbox 图片查看 */
+.lightbox {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 9000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  padding: 40px;
+}
+.lightbox.visible { display: flex; }
+.lightbox img {
+  max-width: 95%;
+  max-height: 95%;
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* ========== 详情模态框内容 ========== */
+.detail-field {
+  margin-bottom: 14px;
+}
+.detail-field .detail-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.detail-field .detail-value {
+  font-size: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.detail-field .detail-value.mono { font-family: monospace; font-weight: 700; color: var(--primary); }
+.detail-screenshots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.detail-screenshots .screenshot-thumb { width: 120px; height: 120px; }
+.detail-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.detail-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ========== 响应式适配 ========== */
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .app-header-inner { flex-direction: column; align-items: flex-start; }
+  .container { padding: 12px; }
+  .stats-section { grid-template-columns: repeat(2, 1fr); }
+  .stat-card { padding: 12px; }
+  .stat-card .stat-value { font-size: 24px; }
+  .table-wrapper { font-size: 12px; }
+  .radio-group { flex-direction: column; }
+  .modal-box { max-width: 100%; }
+}
+@media (max-width: 480px) {
+  .stats-section { grid-template-columns: 1fr; }
+  .header-actions { width: 100%; }
+  .header-actions .btn { flex: 1; justify-content: center; }
+}
+
+/* ========== 隐藏文件输入 ========== */
+.hidden-file-input { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部页头 ==================== -->
+<header class="app-header">
+  <div class="app-header-inner">
+    <div>
+      <div class="app-title"><span class="bug-icon">🐛</span> Bug 反馈记录表</div>
+      <div class="app-subtitle">软件测试 Bug 记录与跟踪工具 · 双击即用 · 数据本地保存</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-light" onclick="exportCSV()">📊 导出 CSV</button>
+      <button class="btn btn-light" onclick="exportJSON()">💾 导出 JSON</button>
+      <button class="btn btn-light" onclick="document.getElementById('jsonImportInput').click()">📥 导入 JSON</button>
+      <input type="file" id="jsonImportInput" class="hidden-file-input" accept=".json" onchange="importJSON(event)">
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ==================== 统计概览 ==================== -->
+  <section class="stats-section" id="statsSection"></section>
+
+  <!-- ==================== Bug 录入表单 ==================== -->
+  <section class="card form-section" id="formSection">
+    <div class="card-header" onclick="toggleForm()">
+      <div class="card-title">📝 提交 Bug</div>
+      <span class="form-toggle-icon">▼</span>
+    </div>
+    <div class="card-body">
+      <form id="bugForm" onsubmit="return false">
+
+        <!-- Bug 编号（只读，自动生成预览） -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Bug 编号</label>
+            <input type="text" id="fld_id" readonly placeholder="提交后自动生成">
+            <span class="form-hint">格式：BUG-年份-序号，如 BUG-2026-001</span>
+          </div>
+
+          <!-- Bug 标题 -->
+          <div class="form-group">
+            <label>Bug 标题 <span class="required-mark">*</span></label>
+            <input type="text" id="fld_title" placeholder="一句话描述问题，如「登录页点提交按钮没反应」" maxlength="100">
+          </div>
+
+          <!-- 发现日期 -->
+          <div class="form-group">
+            <label>发现日期 <span class="required-mark">*</span></label>
+            <input type="date" id="fld_date">
+          </div>
+
+          <!-- 测试人 -->
+          <div class="form-group">
+            <label>测试人 <span class="required-mark">*</span></label>
+            <input type="text" id="fld_tester" placeholder="填写你的姓名" maxlength="30">
+          </div>
+
+          <!-- 所属模块/功能 -->
+          <div class="form-group">
+            <label>所属模块 / 功能 <span class="required-mark">*</span></label>
+            <input type="text" id="fld_module" list="moduleOptions" placeholder="选择或输入模块名称">
+            <datalist id="moduleOptions"></datalist>
+            <span class="form-hint">可从下拉选，也可自己输入</span>
+          </div>
+
+          <!-- Bug 类型 -->
+          <div class="form-group">
+            <label>Bug 类型 <span class="required-mark">*</span></label>
+            <select id="fld_type">
+              <option value="">请选择</option>
+              <option value="功能缺陷">功能缺陷</option>
+              <option value="界面显示">界面显示</option>
+              <option value="性能问题">性能问题</option>
+              <option value="数据错误">数据错误</option>
+              <option value="兼容性">兼容性</option>
+              <option value="安全">安全</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+
+          <!-- 严重程度 -->
+          <div class="form-group full-width">
+            <label>严重程度 <span class="required-mark">*</span></label>
+            <div class="radio-group" id="severityGroup"></div>
+            <span class="form-hint">鼠标悬停可看大白话解释</span>
+          </div>
+
+          <!-- 优先级 -->
+          <div class="form-group full-width">
+            <label>优先级 <span class="required-mark">*</span></label>
+            <div class="radio-group" id="priorityGroup"></div>
+            <span class="form-hint">鼠标悬停可看大白话解释</span>
+          </div>
+
+          <!-- 复现步骤 -->
+          <div class="form-group full-width">
+            <label>复现步骤 <span class="required-mark">*</span></label>
+            <textarea id="fld_steps" rows="4" placeholder="按步骤写清楚怎么操作才能看到这个 Bug&#10;1. 打开登录页面&#10;2. 输入用户名和密码&#10;3. 点击登录按钮&#10;4. 页面没有反应"></textarea>
+          </div>
+
+          <!-- 期望结果 -->
+          <div class="form-group full-width">
+            <label>期望结果 <span class="required-mark">*</span></label>
+            <textarea id="fld_expected" rows="2" placeholder="正常情况下应该怎样？&#10;如：点击登录后应该跳转到首页"></textarea>
+          </div>
+
+          <!-- 实际结果 -->
+          <div class="form-group full-width">
+            <label>实际结果 <span class="required-mark">*</span></label>
+            <textarea id="fld_actual" rows="2" placeholder="实际上发生了什么？&#10;如：点击后页面没反应，控制台报错了"></textarea>
+          </div>
+
+          <!-- 截图上传 -->
+          <div class="form-group full-width">
+            <label>截图（可选）</label>
+            <div class="screenshot-upload" id="screenshotUpload" onclick="document.getElementById('screenshotInput').click()">
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">点击或拖拽图片到这里上传（每张不超过 2MB，可传多张）</div>
+            </div>
+            <input type="file" id="screenshotInput" class="hidden-file-input" accept="image/*" multiple>
+            <div class="screenshot-list" id="screenshotList"></div>
+          </div>
+        </div>
+
+        <!-- 表单操作按钮 -->
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="submitBug()">✓ 提交 Bug</button>
+          <button type="button" class="btn btn-outline" onclick="resetForm()">↻ 重置</button>
+          <span class="draft-indicator" id="draftIndicator"></span>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ==================== Bug 列表 ==================== -->
+  <section class="card">
+    <!-- 工具栏：搜索 + 筛选 -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="searchInput" placeholder="搜索 Bug 标题关键词…" oninput="handleSearch(this.value)">
+      </div>
+      <select id="filterSeverity" onchange="handleFilter()">
+        <option value="">全部严重程度</option>
+        <option value="fatal">🔴 致命</option>
+        <option value="serious">🟠 严重</option>
+        <option value="normal">🟡 一般</option>
+        <option value="minor">🟢 轻微</option>
+      </select>
+      <select id="filterPriority" onchange="handleFilter()">
+        <option value="">全部优先级</option>
+        <option value="urgent">紧急</option>
+        <option value="high">高</option>
+        <option value="medium">中</option>
+        <option value="low">低</option>
+      </select>
+      <select id="filterStatus" onchange="handleFilter()">
+        <option value="">全部状态</option>
+        <option value="new">新建</option>
+        <option value="confirming">确认中</option>
+        <option value="fixing">修复中</option>
+        <option value="fixed">已修复</option>
+        <option value="verified">已验证</option>
+        <option value="closed">已关闭</option>
+      </select>
+      <select id="filterModule" onchange="handleFilter()">
+        <option value="">全部模块</option>
+      </select>
+      <select id="filterTester" onchange="handleFilter()">
+        <option value="">全部测试人</option>
+      </select>
+      <button class="filter-clear-btn" onclick="clearFilters()">清除筛选</button>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="batch-bar" id="batchBar">
+      <span class="selected-count" id="selectedCount">已选 0 条</span>
+      <button class="btn btn-danger btn-sm" onclick="batchDelete()">🗑 批量删除</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-wrapper">
+      <table class="bug-table" id="bugTable">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)"></th>
+            <th>编号</th>
+            <th class="sortable" data-sort="title" onclick="handleSort('title')">标题 <span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="severity" onclick="handleSort('severity')">严重程度 <span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="priority" onclick="handleSort('priority')">优先级 <span class="sort-arrow"></span></th>
+            <th>状态</th>
+            <th>模块</th>
+            <th>测试人</th>
+            <th class="sortable" data-sort="date" onclick="handleSort('date')">日期 <span class="sort-arrow"></span></th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="bugTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">还没有 Bug 记录，去提交第一个吧</div>
+      <div class="empty-hint">在上方表单填写 Bug 信息后点「提交 Bug」即可</div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination" id="pagination"></div>
+  </section>
+
+</div>
+
+<!-- ==================== Toast 容器 ==================== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ==================== 确认对话框 ==================== -->
+<div class="modal-overlay confirm-modal" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">请确认</div>
+      <button class="modal-close" onclick="closeConfirm(false)">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="confirm-icon" id="confirmIcon">⚠️</div>
+      <div id="confirmMessage"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeConfirm(false)">取消</button>
+      <button class="btn btn-danger" id="confirmOkBtn" onclick="closeConfirm(true)">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Bug 详情模态框 ==================== -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="detailModalTitle">Bug 详情</div>
+      <button class="modal-close" onclick="closeDetailModal()">×</button>
+    </div>
+    <div class="modal-body" id="detailModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDetailModal()">关闭</button>
+      <button class="btn btn-primary" id="detailEditBtn" onclick="editFromDetail()">✏️ 编辑</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 图片 Lightbox ==================== -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightboxImg" src="" alt="截图大图">
+</div>
+
+<script>
+/* ================================================================
+   JavaScript 逻辑
+   ================================================================ */
+
+/* ========== 配置与常量 ========== */
+
+// localStorage 存储键名（加前缀防冲突）
+var STORAGE_KEYS = {
+  BUGS: 'bug_feedback_bugs_v1',       // Bug 列表数据
+  DRAFT: 'bug_feedback_draft_v1',      // 表单草稿
+  COUNTER: 'bug_feedback_counter_v1'  // Bug 编号计数器
+};
+
+// 预置模块选项
+var MODULE_OPTIONS = [
+  '登录注册', '用户管理', '首页', '搜索', '购物车', '订单管理',
+  '支付', '个人中心', '消息通知', '数据导出', '系统设置', '其他'
+];
+
+// 严重程度配置：值 -> { 标签, 颜色类, emoji, 大白话 }
+var SEVERITY_CONFIG = {
+  fatal:   { label: '致命', emoji: '🔴', class: 'sev-fatal',   tip: '整个软件炸了，啥也干不了' },
+  serious: { label: '严重', emoji: '🟠', class: 'sev-serious', tip: '核心功能挂了，没法正常干活' },
+  normal:  { label: '一般', emoji: '🟡', class: 'sev-normal',  tip: '某个小功能不对，但还能凑合用' },
+  minor:   { label: '轻微', emoji: '🟢', class: 'sev-minor',   tip: '小毛病，不影响用但看着别扭' }
+};
+
+// 优先级配置
+var PRIORITY_CONFIG = {
+  urgent: { label: '紧急', class: 'pri-urgent', tip: '火烧眉毛，分分钟出事' },
+  high:   { label: '高',   class: 'pri-high',   tip: '这版上线前必须搞定' },
+  medium: { label: '中',   class: 'pri-medium', tip: '记下了，有空就修' },
+  low:    { label: '低',   class: 'pri-low',    tip: '先记着，不急' }
+};
+
+// 状态配置
+var STATUS_CONFIG = {
+  new:        { label: '新建',   class: 'status-new' },
+  confirming: { label: '确认中', class: 'status-confirming' },
+  fixing:     { label: '修复中', class: 'status-fixing' },
+  fixed:      { label: '已修复', class: 'status-fixed' },
+  verified:   { label: '已验证', class: 'status-verified' },
+  closed:     { label: '已关闭', class: 'status-closed' }
+};
+
+// 排序权重映射（用于严重程度和优先级的排序比较）
+var SEVERITY_ORDER = { fatal: 4, serious: 3, normal: 2, minor: 1 };
+var PRIORITY_ORDER = { urgent: 4, high: 3, medium: 2, low: 1 };
+
+// 分页大小
+var PAGE_SIZE = 10;
+
+/* ========== 全局状态 ========== */
+var bugs = [];              // 所有 Bug 数据
+var currentPage = 1;        // 当前页码
+var filters = {             // 当前筛选条件
+  severity: '', priority: '', status: '', module: '', tester: '', keyword: ''
+};
+var sortConfig = { field: 'date', direction: 'desc' };  // 排序配置
+var editingBugId = null;    // 当前正在编辑的 Bug 编号（null 表示新增）
+var selectedBugIds = new Set();  // 批量选中的 Bug 编号集合
+var tempScreenshots = [];   // 表单中临时存储的截图 base64 数组
+var confirmCallback = null; // 确认对话框的回调函数
+var detailBugId = null;     // 详情模态框正在查看的 Bug 编号
+
+/* ========== 工具函数 ========== */
+
+/**
+ * HTML 转义，防止用户输入的特殊字符破坏页面
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 日期格式化：YYYY-MM-DD
+ */
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  var year = d.getFullYear();
+  var month = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+/**
+ * 获取今天的日期字符串
+ */
+function getToday() {
+  return formatDate(new Date());
+}
+
+/**
+ * 获取本周一到今天的日期范围
+ */
+function getWeekRange() {
+  var now = new Date();
+  var day = now.getDay() || 7;  // 周日为 7
+  var monday = new Date(now);
+  monday.setDate(now.getDate() - day + 1);
+  monday.setHours(0, 0, 0, 0);
+  return { start: monday, end: now };
+}
+
+/* ========== localStorage 持久化 ========== */
+
+/**
+ * 从 localStorage 加载 Bug 列表
+ */
+function loadBugs() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEYS.BUGS);
+    bugs = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(bugs)) bugs = [];
+  } catch (e) {
+    console.error('加载 Bug 数据失败:', e);
+    bugs = [];
+  }
+}
+
+/**
+ * 保存 Bug 列表到 localStorage
+ */
+function saveBugs() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.BUGS, JSON.stringify(bugs));
+  } catch (e) {
+    showToast('数据保存失败，可能是浏览器存储空间不足（截图太多？）', 'error');
+    console.error('保存 Bug 数据失败:', e);
+  }
+}
+
+/**
+ * 保存表单草稿（防误关页面丢失输入）
+ */
+function saveDraft() {
+  var draft = {
+    title: val('fld_title'),
+    date: val('fld_date'),
+    tester: val('fld_tester'),
+    module: val('fld_module'),
+    type: val('fld_type'),
+    severity: getRadioValue('severity'),
+    priority: getRadioValue('priority'),
+    steps: val('fld_steps'),
+    expected: val('fld_expected'),
+    actual: val('fld_actual'),
+    screenshots: tempScreenshots,
+    savedAt: new Date().toISOString()
+  };
+  try {
+    localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(draft));
+    document.getElementById('draftIndicator').textContent = '草稿已自动保存 ✓';
+  } catch (e) {
+    // 存储空间不足时，不存截图只存文本
+    draft.screenshots = [];
+    try {
+      localStorage.setItem(STORAGE_KEYS.DRAFT, JSON.stringify(draft));
+      document.getElementById('draftIndicator').textContent = '草稿已保存（不含截图，空间不足）';
+    } catch (e2) {
+      console.error('草稿保存失败:', e2);
+    }
+  }
+}
+
+/**
+ * 加载草稿并提示恢复
+ */
+function loadDraft() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEYS.DRAFT);
+    if (!raw) return;
+    var draft = JSON.parse(raw);
+    if (!draft || !draft.savedAt) return;
+
+    // 判断草稿是否有内容
+    var hasContent = draft.title || draft.tester || draft.steps || draft.expected || draft.actual;
+    if (!hasContent) return;
+
+    // 提示恢复草稿
+    var savedTime = new Date(draft.savedAt);
+    var timeStr = savedTime.getMonth() + 1 + '月' + savedTime.getDate() + '日 ' +
+      String(savedTime.getHours()).padStart(2, '0') + ':' + String(savedTime.getMinutes()).padStart(2, '0');
+    showConfirm(
+      '检测到 ' + timeStr + ' 保存的草稿，是否恢复？',
+      function() {
+        // 恢复表单数据
+        if (draft.title) document.getElementById('fld_title').value = draft.title;
+        if (draft.date) document.getElementById('fld_date').value = draft.date;
+        if (draft.tester) document.getElementById('fld_tester').value = draft.tester;
+        if (draft.module) document.getElementById('fld_module').value = draft.module;
+        if (draft.type) document.getElementById('fld_type').value = draft.type;
+        if (draft.severity) setRadioValue('severity', draft.severity);
+        if (draft.priority) setRadioValue('priority', draft.priority);
+        if (draft.steps) document.getElementById('fld_steps').value = draft.steps;
+        if (draft.expected) document.getElementById('fld_expected').value = draft.expected;
+        if (draft.actual) document.getElementById('fld_actual').value = draft.actual;
+        if (draft.screenshots && draft.screenshots.length > 0) {
+          tempScreenshots = draft.screenshots.slice();
+          renderScreenshotList();
+        }
+        showToast('草稿已恢复', 'success');
+      },
+      '恢复草稿',
+      '📄'
+    );
+  } catch (e) {
+    console.error('加载草稿失败:', e);
+  }
+}
+
+/**
+ * 清除草稿
+ */
+function clearDraft() {
+  localStorage.removeItem(STORAGE_KEYS.DRAFT);
+  document.getElementById('draftIndicator').textContent = '';
+}
+
+/* ========== Bug 编号生成 ========== */
+
+/**
+ * 生成下一个 Bug 编号，格式 BUG-年份-序号（按年递增）
+ */
+function generateBugId() {
+  var year = new Date().getFullYear();
+  var prefix = 'BUG-' + year + '-';
+  var maxNum = 0;
+
+  // 从已有 Bug 中找出最大序号
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id && bugs[i].id.indexOf(prefix) === 0) {
+      var num = parseInt(bugs[i].id.slice(prefix.length), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  }
+
+  // 同时检查计数器（防止导入后删除导致重复）
+  try {
+    var stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.COUNTER) || '{}');
+    if (stored.year === year && stored.count > maxNum) {
+      maxNum = stored.count;
+    }
+  } catch (e) {}
+
+  var nextNum = maxNum + 1;
+  // 更新计数器
+  localStorage.setItem(STORAGE_KEYS.COUNTER, JSON.stringify({ year: year, count: nextNum }));
+  return prefix + String(nextNum).padStart(3, '0');
+}
+
+/**
+ * 预览下一个 Bug 编号（在表单中显示）
+ */
+function previewNextBugId() {
+  var year = new Date().getFullYear();
+  var prefix = 'BUG-' + year + '-';
+  var maxNum = 0;
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id && bugs[i].id.indexOf(prefix) === 0) {
+      var num = parseInt(bugs[i].id.slice(prefix.length), 10);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    }
+  }
+  try {
+    var stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.COUNTER) || '{}');
+    if (stored.year === year && stored.count > maxNum) maxNum = stored.count;
+  } catch (e) {}
+  document.getElementById('fld_id').value = prefix + String(maxNum + 1).padStart(3, '0') + '（预览，提交时分配）';
+}
+
+/* ========== 表单初始化与操作 ========== */
+
+/**
+ * 初始化表单：填充模块选项、生成单选按钮组、设置默认日期
+ */
+function initForm() {
+  // 填充模块 datalist
+  var datalist = document.getElementById('moduleOptions');
+  MODULE_OPTIONS.forEach(function(mod) {
+    var opt = document.createElement('option');
+    opt.value = mod;
+    datalist.appendChild(opt);
+  });
+
+  // 生成严重程度单选按钮组
+  var sevGroup = document.getElementById('severityGroup');
+  Object.keys(SEVERITY_CONFIG).forEach(function(key) {
+    var cfg = SEVERITY_CONFIG[key];
+    var html = '<label class="radio-item sev-' + key + '" data-group="severity" data-value="' + key + '">' +
+      '<span class="radio-dot"></span>' +
+      '<span>' + cfg.emoji + ' ' + cfg.label + '</span>' +
+      '<span class="tooltip-text">' + escapeHtml(cfg.tip) + '</span>' +
+      '<input type="radio" name="severity" value="' + key + '">' +
+      '</label>';
+    sevGroup.insertAdjacentHTML('beforeend', html);
+  });
+
+  // 生成优先级单选按钮组
+  var priGroup = document.getElementById('priorityGroup');
+  Object.keys(PRIORITY_CONFIG).forEach(function(key) {
+    var cfg = PRIORITY_CONFIG[key];
+    var html = '<label class="radio-item pri-' + key + '" data-group="priority" data-value="' + key + '">' +
+      '<span class="radio-dot"></span>' +
+      '<span>' + cfg.label + '</span>' +
+      '<span class="tooltip-text">' + escapeHtml(cfg.tip) + '</span>' +
+      '<input type="radio" name="priority" value="' + key + '">' +
+      '</label>';
+    priGroup.insertAdjacentHTML('beforeend', html);
+  });
+
+  // 绑定单选按钮点击事件
+  document.querySelectorAll('.radio-item').forEach(function(item) {
+    item.addEventListener('click', function(e) {
+      var group = this.getAttribute('data-group');
+      var value = this.getAttribute('data-value');
+      // 取消同组其他选中
+      document.querySelectorAll('.radio-item[data-group="' + group + '"]').forEach(function(other) {
+        other.classList.remove('checked');
+      });
+      // 选中当前
+      this.classList.add('checked');
+      this.querySelector('input[type="radio"]').checked = true;
+      saveDraft();
+    });
+  });
+
+  // 设置默认日期为今天
+  document.getElementById('fld_date').value = getToday();
+
+  // 预览 Bug 编号
+  previewNextBugId();
+
+  // 绑定表单输入事件 —— 自动保存草稿
+  var formInputs = document.querySelectorAll('#bugForm input, #bugForm select, #bugForm textarea');
+  formInputs.forEach(function(input) {
+    input.addEventListener('input', saveDraft);
+    input.addEventListener('change', saveDraft);
+  });
+
+  // 绑定截图上传
+  initScreenshotUpload();
+}
+
+/**
+ * 获取单选按钮组的选中值
+ */
+function getRadioValue(group) {
+  var checked = document.querySelector('.radio-item[data-group="' + group + '"].checked');
+  return checked ? checked.getAttribute('data-value') : '';
+}
+
+/**
+ * 设置单选按钮组的选中值
+ */
+function setRadioValue(group, value) {
+  document.querySelectorAll('.radio-item[data-group="' + group + '"]').forEach(function(item) {
+    if (item.getAttribute('data-value') === value) {
+      item.classList.add('checked');
+      item.querySelector('input[type="radio"]').checked = true;
+    } else {
+      item.classList.remove('checked');
+    }
+  });
+}
+
+/**
+ * 简捷获取元素值
+ */
+function val(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+/**
+ * 表单验证：检查所有必填项
+ * @returns {boolean} 是否通过验证
+ */
+function validateForm() {
+  var errors = [];
+
+  // 清除之前的错误样式
+  document.querySelectorAll('#bugForm .error').forEach(function(el) {
+    el.classList.remove('error');
+  });
+
+  // 检查各必填字段
+  var requiredFields = [
+    { id: 'fld_title', label: 'Bug 标题' },
+    { id: 'fld_date', label: '发现日期' },
+    { id: 'fld_tester', label: '测试人' },
+    { id: 'fld_module', label: '所属模块' },
+    { id: 'fld_type', label: 'Bug 类型' },
+    { id: 'fld_steps', label: '复现步骤' },
+    { id: 'fld_expected', label: '期望结果' },
+    { id: 'fld_actual', label: '实际结果' }
+  ];
+
+  requiredFields.forEach(function(field) {
+    var el = document.getElementById(field.id);
+    if (!el.value.trim()) {
+      el.classList.add('error');
+      errors.push(field.label);
+    }
+  });
+
+  // 检查严重程度
+  if (!getRadioValue('severity')) {
+    errors.push('严重程度');
+    document.getElementById('severityGroup').style.outline = '2px solid var(--danger)';
+  } else {
+    document.getElementById('severityGroup').style.outline = '';
+  }
+
+  // 检查优先级
+  if (!getRadioValue('priority')) {
+    errors.push('优先级');
+    document.getElementById('priorityGroup').style.outline = '2px solid var(--danger)';
+  } else {
+    document.getElementById('priorityGroup').style.outline = '';
+  }
+
+  if (errors.length > 0) {
+    showToast('请填写必填项：' + errors.join('、'), 'error');
+    return false;
+  }
+  return true;
+}
+
+/**
+ * 提交 Bug
+ */
+function submitBug() {
+  if (!validateForm()) return;
+
+  var now = new Date().toISOString();
+  var bugData = {
+    id: editingBugId ? editingBugId : generateBugId(),
+    title: val('fld_title'),
+    date: val('fld_date'),
+    tester: val('fld_tester'),
+    module: val('fld_module'),
+    type: val('fld_type'),
+    severity: getRadioValue('severity'),
+    priority: getRadioValue('priority'),
+    steps: val('fld_steps'),
+    expected: val('fld_expected'),
+    actual: val('fld_actual'),
+    screenshots: tempScreenshots.slice(),
+    status: editingBugId ? getExistingStatus(editingBugId) : 'new',
+    createdAt: editingBugId ? getExistingCreatedAt(editingBugId) : now,
+    updatedAt: now
+  };
+
+  if (editingBugId) {
+    // 编辑模式：更新已有 Bug
+    for (var i = 0; i < bugs.length; i++) {
+      if (bugs[i].id === editingBugId) {
+        bugs[i] = bugData;
+        break;
+      }
+    }
+    showToast('Bug 已更新 ✓', 'success');
+  } else {
+    // 新增模式
+    bugs.push(bugData);
+    showToast('Bug 已记录 ✓', 'success');
+  }
+
+  saveBugs();
+  clearDraft();
+  resetForm();
+  renderAll();
+  editingBugId = null;
+}
+
+/**
+ * 获取已有 Bug 的状态（编辑时保留）
+ */
+function getExistingStatus(id) {
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id === id) return bugs[i].status || 'new';
+  }
+  return 'new';
+}
+
+/**
+ * 获取已有 Bug 的创建时间（编辑时保留）
+ */
+function getExistingCreatedAt(id) {
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id === id) return bugs[i].createdAt;
+  }
+  return new Date().toISOString();
+}
+
+/**
+ * 重置表单
+ */
+function resetForm() {
+  document.getElementById('bugForm').reset();
+  // 清除单选选中
+  document.querySelectorAll('.radio-item.checked').forEach(function(item) {
+    item.classList.remove('checked');
+  });
+  // 清除错误样式
+  document.querySelectorAll('#bugForm .error').forEach(function(el) {
+    el.classList.remove('error');
+  });
+  document.getElementById('severityGroup').style.outline = '';
+  document.getElementById('priorityGroup').style.outline = '';
+  // 重置日期为今天
+  document.getElementById('fld_date').value = getToday();
+  // 清空截图
+  tempScreenshots = [];
+  renderScreenshotList();
+  // 重置编辑状态
+  editingBugId = null;
+  // 更新编号预览
+  previewNextBugId();
+  // 清除草稿指示
+  document.getElementById('draftIndicator').textContent = '';
+  clearDraft();
+}
+
+/**
+ * 用已有 Bug 数据填充表单（用于编辑）
+ */
+function fillFormForEdit(id) {
+  var bug = null;
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id === id) { bug = bugs[i]; break; }
+  }
+  if (!bug) return;
+
+  editingBugId = id;
+
+  document.getElementById('fld_id').value = bug.id;
+  document.getElementById('fld_title').value = bug.title || '';
+  document.getElementById('fld_date').value = bug.date || '';
+  document.getElementById('fld_tester').value = bug.tester || '';
+  document.getElementById('fld_module').value = bug.module || '';
+  document.getElementById('fld_type').value = bug.type || '';
+  setRadioValue('severity', bug.severity);
+  setRadioValue('priority', bug.priority);
+  document.getElementById('fld_steps').value = bug.steps || '';
+  document.getElementById('fld_expected').value = bug.expected || '';
+  document.getElementById('fld_actual').value = bug.actual || '';
+  tempScreenshots = (bug.screenshots || []).slice();
+  renderScreenshotList();
+
+  // 展开表单
+  document.getElementById('formSection').classList.remove('collapsed');
+  // 滚动到表单
+  document.getElementById('formSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('正在编辑 ' + bug.id, 'info');
+}
+
+/* ========== 截图上传 ========== */
+
+/**
+ * 初始化截图上传功能（点击 + 拖拽）
+ */
+function initScreenshotUpload() {
+  var uploadArea = document.getElementById('screenshotUpload');
+  var fileInput = document.getElementById('screenshotInput');
+
+  fileInput.addEventListener('change', function(e) {
+    handleFiles(e.target.files);
+    fileInput.value = '';  // 清空，方便重复上传同一文件
+  });
+
+  // 拖拽上传
+  uploadArea.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+  uploadArea.addEventListener('dragleave', function(e) {
+    uploadArea.classList.remove('dragover');
+  });
+  uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+}
+
+/**
+ * 处理上传的图片文件
+ */
+function handleFiles(files) {
+  if (!files || files.length === 0) return;
+
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) {
+      showToast('「' + file.name + '」不是图片文件，已跳过', 'warning');
+      continue;
+    }
+    // 验证文件大小（2MB 限制）
+    var maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showToast('「' + file.name + '」超过 2MB 限制（' + (file.size / 1024 / 1024).toFixed(1) + 'MB），已跳过', 'warning');
+      continue;
+    }
+    // 转为 base64
+    fileToBase64(file);
+  }
+}
+
+/**
+ * 将文件转为 base64 并添加到临时截图列表
+ */
+function fileToBase64(file) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    tempScreenshots.push({
+      name: file.name,
+      data: e.target.result  // data:image/xxx;base64,...
+    });
+    renderScreenshotList();
+    saveDraft();
+  };
+  reader.onerror = function() {
+    showToast('读取图片「' + file.name + '」失败', 'error');
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * 渲染截图缩略图列表
+ */
+function renderScreenshotList() {
+  var container = document.getElementById('screenshotList');
+  container.innerHTML = '';
+
+  tempScreenshots.forEach(function(screenshot, index) {
+    var thumb = document.createElement('div');
+    thumb.className = 'screenshot-thumb';
+    thumb.innerHTML =
+      '<img src="' + screenshot.data + '" alt="' + escapeHtml(screenshot.name) + '" onclick="openLightbox(\'' + index + '\', true)">' +
+      '<button class="remove-btn" onclick="removeScreenshot(' + index + ')" title="删除">×</button>';
+    container.appendChild(thumb);
+  });
+}
+
+/**
+ * 删除临时截图
+ */
+function removeScreenshot(index) {
+  tempScreenshots.splice(index, 1);
+  renderScreenshotList();
+  saveDraft();
+}
+
+/* ========== 列表渲染 ========== */
+
+/**
+ * 渲染所有内容（统计 + 列表 + 筛选选项）
+ */
+function renderAll() {
+  renderStats();
+  renderBugList();
+  updateFilterOptions();
+  previewNextBugId();
+}
+
+/**
+ * 获取经过筛选和排序后的 Bug 列表
+ */
+function getFilteredSortedBugs() {
+  var result = bugs.slice();
+
+  // 筛选
+  if (filters.severity) {
+    result = result.filter(function(b) { return b.severity === filters.severity; });
+  }
+  if (filters.priority) {
+    result = result.filter(function(b) { return b.priority === filters.priority; });
+  }
+  if (filters.status) {
+    result = result.filter(function(b) { return b.status === filters.status; });
+  }
+  if (filters.module) {
+    result = result.filter(function(b) { return b.module === filters.module; });
+  }
+  if (filters.tester) {
+    result = result.filter(function(b) { return b.tester === filters.tester; });
+  }
+  if (filters.keyword) {
+    var kw = filters.keyword.toLowerCase();
+    result = result.filter(function(b) {
+      return (b.title || '').toLowerCase().indexOf(kw) >= 0;
+    });
+  }
+
+  // 排序
+  result.sort(function(a, b) {
+    var dir = sortConfig.direction === 'asc' ? 1 : -1;
+    var fieldA, fieldB;
+
+    switch (sortConfig.field) {
+      case 'date':
+        fieldA = a.date || '';
+        fieldB = b.date || '';
+        return fieldA < fieldB ? -1 * dir : (fieldA > fieldB ? 1 * dir : 0);
+
+      case 'severity':
+        fieldA = SEVERITY_ORDER[a.severity] || 0;
+        fieldB = SEVERITY_ORDER[b.severity] || 0;
+        return (fieldA - fieldB) * dir;
+
+      case 'priority':
+        fieldA = PRIORITY_ORDER[a.priority] || 0;
+        fieldB = PRIORITY_ORDER[b.priority] || 0;
+        return (fieldA - fieldB) * dir;
+
+      case 'title':
+        fieldA = (a.title || '').toLowerCase();
+        fieldB = (b.title || '').toLowerCase();
+        return fieldA < fieldB ? -1 * dir : (fieldA > fieldB ? 1 * dir : 0);
+
+      default:
+        return 0;
+    }
+  });
+
+  return result;
+}
+
+/**
+ * 渲染 Bug 列表表格
+ */
+function renderBugList() {
+  var filtered = getFilteredSortedBugs();
+  var tbody = document.getElementById('bugTableBody');
+  var emptyState = document.getElementById('emptyState');
+  var tableEl = document.getElementById('bugTable');
+
+  // 更新排序箭头显示
+  document.querySelectorAll('th.sortable').forEach(function(th) {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    var arrow = th.querySelector('.sort-arrow');
+    if (arrow) arrow.textContent = '';
+    if (th.getAttribute('data-sort') === sortConfig.field) {
+      th.classList.add(sortConfig.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+      if (arrow) arrow.textContent = sortConfig.direction === 'asc' ? '↑' : '↓';
+    }
+  });
+
+  // 空列表处理
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    emptyState.style.display = 'block';
+    tableEl.style.display = 'none';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('batchBar').classList.remove('visible');
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  tableEl.style.display = '';
+
+  // 分页计算
+  var totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (currentPage > totalPages) currentPage = 1;
+  var startIdx = (currentPage - 1) * PAGE_SIZE;
+  var pageBugs = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+
+  // 渲染表格行
+  tbody.innerHTML = '';
+  pageBugs.forEach(function(bug) {
+    var tr = document.createElement('tr');
+    if (selectedBugIds.has(bug.id)) tr.classList.add('selected');
+
+    var sevCfg = SEVERITY_CONFIG[bug.severity] || SEVERITY_CONFIG.normal;
+    var priCfg = PRIORITY_CONFIG[bug.priority] || PRIORITY_CONFIG.medium;
+    var statusCfg = STATUS_CONFIG[bug.status] || STATUS_CONFIG.new;
+
+    // 生成状态快速切换下拉框
+    var statusOptions = Object.keys(STATUS_CONFIG).map(function(key) {
+      var cfg = STATUS_CONFIG[key];
+      var selected = key === bug.status ? ' selected' : '';
+      return '<option value="' + key + '"' + selected + '>' + cfg.label + '</option>';
+    }).join('');
+
+    tr.innerHTML =
+      '<td><input type="checkbox" onchange="toggleSelectBug(\'' + escapeHtml(bug.id) + '\', this.checked)"' +
+      (selectedBugIds.has(bug.id) ? ' checked' : '') + '></td>' +
+      '<td class="bug-id-cell">' + escapeHtml(bug.id) + '</td>' +
+      '<td class="bug-title-cell" title="' + escapeHtml(bug.title) + '">' + escapeHtml(bug.title) + '</td>' +
+      '<td><span class="severity-tag ' + sevCfg.class + '"><span class="sev-dot"></span>' + sevCfg.emoji + ' ' + escapeHtml(sevCfg.label) + '</span></td>' +
+      '<td><span class="priority-tag pri-' + bug.priority + '-tag">' + escapeHtml(priCfg.label) + '</span></td>' +
+      '<td><select class="status-select" onchange="changeBugStatus(\'' + escapeHtml(bug.id) + '\', this.value)">' + statusOptions + '</select></td>' +
+      '<td>' + escapeHtml(bug.module || '-') + '</td>' +
+      '<td>' + escapeHtml(bug.tester || '-') + '</td>' +
+      '<td>' + escapeHtml(bug.date || '-') + '</td>' +
+      '<td><div class="row-actions">' +
+        '<button class="btn btn-ghost btn-sm" onclick="viewDetail(\'' + escapeHtml(bug.id) + '\')" title="查看详情">👁</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="fillFormForEdit(\'' + escapeHtml(bug.id) + '\')" title="编辑">✏️</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="confirmDeleteBug(\'' + escapeHtml(bug.id) + '\')" title="删除">🗑</button>' +
+      '</div></td>';
+
+    tbody.appendChild(tr);
+  });
+
+  // 渲染分页
+  renderPagination(totalPages, filtered.length);
+
+  // 更新批量操作栏
+  updateBatchBar();
+}
+
+/**
+ * 渲染分页控件
+ */
+function renderPagination(totalPages, totalItems) {
+  var container = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    container.innerHTML = '<span class="page-info">共 ' + totalItems + ' 条</span>';
+    return;
+  }
+
+  var html = '';
+  // 上一页
+  html += '<button onclick="goToPage(' + (currentPage - 1) + ')"' + (currentPage <= 1 ? ' disabled' : '') + '>上一页</button>';
+
+  // 页码按钮（最多显示 7 个）
+  var start = Math.max(1, currentPage - 3);
+  var end = Math.min(totalPages, start + 6);
+  start = Math.max(1, end - 6);
+
+  if (start > 1) {
+    html += '<button onclick="goToPage(1)">1</button>';
+    if (start > 2) html += '<span class="page-info">...</span>';
+  }
+  for (var p = start; p <= end; p++) {
+    html += '<button onclick="goToPage(' + p + ')"' + (p === currentPage ? ' class="active"' : '') + '>' + p + '</button>';
+  }
+  if (end < totalPages) {
+    if (end < totalPages - 1) html += '<span class="page-info">...</span>';
+    html += '<button onclick="goToPage(' + totalPages + ')">' + totalPages + '</button>';
+  }
+
+  // 下一页
+  html += '<button onclick="goToPage(' + (currentPage + 1) + ')"' + (currentPage >= totalPages ? ' disabled' : '') + '>下一页</button>';
+  html += '<span class="page-info">共 ' + totalItems + ' 条 / ' + totalPages + ' 页</span>';
+
+  container.innerHTML = html;
+}
+
+/**
+ * 跳转到指定页
+ */
+function goToPage(page) {
+  currentPage = page;
+  renderBugList();
+}
+
+/* ========== 统计概览 ========== */
+
+/**
+ * 渲染统计卡片
+ */
+function renderStats() {
+  var container = document.getElementById('statsSection');
+  var weekRange = getWeekRange();
+
+  // 总数
+  var total = bugs.length;
+
+  // 本周新增
+  var weekNew = bugs.filter(function(b) {
+    var d = new Date(b.createdAt || b.date);
+    return d >= weekRange.start && d <= weekRange.end;
+  }).length;
+
+  // 待处理（新建 + 确认中 + 修复中）
+  var pending = bugs.filter(function(b) {
+    return b.status === 'new' || b.status === 'confirming' || b.status === 'fixing';
+  }).length;
+
+  // 已修复
+  var fixedCount = bugs.filter(function(b) { return b.status === 'fixed'; }).length;
+
+  // 各状态统计
+  var statusCounts = {};
+  Object.keys(STATUS_CONFIG).forEach(function(key) { statusCounts[key] = 0; });
+  bugs.forEach(function(b) {
+    if (b.status && statusCounts.hasOwnProperty(b.status)) statusCounts[b.status]++;
+  });
+
+  // 各严重程度统计
+  var sevCounts = {};
+  Object.keys(SEVERITY_CONFIG).forEach(function(key) { sevCounts[key] = 0; });
+  bugs.forEach(function(b) {
+    if (b.severity && sevCounts.hasOwnProperty(b.severity)) sevCounts[b.severity]++;
+  });
+
+  // 生成状态徽章 HTML
+  var statusBadgesHtml = Object.keys(STATUS_CONFIG).map(function(key) {
+    var cfg = STATUS_CONFIG[key];
+    return '<span class="stat-badge ' + cfg.class + '">' + cfg.label + ': ' + statusCounts[key] + '</span>';
+  }).join('');
+
+  // 生成严重程度徽章 HTML
+  var sevBadgesHtml = Object.keys(SEVERITY_CONFIG).map(function(key) {
+    var cfg = SEVERITY_CONFIG[key];
+    return '<span class="stat-badge ' + cfg.class + '">' + cfg.emoji + ' ' + cfg.label + ': ' + sevCounts[key] + '</span>';
+  }).join('');
+
+  container.innerHTML =
+    // 卡片1：Bug 总数
+    '<div class="stat-card">' +
+      '<div class="stat-label">Bug 总数</div>' +
+      '<div class="stat-value">' + total + '</div>' +
+      '<div class="stat-sub">全部记录</div>' +
+    '</div>' +
+    // 卡片2：本周新增
+    '<div class="stat-card">' +
+      '<div class="stat-label">本周新增</div>' +
+      '<div class="stat-value">' + weekNew + '</div>' +
+      '<div class="stat-sub">近 7 天提交</div>' +
+    '</div>' +
+    // 卡片3：待处理
+    '<div class="stat-card">' +
+      '<div class="stat-label">待处理</div>' +
+      '<div class="stat-value" style="color:var(--warning)">' + pending + '</div>' +
+      '<div class="stat-sub">新建 + 确认中 + 修复中</div>' +
+    '</div>' +
+    // 卡片4：已修复
+    '<div class="stat-card">' +
+      '<div class="stat-label">已修复</div>' +
+      '<div class="stat-value" style="color:var(--success)">' + fixedCount + '</div>' +
+      '<div class="stat-sub">等待验证</div>' +
+    '</div>' +
+    // 卡片5：状态分布
+    '<div class="stat-card">' +
+      '<div class="stat-label">状态分布</div>' +
+      '<div class="stat-badges">' + statusBadgesHtml + '</div>' +
+    '</div>' +
+    // 卡片6：严重程度分布
+    '<div class="stat-card">' +
+      '<div class="stat-label">严重程度分布</div>' +
+      '<div class="stat-badges">' + sevBadgesHtml + '</div>' +
+    '</div>';
+}
+
+/* ========== 行操作 ========== */
+
+/**
+ * 查看 Bug 详情
+ */
+function viewDetail(id) {
+  var bug = null;
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id === id) { bug = bugs[i]; break; }
+  }
+  if (!bug) return;
+
+  detailBugId = id;
+
+  var sevCfg = SEVERITY_CONFIG[bug.severity] || SEVERITY_CONFIG.normal;
+  var priCfg = PRIORITY_CONFIG[bug.priority] || PRIORITY_CONFIG.medium;
+  var statusCfg = STATUS_CONFIG[bug.status] || STATUS_CONFIG.new;
+
+  // 截图 HTML
+  var screenshotsHtml = '';
+  if (bug.screenshots && bug.screenshots.length > 0) {
+    var thumbs = bug.screenshots.map(function(s, i) {
+      return '<div class="screenshot-thumb" onclick="openLightbox(' + i + ', false, \'' + escapeHtml(bug.id) + '\')">' +
+        '<img src="' + s.data + '" alt="' + escapeHtml(s.name || '截图') + '">' +
+      '</div>';
+    }).join('');
+    screenshotsHtml = '<div class="detail-screenshots">' + thumbs + '</div>';
+  } else {
+    screenshotsHtml = '<span style="color:var(--text-light);font-size:13px">无截图</span>';
+  }
+
+  // 创建时间格式化
+  var createdStr = '';
+  if (bug.createdAt) {
+    var cd = new Date(bug.createdAt);
+    createdStr = cd.getFullYear() + '-' + String(cd.getMonth() + 1).padStart(2, '0') + '-' +
+      String(cd.getDate()).padStart(2, '0') + ' ' + String(cd.getHours()).padStart(2, '0') + ':' +
+      String(cd.getMinutes()).padStart(2, '0');
+  }
+
+  document.getElementById('detailModalTitle').textContent = 'Bug 详情 · ' + bug.id;
+
+  document.getElementById('detailModalBody').innerHTML =
+    '<div class="detail-meta">' +
+      '<span>📅 创建: ' + createdStr + '</span>' +
+      '<span>🔄 更新: ' + (bug.updatedAt ? new Date(bug.updatedAt).toLocaleString('zh-CN') : '-') + '</span>' +
+    '</div>' +
+    '<div class="detail-field"><div class="detail-label">Bug 编号</div><div class="detail-value mono">' + escapeHtml(bug.id) + '</div></div>' +
+    '<div class="detail-field"><div class="detail-label">标题</div><div class="detail-value">' + escapeHtml(bug.title) + '</div></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+      '<div class="detail-field"><div class="detail-label">严重程度</div><div class="detail-value"><span class="severity-tag ' + sevCfg.class + '"><span class="sev-dot"></span>' + sevCfg.emoji + ' ' + escapeHtml(sevCfg.label) + '</span></div></div>' +
+      '<div class="detail-field"><div class="detail-label">优先级</div><div class="detail-value"><span class="priority-tag pri-' + bug.priority + '-tag">' + escapeHtml(priCfg.label) + '</span></div></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+      '<div class="detail-field"><div class="detail-label">状态</div><div class="detail-value"><span class="status-tag ' + statusCfg.class + '">' + escapeHtml(statusCfg.label) + '</span></div></div>' +
+      '<div class="detail-field"><div class="detail-label">Bug 类型</div><div class="detail-value">' + escapeHtml(bug.type || '-') + '</div></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+      '<div class="detail-field"><div class="detail-label">所属模块</div><div class="detail-value">' + escapeHtml(bug.module || '-') + '</div></div>' +
+      '<div class="detail-field"><div class="detail-label">测试人</div><div class="detail-value">' + escapeHtml(bug.tester || '-') + '</div></div>' +
+    '</div>' +
+    '<div class="detail-field"><div class="detail-label">发现日期</div><div class="detail-value">' + escapeHtml(bug.date || '-') + '</div></div>' +
+    '<div class="detail-field"><div class="detail-label">复现步骤</div><div class="detail-value">' + escapeHtml(bug.steps || '-') + '</div></div>' +
+    '<div class="detail-field"><div class="detail-label">期望结果</div><div class="detail-value">' + escapeHtml(bug.expected || '-') + '</div></div>' +
+    '<div class="detail-field"><div class="detail-label">实际结果</div><div class="detail-value">' + escapeHtml(bug.actual || '-') + '</div></div>' +
+    '<div class="detail-field"><div class="detail-label">截图</div>' + screenshotsHtml + '</div>';
+
+  document.getElementById('detailModal').classList.add('visible');
+}
+
+/**
+ * 关闭详情模态框
+ */
+function closeDetailModal() {
+  document.getElementById('detailModal').classList.remove('visible');
+  detailBugId = null;
+}
+
+/**
+ * 从详情模态框跳转到编辑
+ */
+function editFromDetail() {
+  if (detailBugId) {
+    closeDetailModal();
+    fillFormForEdit(detailBugId);
+  }
+}
+
+/**
+ * 确认删除单个 Bug
+ */
+function confirmDeleteBug(id) {
+  showConfirm(
+    '确定要删除 Bug「' + id + '」吗？删除后无法恢复。',
+    function() {
+      deleteBug(id);
+    },
+    '确认删除',
+    '🗑️'
+  );
+}
+
+/**
+ * 删除单个 Bug
+ */
+function deleteBug(id) {
+  bugs = bugs.filter(function(b) { return b.id !== id; });
+  selectedBugIds.delete(id);
+  saveBugs();
+  renderAll();
+  showToast('Bug「' + id + '」已删除', 'success');
+}
+
+/**
+ * 快速切换 Bug 状态
+ */
+function changeBugStatus(id, newStatus) {
+  for (var i = 0; i < bugs.length; i++) {
+    if (bugs[i].id === id) {
+      bugs[i].status = newStatus;
+      bugs[i].updatedAt = new Date().toISOString();
+      break;
+    }
+  }
+  saveBugs();
+  renderStats();
+  showToast('状态已更新为「' + (STATUS_CONFIG[newStatus] || { label: newStatus }).label + '」', 'success');
+}
+
+/* ========== 批量操作 ========== */
+
+/**
+ * 全选/取消全选（当前页）
+ */
+function toggleSelectAll(checked) {
+  var filtered = getFilteredSortedBugs();
+  var startIdx = (currentPage - 1) * PAGE_SIZE;
+  var pageBugs = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+
+  if (checked) {
+    pageBugs.forEach(function(b) { selectedBugIds.add(b.id); });
+  } else {
+    pageBugs.forEach(function(b) { selectedBugIds.delete(b.id); });
+  }
+  renderBugList();
+}
+
+/**
+ * 切换单条选中
+ */
+function toggleSelectBug(id, checked) {
+  if (checked) {
+    selectedBugIds.add(id);
+  } else {
+    selectedBugIds.delete(id);
+  }
+  updateBatchBar();
+
+  // 更新全选复选框状态
+  var filtered = getFilteredSortedBugs();
+  var startIdx = (currentPage - 1) * PAGE_SIZE;
+  var pageBugs = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+  var allSelected = pageBugs.length > 0 && pageBugs.every(function(b) { return selectedBugIds.has(b.id); });
+  document.getElementById('selectAllCheckbox').checked = allSelected;
+}
+
+/**
+ * 更新批量操作栏显示
+ */
+function updateBatchBar() {
+  var bar = document.getElementById('batchBar');
+  var count = selectedBugIds.size;
+  document.getElementById('selectedCount').textContent = '已选 ' + count + ' 条';
+  if (count > 0) {
+    bar.classList.add('visible');
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+/**
+ * 清除所有选择
+ */
+function clearSelection() {
+  selectedBugIds.clear();
+  document.getElementById('selectAllCheckbox').checked = false;
+  renderBugList();
+}
+
+/**
+ * 批量删除
+ */
+function batchDelete() {
+  var count = selectedBugIds.size;
+  if (count === 0) return;
+
+  showConfirm(
+    '确定要删除选中的 ' + count + ' 条 Bug 吗？删除后无法恢复。',
+    function() {
+      var idsToDelete = new Set(selectedBugIds);
+      bugs = bugs.filter(function(b) { return !idsToDelete.has(b.id); });
+      selectedBugIds.clear();
+      saveBugs();
+      renderAll();
+      showToast('已删除 ' + count + ' 条 Bug', 'success');
+    },
+    '确认批量删除',
+    '🗑️'
+  );
+}
+
+/* ========== 筛选/搜索/排序 ========== */
+
+/**
+ * 处理筛选条件变化
+ */
+function handleFilter() {
+  filters.severity = document.getElementById('filterSeverity').value;
+  filters.priority = document.getElementById('filterPriority').value;
+  filters.status = document.getElementById('filterStatus').value;
+  filters.module = document.getElementById('filterModule').value;
+  filters.tester = document.getElementById('filterTester').value;
+  currentPage = 1;
+  renderBugList();
+}
+
+/**
+ * 处理搜索输入
+ */
+function handleSearch(keyword) {
+  filters.keyword = keyword.trim();
+  currentPage = 1;
+  renderBugList();
+}
+
+/**
+ * 处理排序
+ */
+function handleSort(field) {
+  if (sortConfig.field === field) {
+    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortConfig.field = field;
+    sortConfig.direction = 'desc';
+  }
+  renderBugList();
+}
+
+/**
+ * 清除所有筛选
+ */
+function clearFilters() {
+  filters = { severity: '', priority: '', status: '', module: '', tester: '', keyword: '' };
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterSeverity').value = '';
+  document.getElementById('filterPriority').value = '';
+  document.getElementById('filterStatus').value = '';
+  document.getElementById('filterModule').value = '';
+  document.getElementById('filterTester').value = '';
+  currentPage = 1;
+  renderBugList();
+}
+
+/**
+ * 更新筛选项下拉选项（模块、测试人）
+ */
+function updateFilterOptions() {
+  // 模块选项
+  var modules = {};
+  bugs.forEach(function(b) {
+    if (b.module) modules[b.module] = true;
+  });
+  var moduleSelect = document.getElementById('filterModule');
+  var currentModule = moduleSelect.value;
+  moduleSelect.innerHTML = '<option value="">全部模块</option>';
+  Object.keys(modules).sort().forEach(function(mod) {
+    moduleSelect.innerHTML += '<option value="' + escapeHtml(mod) + '"' + (mod === currentModule ? ' selected' : '') + '>' + escapeHtml(mod) + '</option>';
+  });
+
+  // 测试人选项
+  var testers = {};
+  bugs.forEach(function(b) {
+    if (b.tester) testers[b.tester] = true;
+  });
+  var testerSelect = document.getElementById('filterTester');
+  var currentTester = testerSelect.value;
+  testerSelect.innerHTML = '<option value="">全部测试人</option>';
+  Object.keys(testers).sort().forEach(function(t) {
+    testerSelect.innerHTML += '<option value="' + escapeHtml(t) + '"' + (t === currentTester ? ' selected' : '') + '>' + escapeHtml(t) + '</option>';
+  });
+}
+
+/* ========== 导出/导入 ========== */
+
+/**
+ * 导出 CSV（Excel 可打开，不含截图 base64）
+ */
+function exportCSV() {
+  if (bugs.length === 0) {
+    showToast('没有 Bug 数据可导出', 'warning');
+    return;
+  }
+
+  // CSV 表头
+  var headers = ['Bug编号', '标题', '发现日期', '测试人', '所属模块', '严重程度', '优先级', 'Bug类型', '状态', '复现步骤', '期望结果', '实际结果', '截图数量', '创建时间', '更新时间'];
+
+  // CSV 内容行
+  var rows = bugs.map(function(b) {
+    var sevLabel = (SEVERITY_CONFIG[b.severity] || { label: b.severity }).label;
+    var priLabel = (PRIORITY_CONFIG[b.priority] || { label: b.priority }).label;
+    var statusLabel = (STATUS_CONFIG[b.status] || { label: b.status }).label;
+    var screenshotCount = (b.screenshots || []).length;
+
+    return [
+      b.id || '',
+      b.title || '',
+      b.date || '',
+      b.tester || '',
+      b.module || '',
+      sevLabel,
+      priLabel,
+      b.type || '',
+      statusLabel,
+      b.steps || '',
+      b.expected || '',
+      b.actual || '',
+      String(screenshotCount),
+      b.createdAt || '',
+      b.updatedAt || ''
+    ];
+  });
+
+  // 构建 CSV 文本（加 BOM 头让 Excel 正确识别编码）
+  var csv = '\uFEFF';  // UTF-8 BOM
+  csv += headers.map(escapeCSV).join(',') + '\r\n';
+  rows.forEach(function(row) {
+    csv += row.map(escapeCSV).join(',') + '\r\n';
+  });
+
+  // 下载文件
+  downloadFile(csv, 'bug-list-' + getToday() + '.csv', 'text/csv;charset=utf-8');
+  showToast('CSV 已导出（' + bugs.length + ' 条）', 'success');
+}
+
+/**
+ * CSV 字段转义：用双引号包裹，内部双引号替换为两个双引号
+ */
+function escapeCSV(value) {
+  var str = String(value);
+  if (str.indexOf(',') >= 0 || str.indexOf('"') >= 0 || str.indexOf('\n') >= 0 || str.indexOf('\r') >= 0) {
+    str = '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+/**
+ * 导出 JSON（含截图 base64 完整数据）
+ */
+function exportJSON() {
+  if (bugs.length === 0) {
+    showToast('没有 Bug 数据可导出', 'warning');
+    return;
+  }
+
+  var exportData = {
+    exportTime: new Date().toISOString(),
+    exportTool: 'Bug 反馈记录表',
+    version: '1.0',
+    totalBugs: bugs.length,
+    bugs: bugs
+  };
+
+  var jsonStr = JSON.stringify(exportData, null, 2);
+  downloadFile(jsonStr, 'bug-backup-' + getToday() + '.json', 'application/json');
+  showToast('JSON 已导出（' + bugs.length + ' 条，含截图）', 'success');
+}
+
+/**
+ * 导入 JSON
+ */
+function importJSON(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+
+      // 兼容两种格式：直接数组 或 带包装的对象
+      var importedBugs = null;
+      if (Array.isArray(data)) {
+        importedBugs = data;
+      } else if (data.bugs && Array.isArray(data.bugs)) {
+        importedBugs = data.bugs;
+      } else {
+        showToast('文件格式不正确，未找到 Bug 数据', 'error');
+        return;
+      }
+
+      // 验证导入的数据
+      var validBugs = [];
+      var invalidCount = 0;
+      importedBugs.forEach(function(b) {
+        if (b && b.id && b.title) {
+          // 确保必要字段存在
+          validBugs.push({
+            id: b.id,
+            title: b.title,
+            date: b.date || getToday(),
+            tester: b.tester || '',
+            module: b.module || '',
+            type: b.type || '',
+            severity: b.severity || 'normal',
+            priority: b.priority || 'medium',
+            steps: b.steps || '',
+            expected: b.expected || '',
+            actual: b.actual || '',
+            screenshots: Array.isArray(b.screenshots) ? b.screenshots : [],
+            status: b.status || 'new',
+            createdAt: b.createdAt || new Date().toISOString(),
+            updatedAt: b.updatedAt || new Date().toISOString()
+          });
+        } else {
+          invalidCount++;
+        }
+      });
+
+      if (validBugs.length === 0) {
+        showToast('文件中没有有效的 Bug 数据', 'error');
+        return;
+      }
+
+      // 询问是合并还是替换
+      showConfirm(
+        '检测到 ' + validBugs.length + ' 条 Bug 数据' +
+        (invalidCount > 0 ? '（' + invalidCount + ' 条无效已跳过）' : '') +
+        '。\n选择「确认」合并到现有数据，选择「取消」放弃导入。',
+        function() {
+          // 合并模式：跳过已存在的 ID
+          var existingIds = {};
+          bugs.forEach(function(b) { existingIds[b.id] = true; });
+          var added = 0;
+          var skipped = 0;
+          validBugs.forEach(function(b) {
+            if (existingIds[b.id]) {
+              skipped++;
+            } else {
+              bugs.push(b);
+              existingIds[b.id] = true;
+              added++;
+            }
+          });
+          saveBugs();
+          renderAll();
+          showToast('导入完成：新增 ' + added + ' 条' + (skipped > 0 ? '，跳过 ' + skipped + ' 条重复' : ''), 'success');
+        },
+        '合并导入',
+        '📥'
+      );
+
+    } catch (err) {
+      showToast('文件解析失败：' + err.message, 'error');
+    }
+
+    // 清空 input，方便重复导入同一文件
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * 通用文件下载
+ */
+function downloadFile(content, filename, mimeType) {
+  var blob = new Blob([content], { type: mimeType });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ========== UI 辅助函数 ========== */
+
+/**
+ * 显示 Toast 提示
+ * @param {string} message - 提示消息
+ * @param {string} type - success | error | info | warning
+ */
+function showToast(message, type) {
+  var container = document.getElementById('toastContainer');
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + (type || 'info');
+
+  var icon = '';
+  switch (type) {
+    case 'success': icon = '✓'; break;
+    case 'error': icon = '✕'; break;
+    case 'warning': icon = '⚠'; break;
+    default: icon = 'ℹ'; break;
+  }
+
+  toast.innerHTML = '<span>' + icon + '</span><span>' + escapeHtml(message) + '</span>';
+  container.appendChild(toast);
+
+  // 3 秒后自动消失
+  setTimeout(function() {
+    toast.classList.add('removing');
+    setTimeout(function() {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 3000);
+}
+
+/**
+ * 显示确认对话框
+ * @param {string} message - 确认消息
+ * @param {function} onConfirm - 确认回调
+ * @param {string} btnText - 确认按钮文字（可选）
+ * @param {string} icon - 图标 emoji（可选）
+ */
+function showConfirm(message, onConfirm, btnText, icon) {
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmIcon').textContent = icon || '⚠️';
+  document.getElementById('confirmOkBtn').textContent = btnText || '确认';
+  confirmCallback = onConfirm;
+  document.getElementById('confirmModal').classList.add('visible');
+}
+
+/**
+ * 关闭确认对话框
+ */
+function closeConfirm(confirmed) {
+  document.getElementById('confirmModal').classList.remove('visible');
+  if (confirmed && confirmCallback) {
+    var cb = confirmCallback;
+    confirmCallback = null;
+    cb();
+  } else {
+    confirmCallback = null;
+  }
+}
+
+/**
+ * 打开图片 Lightbox
+ * @param {number} index - 截图索引
+ * @param {boolean} fromTemp - 是否来自临时截图列表（true=表单中，false=详情中）
+ * @param {string} bugId - Bug ID（fromTemp=false 时需要）
+ */
+function openLightbox(index, fromTemp, bugId) {
+  var src = '';
+  if (fromTemp) {
+    src = tempScreenshots[index] ? tempScreenshots[index].data : '';
+  } else {
+    var bug = null;
+    for (var i = 0; i < bugs.length; i++) {
+      if (bugs[i].id === bugId) { bug = bugs[i]; break; }
+    }
+    if (bug && bug.screenshots && bug.screenshots[index]) {
+      src = bug.screenshots[index].data;
+    }
+  }
+  if (src) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('visible');
+  }
+}
+
+/**
+ * 关闭 Lightbox
+ */
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('visible');
+}
+
+/**
+ * 展开/收起表单
+ */
+function toggleForm() {
+  document.getElementById('formSection').classList.toggle('collapsed');
+}
+
+/* ========== 初始化 ========== */
+
+/**
+ * 页面加载后初始化
+ */
+function init() {
+  // 加载数据
+  loadBugs();
+
+  // 初始化表单
+  initForm();
+
+  // 渲染所有内容
+  renderAll();
+
+  // 尝试恢复草稿
+  loadDraft();
+
+  // ESC 键关闭模态框
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeLightbox();
+      closeDetailModal();
+      closeConfirm(false);
+    }
+  });
+
+  // 点击模态框遮罩关闭
+  document.getElementById('detailModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDetailModal();
+  });
+  document.getElementById('confirmModal').addEventListener('click', function(e) {
+    if (e.target === this) closeConfirm(false);
+  });
+}
+
+// DOM 加载完成后启动
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
