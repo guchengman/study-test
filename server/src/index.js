@@ -115,7 +115,13 @@ app.use('/api/invite-codes', inviteCodeRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
-app.use('/api/uploads', authMiddleware, express.static(uploadsRoot));
+// 上传图片：需登录 + 禁止内容嗅探/内嵌脚本执行（防御历史 SVG 等存储型 XSS）
+app.use('/api/uploads', authMiddleware, express.static(uploadsRoot, {
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; sandbox");
+  },
+}));
 app.use('/api/exams', examsRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）

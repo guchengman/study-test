@@ -30,11 +30,13 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (_req, file, cb) => {
-    const allowed = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    // 安全：移除 svg（可内嵌 script，存在存储型 XSS 风险）；扩展名 + MIME 双重校验
+    const allowed = /\.(png|jpe?g|gif|webp|bmp)$/i;
+    const mimeOk = /^image\/(png|jpe?g|gif|webp|bmp)$/i.test(file.mimetype);
+    if (allowed.test(path.extname(file.originalname)) && mimeOk) {
       cb(null, true);
     } else {
-      cb(new Error('仅支持图片格式: png, jpg, jpeg, gif, svg, webp, bmp'));
+      cb(new Error('仅支持图片格式: png, jpg, jpeg, gif, webp, bmp'));
     }
   },
 });
