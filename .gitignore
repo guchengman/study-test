@@ -76,6 +76,7 @@ install-*.ps1
 install-*.bat
 
 server/uploads/
+server/exports/
 
 # 运维脚本（密钥已外置到环境变量，允许提交）
 !scripts/db/set-reset-flag.cjs

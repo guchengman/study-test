@@ -5,6 +5,7 @@
  *       -> FR-204：owner 读路径(analysis)不再同步全场收卷；getAttempt 仅定向收单份
  *       -> FR-101/102/103：判断/填空(逐空部分得分+同义项)/简答(待定) 新题型端到端判分
  *       -> FR-107：编辑生成版本快照 / 版本列表 / 回退 / 软删进回收站 / 恢复 / 彻底删(考试引用 409) / 版本 FK 级联
+ *       -> FR-206：创建导出任务 / 轮询状态 / 下载 CSV 含 BOM+表头 / 权限校验 / 学生自助导出
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -305,6 +306,59 @@ const main = async () => {
   check('FR-107 彻底删后不存在(404)', r.status === 404, r.status);
   const [vc] = await db.execute('SELECT COUNT(*) AS c FROM question_versions WHERE question_id = ?', [qLife]);
   check('FR-107 版本随 FK ON DELETE CASCADE 清空', vc[0].c === 0, vc[0].c);
+
+  // ── 19. FR-206 成绩导出（异步任务 + CSV 下载） ──
+  // 19a owner 创建导出任务 scope=exam
+  {
+    const r = await api('POST', '/exports', tToken, { scope: 'exam', exam_id: examId });
+    check('FR-206 创建导出任务(201)', r.status === 201, r.status);
+    const jobId = r.data?.job_id;
+    check('FR-206 返回 job_id', typeof jobId === 'number' && jobId > 0, jobId);
+
+    // 19b 轮询状态至 done/failed（最多等 10s）
+    let job = null;
+    for (let i = 0; i < 20; i++) {
+      const pr = await api('GET', `/exports/jobs/${jobId}`, tToken);
+      job = pr.data;
+      if (job?.status === 'done' || job?.status === 'failed') break;
+      await new Promise((r2) => setTimeout(r2, 500));
+    }
+    check('FR-206 job 状态=done', job?.status === 'done', job?.status);
+    check('FR-206 row_count>0', (job?.row_count ?? 0) > 0, job?.row_count);
+
+    // 19c 下载 CSV
+    const dlRes = await fetch(`${BASE}/exports/jobs/${jobId}/download`, {
+      headers: { Authorization: 'Bearer ' + tToken },
+    });
+    check('FR-206 下载返回 200', dlRes.status === 200, dlRes.status);
+    const buf = await dlRes.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    check('FR-206 CSV 含 UTF-8 BOM (EF BB BF)', bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF);
+    const csvText = new TextDecoder('utf-8').decode(buf);
+    check('FR-206 CSV 含表头「用户名」', csvText.includes('用户名'));
+    check('FR-206 CSV 含逐题列', csvText.includes('第1题'));
+
+    // 19d 未登录不能下载
+    const noAuth = await fetch(`${BASE}/exports/jobs/${jobId}/download`);
+    check('FR-206 未登录禁止下载(401)', noAuth.status === 401, noAuth.status);
+
+    // 19e 学生自助导出 scope=self
+    const r2 = await api('POST', '/exports', sToken, { scope: 'self' });
+    check('FR-206 学生自助导出(201)', r2.status === 201, r2.status);
+    const selfJobId = r2.data?.job_id;
+    let selfJob = null;
+    for (let i = 0; i < 20; i++) {
+      const pr = await api('GET', `/exports/jobs/${selfJobId}`, sToken);
+      selfJob = pr.data;
+      if (selfJob?.status === 'done' || selfJob?.status === 'failed') break;
+      await new Promise((r3) => setTimeout(r3, 500));
+    }
+    check('FR-206 self job done', selfJob?.status === 'done', selfJob?.status);
+
+    // 19f 学生不能导出他人考试
+    const r3 = await api('POST', '/exports', sToken, { scope: 'exam', exam_id: examId });
+    check('FR-206 非owner禁止导出exam(403)', r3.status === 403, r3.status);
+  }
 
   await cleanup(db); // 收尾清理，保持库整洁
   await db.end();

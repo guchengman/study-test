@@ -11,10 +11,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen } from 'lucide-react';
+import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen, FileDown } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useFormalExam } from '../hooks/useFormalExam';
 import { examApi } from '../services/examApi';
+import { exportApi } from '../services/exportApi';
 import { FormalExamScreen } from '../components/app/FormalExamScreen';
 import { FormalResultScreen } from '../components/app/FormalResultScreen';
 import type { ExamAvailableItem, ExamHistoryItem } from '../types';
@@ -44,6 +45,7 @@ export function FormalExamPage() {
   const [listError, setListError] = useState<string | null>(null);
   const [viewAttempt, setViewAttempt] = useState<ViewAttempt | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [selfExporting, setSelfExporting] = useState<boolean>(false);
 
   const isOwner = ctx.isAdmin || ctx.isTeacher || ctx.allSubjects.some((s) => s.isOwner);
 
@@ -232,7 +234,39 @@ export function FormalExamPage() {
         )
       ) : (
         // 历史 Tab
-        history.length === 0 ? (
+        <div className="space-y-3">
+          {/* 自助导出按钮 */}
+          {history.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={async () => {
+                  setSelfExporting(true);
+                  try {
+                    const { job_id } = await exportApi.create('self');
+                    const job = await exportApi.pollUntilDone(job_id);
+                    if (job.status === 'failed') throw new Error(job.error || '导出失败');
+                    if (job.status !== 'done') throw new Error('导出超时');
+                    const blob = await exportApi.downloadBlob(job_id);
+                    exportApi.triggerDownload(blob, '我的成绩.csv');
+                  } catch (e: any) {
+                    setListError(e?.message || '导出失败');
+                  } finally {
+                    setSelfExporting(false);
+                  }
+                }}
+                disabled={selfExporting}
+                className="flex items-center gap-1 px-3 py-1.5 bg-teal-50 text-teal-600 rounded-lg font-bold hover:bg-teal-100 transition-colors text-sm disabled:opacity-50"
+              >
+                {selfExporting ? (
+                  <span className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                ) : (
+                  <FileDown size={14} />
+                )}
+                导出我的成绩
+              </button>
+            </div>
+          )}
+          {history.length === 0 ? (
           <div className="bg-white rounded-3xl p-8 shadow-xl shadow-slate-200/50 border border-slate-100 text-center">
             <History size={40} className="text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500">还没有考试记录，去「可参加」里参加一场吧。</p>
@@ -281,7 +315,8 @@ export function FormalExamPage() {
               </div>
             ))}
           </div>
-        )
+        )}
+        </div>
       )}
     </motion.div>
   );

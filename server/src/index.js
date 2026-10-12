@@ -29,6 +29,8 @@ import uploadRoutes, { uploadsRoot } from './routes/upload.js';
 import examsRoutes from './routes/exams.js';
 import { startExamSweepScheduler, stopExamSweepScheduler } from './utils/examSweepScheduler.js';
 import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './utils/recycleCleanupScheduler.js';
+import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
+import exportRoutes from './routes/exports.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -136,6 +138,7 @@ app.use('/api/uploads', authMiddleware, express.static(uploadsRoot, {
   },
 }));
 app.use('/api/exams', examsRoutes);
+app.use('/api/exports', exportRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
@@ -220,10 +223,13 @@ app.listen(PORT, '0.0.0.0', () => {
   startExamSweepScheduler();
   // FR-107：启动回收站过期清理调度器（带 GET_LOCK 单例守卫，物理删除软删超期且未被考试引用的题目）
   startRecycleCleanupScheduler();
+  // FR-206：启动导出任务兜底调度器（GET_LOCK 单例，轮询 queued jobs 处理）
+  startExportJobScheduler();
 });
 
 // 优雅退出：停掉后台调度器（PM2 reload/SIGTERM）
 process.on('SIGTERM', () => {
   stopExamSweepScheduler();
   stopRecycleCleanupScheduler();
+  stopExportJobScheduler();
 });

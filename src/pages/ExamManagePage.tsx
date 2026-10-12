@@ -21,9 +21,11 @@ import {
   CheckCircle2,
   Clock,
   Users,
+  FileDown,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { examApi } from '../services/examApi';
+import { exportApi } from '../services/exportApi';
 import { ExamForm } from '../components/exam/ExamForm';
 import type { Exam, ExamAnalysis, ExamFormPayload, ExamStatus } from '../types';
 
@@ -53,6 +55,7 @@ export function ExamManagePage() {
   const [analysis, setAnalysis] = useState<ExamAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<number | null>(null);
 
   const manageableSubjects = ctx.allSubjects.filter((s) => ctx.isAdmin || ctx.isTeacher || s.isOwner);
 
@@ -114,6 +117,23 @@ export function ExamManagePage() {
       await loadList();
     } catch (e: any) {
       setError(e?.message || '更新状态失败');
+    }
+  };
+
+  const handleExport = async (exam: Exam) => {
+    setExportingId(exam.id);
+    setError(null);
+    try {
+      const { job_id } = await exportApi.create('exam', exam.id);
+      const job = await exportApi.pollUntilDone(job_id);
+      if (job.status === 'failed') throw new Error(job.error || '导出失败');
+      if (job.status !== 'done') throw new Error('导出超时，请稍后重试');
+      const blob = await exportApi.downloadBlob(job_id);
+      exportApi.triggerDownload(blob, `${exam.title}_成绩.csv`);
+    } catch (e: any) {
+      setError(e?.message || '导出失败');
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -243,6 +263,18 @@ export function ExamManagePage() {
                         className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100 transition-colors text-sm"
                       >
                         <BarChart3 size={14} /> 分析
+                      </button>
+                      <button
+                        onClick={() => handleExport(exam)}
+                        disabled={exportingId === exam.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-teal-50 text-teal-600 rounded-lg font-bold hover:bg-teal-100 transition-colors text-sm disabled:opacity-50"
+                      >
+                        {exportingId === exam.id ? (
+                          <span className="w-4 h-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                        ) : (
+                          <FileDown size={14} />
+                        )}
+                        导出
                       </button>
                       {exam.status !== 'published' && (
                         <button
