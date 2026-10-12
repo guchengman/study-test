@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen, FileDown } from 'lucide-react';
+import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen, FileDown, Tag } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useFormalExam } from '../hooks/useFormalExam';
 import { examApi } from '../services/examApi';
@@ -154,6 +154,12 @@ export function FormalExamPage() {
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors text-sm"
             >
               <PlusCircle size={18} /> 管理考试
+            </button>
+            <button
+              onClick={() => navigate('/tags/manage')}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors text-sm"
+            >
+              <Tag size={18} /> 标签
             </button>
           </div>
         )}

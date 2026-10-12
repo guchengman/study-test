@@ -7,6 +7,7 @@
  *       -> FR-107：编辑生成版本快照 / 版本列表 / 回退 / 软删进回收站 / 恢复 / 彻底删(考试引用 409) / 版本 FK 级联
  *       -> FR-206：创建导出任务 / 轮询状态 / 下载 CSV 含 BOM+表头 / 权限校验 / 学生自助导出
  *       -> FR-202：题目/选项乱序确定性 + 复用 attempt 不复洗 + shuffle_seed/option_order 持久化
+ *       -> FR-108：知识点标签 CRUD + 题目绑定/解绑 + 树查询
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -43,6 +44,8 @@ async function api(method, path, token, body) {
 const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
 async function cleanup(db) {
+  await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
+  await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%')");
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
   await db.execute("DELETE FROM questions WHERE subject_id='it_subj_01'");
@@ -399,6 +402,56 @@ const main = async () => {
     const origIds = qset.map((x) => x.question_id).filter((id) => ids1.includes(id));
     // 不要求必须不同（概率性）；仅确认返回的题 ID 集合与原集合相同
     check('FR-202 乱序后题ID集合不变', JSON.stringify(ids1.slice().sort()) === JSON.stringify(origIds.slice().sort()));
+  }
+
+  // ── 21. FR-108 知识点标签体系 ──
+  {
+    // 21a 创建标签
+    const r1 = await api('POST', '/tags', tToken, { name: '数学', level: 1 });
+    check('FR-108 创建L1标签(201)', r1.status === 201 && r1.data.id, r1.status);
+    const tagL1 = r1.data.id;
+
+    const r2 = await api('POST', '/tags', tToken, { name: '代数', level: 2, parent_id: tagL1 });
+    check('FR-108 创建L2标签(201)', r2.status === 201 && r2.data.id, r2.status);
+    const tagL2 = r2.data.id;
+
+    const r3 = await api('POST', '/tags', tToken, { name: '一元二次方程', level: 3, parent_id: tagL2 });
+    check('FR-108 创建L3标签(201)', r3.status === 201 && r3.data.id, r3.status);
+    const tagL3 = r3.data.id;
+
+    // 21b 重复创建应 409
+    const rDup = await api('POST', '/tags', tToken, { name: '数学', level: 1 });
+    check('FR-108 重复标签(409)', rDup.status === 409, rDup.status);
+
+    // 21c 查询标签树
+    const rTree = await api('GET', '/tags/tree', tToken);
+    check('FR-108 树查询含标签(200)', rTree.status === 200 && rTree.data.tags.length >= 3, rTree.data?.tags?.length);
+
+    // 21d 题目绑定标签
+    const rBind = await api('POST', `/tags/question/${qA}/bindTags`, tToken, { tag_ids: [tagL1, tagL3] });
+    check('FR-108 绑定标签(200)', rBind.status === 200 && rBind.data.added === 2, rBind.data);
+
+    // 21e 获取题目标签
+    const rGet = await api('GET', `/tags/question/${qA}`, tToken);
+    check('FR-108 题目有2个标签', rGet.status === 200 && rGet.data.tags.length === 2, rGet.data?.tags?.length);
+
+    // 21f 解绑
+    const rUnbind = await api('DELETE', `/tags/question/${qA}/unbindTag/${tagL3}`, tToken);
+    check('FR-108 解绑成功(200)', rUnbind.status === 200 && rUnbind.data.ok, rUnbind.data);
+    const rGet2 = await api('GET', `/tags/question/${qA}`, tToken);
+    check('FR-108 解绑后剩1个标签', rGet2.data.tags.length === 1, rGet2.data?.tags?.length);
+
+    // 21g 重命名
+    const rRen = await api('PUT', `/tags/${tagL1}`, tToken, { name: '高等数学' });
+    check('FR-108 重命名(200)', rRen.status === 200 && rRen.data.ok, rRen.status);
+
+    // 21h 删除标签
+    const rDel = await api('DELETE', `/tags/${tagL3}`, tToken);
+    check('FR-108 删除标签(200)', rDel.status === 200 && rDel.data.ok, rDel.status);
+
+    // 21i 未登录禁止
+    const rNoAuth = await api('GET', '/tags/tree', null);
+    check('FR-108 未登录(401)', rNoAuth.status === 401, rNoAuth.status);
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

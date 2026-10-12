@@ -31,6 +31,7 @@ import { startExamSweepScheduler, stopExamSweepScheduler } from './utils/examSwe
 import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './utils/recycleCleanupScheduler.js';
 import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
 import exportRoutes from './routes/exports.js';
+import tagRoutes from './routes/tags.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -139,6 +140,7 @@ app.use('/api/uploads', authMiddleware, express.static(uploadsRoot, {
 }));
 app.use('/api/exams', examsRoutes);
 app.use('/api/exports', exportRoutes);
+app.use('/api/tags', tagRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
