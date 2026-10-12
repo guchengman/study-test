@@ -21,6 +21,41 @@ function correctOptionIndices(question) {
   const i = optionIndexFromLabelOrText(question.options, ans);
   return i >= 0 ? [i] : [];
 }
+function judgeTruth(value) {
+  const s = String(value ?? "").trim().toLowerCase();
+  if (!s) return null;
+  const TRUE_TOKENS = ["true", "t", "1", "\u5BF9", "\u6B63\u786E", "\u662F", "\u221A", "tf-true", "yes", "y", "a"];
+  const FALSE_TOKENS = ["false", "f", "0", "\u9519", "\u9519\u8BEF", "\u5426", "\xD7", "x", "tf-false", "no", "n", "b"];
+  if (TRUE_TOKENS.includes(s)) return "true";
+  if (FALSE_TOKENS.includes(s)) return "false";
+  return null;
+}
+function normalizeText(value) {
+  let s = value == null ? "" : String(value);
+  s = s.replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 65248));
+  s = s.replace(/\u3000/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  return s.toLowerCase();
+}
+function fillInBlanks(answer) {
+  const rawBlanks = Array.isArray(answer) ? answer : [answer];
+  return rawBlanks.map(
+    (b) => String(b ?? "").split(/[,，]/).map((t) => t.trim()).filter((t) => t.length > 0)
+  );
+}
+function fillInGrade(question, userAns) {
+  const blanks = fillInBlanks(question.answer);
+  const total = blanks.length;
+  const userArr = Array.isArray(userAns) ? userAns : userAns == null || userAns === "" ? [] : [userAns];
+  let correct = 0;
+  for (let i = 0; i < total; i++) {
+    const userNorm = normalizeText(userArr[i]);
+    if (!userNorm) continue;
+    const accepted = blanks[i].map(normalizeText);
+    if (accepted.includes(userNorm)) correct += 1;
+  }
+  return { correct, total, allCorrect: total > 0 && correct === total };
+}
 function isAnswerCorrect(q, userAns) {
   if (!userAns) return false;
   if (q.type === "single") {
@@ -49,6 +84,16 @@ function isAnswerCorrect(q, userAns) {
     const normalize = (s) => (s ? String(s) : "").replace(/\s+/g, "").replace(/['"]/g, '"').toLowerCase() || "";
     return normalize(userAns) === normalize(q.answer);
   }
+  if (q.type === "judge") {
+    const truth = judgeTruth(userAns);
+    return truth !== null && truth === judgeTruth(q.answer);
+  }
+  if (q.type === "fill_in") {
+    return fillInGrade(q, userAns).allCorrect;
+  }
+  if (q.type === "short_answer") {
+    return false;
+  }
   return false;
 }
 function formatTime(seconds) {
@@ -60,6 +105,14 @@ function gradeQuestion(question, userAnswer, points) {
   const pts = Number(points) || 0;
   if (question && question.type === "programming") {
     return { is_correct: null, earned: 0, needs_manual: true };
+  }
+  if (question && question.type === "short_answer") {
+    return { is_correct: null, earned: 0, needs_manual: true };
+  }
+  if (question && question.type === "fill_in") {
+    const { correct, total } = fillInGrade(question, userAnswer);
+    const earned = total > 0 ? Math.round(pts * correct / total) : 0;
+    return { is_correct: total > 0 && correct === total, earned, needs_manual: false };
   }
   const isCorrect = isAnswerCorrect(question, userAnswer);
   return {

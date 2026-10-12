@@ -3,6 +3,7 @@
  * 覆盖：注册 teacher/student -> 组卷发布 -> 学员参试(试卷脱敏) -> 提交(服务端判分/编程题待定/透出答案解析)
  *       -> 历史最高分 -> 分析聚合 -> 多作答取最高分 -> 超时 sweep 自动交卷
  *       -> FR-204：owner 读路径(analysis)不再同步全场收卷；getAttempt 仅定向收单份
+ *       -> FR-101/102/103：判断/填空(逐空部分得分+同义项)/简答(待定) 新题型端到端判分
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -201,6 +202,66 @@ const main = async () => {
   check('定向收卷：其他过期 attempt 不受影响（仍 in_progress，留给调度器/sweep）', stB[0].status === 'in_progress', stB[0].status);
   r = await api('POST', `/exams/${examId}/sweep`, tToken);
   check('sweep 端点可即时排空剩余积压', r.status === 200 && r.data.autoSubmitted >= 1, r.data);
+
+  // 16) FR-101/102/103 新题型端到端判分（判断/填空/简答）——独立试卷，不影响上面 100 分制断言
+  const [qJudge] = await db.execute(
+    "INSERT INTO questions (subject_id,type,title,options,answer,explanation,created_by) VALUES ('it_subj_01','judge','判断题',?,'\"正确\"','1+1=2 为真',?)",
+    [JSON.stringify(['正确', '错误']), tId]
+  );
+  const qJudgeId = qJudge.insertId;
+  const [qFill] = await db.execute(
+    "INSERT INTO questions (subject_id,type,title,options,answer,explanation,created_by) VALUES ('it_subj_01','fill_in','填空两空(含同义项)',NULL,'[\"2,二\",\"4,四\"]','逐空部分得分',?)",
+    [tId]
+  );
+  const qFillId = qFill.insertId;
+  const [qShort] = await db.execute(
+    "INSERT INTO questions (subject_id,type,title,options,answer,explanation,created_by) VALUES ('it_subj_01','short_answer','简答题',NULL,'\"参考答案\"','需人工判分',?)",
+    [tId]
+  );
+  const qShortId = qShort.insertId;
+
+  r = await api('POST', '/exams', tToken, {
+    subject_id: 'it_subj_01', title: 'IT_新题型考',
+    question_set: [{ question_id: qJudgeId, points: 10 }, { question_id: qFillId, points: 10 }, { question_id: qShortId, points: 10 }],
+    duration_minutes: 30, pass_score: 60,
+  });
+  check('新题型试卷创建', r.status === 200 && r.data.id, r.status);
+  const exam2Id = r.data.id;
+  r = await api('PUT', `/exams/${exam2Id}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+  check('新题型试卷发布', r.status === 200, r.status);
+
+  r = await api('POST', `/exams/${exam2Id}/start`, sToken);
+  check('新题型 start total_points=30', r.status === 200 && r.data.total_points === 30, r.data && r.data.total_points);
+  const attemptN = r.data.attemptId;
+  // 判断答“对”(真)、填空答“2/9”(一对一错→部分得分)、简答任意(待定)
+  r = await api('POST', `/exams/${exam2Id}/submit`, sToken, {
+    attemptId: attemptN,
+    answers: { [qJudgeId]: '对', [qFillId]: ['2', '9'], [qShortId]: '学生的简答内容' },
+  });
+  check('新题型提交成功', r.status === 200, r.status);
+  const subN = r.data;
+  check('新题型 score=15(判断10+填空部分5+简答0)', subN.score === 15, subN.score);
+  check('新题型 total_points=30', subN.total_points === 30, subN.total_points);
+  check('新题型 correct_count=1(仅判断全对)', subN.correct_count === 1, subN.correct_count);
+  const dJudge = subN.details.find((d) => d.question_id === qJudgeId);
+  const dFill = subN.details.find((d) => d.question_id === qFillId);
+  const dShort = subN.details.find((d) => d.question_id === qShortId);
+  check('judge 真值归一命中(对↔正确) 得10', dJudge.is_correct === true && dJudge.earned === 10, { ic: dJudge.is_correct, e: dJudge.earned });
+  check('fill_in 多空部分得分(5)且 is_correct=false', dFill.is_correct === false && dFill.earned === 5, { ic: dFill.is_correct, e: dFill.earned });
+  check('short_answer 待定(null/0/needs_manual)', dShort.is_correct === null && dShort.earned === 0 && dShort.needs_manual === true, { ic: dShort.is_correct, e: dShort.earned, nm: dShort.needs_manual });
+
+  // 17) 判断题答错分支 + 填空同义项(二/四)全对满分（二次作答）
+  r = await api('POST', `/exams/${exam2Id}/start`, sToken);
+  const attemptN2 = r.data.attemptId;
+  r = await api('POST', `/exams/${exam2Id}/submit`, sToken, {
+    attemptId: attemptN2,
+    answers: { [qJudgeId]: '错', [qFillId]: ['二', '四'], [qShortId]: 'x' },
+  });
+  const subN2 = r.data;
+  const dJudge2 = subN2.details.find((d) => d.question_id === qJudgeId);
+  const dFill2 = subN2.details.find((d) => d.question_id === qFillId);
+  check('judge 答错(错↔正确) → is_correct=false 得0', dJudge2.is_correct === false && dJudge2.earned === 0, { ic: dJudge2.is_correct, e: dJudge2.earned });
+  check('fill_in 同义项(二/四)全对 → is_correct=true 满分10', dFill2.is_correct === true && dFill2.earned === 10, { ic: dFill2.is_correct, e: dFill2.earned });
 
   await cleanup(db); // 收尾清理，保持库整洁
   await db.end();

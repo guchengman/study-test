@@ -20,6 +20,9 @@ const PTS = 10;
  *  - single：文本等值 或 answer 为 A-Z 标签时映射 options[idx] 后与作答文本比对（区分大小写）
  *  - multiple：A-Z 标签先映射选项文本，排序后与作答集合全等（多一项/少一项皆判错）
  *  - programming：恒不自动判分 → { is_correct:null, earned:0, needs_manual:true }
+ *  - short_answer：同 programming，需人工判分（isAnswerCorrect 自动口径下恒 false）
+ *  - judge：真值 token 归一（对/√/true/A 真、错/×/false/B 假）
+ *  - fill_in：逐空部分得分，大小写不敏感 + 全角→半角等价 + 中英文逗号同义项
  *  - 空作答（含 ''/null/[]）→ false
  */
 const corpus = [
@@ -102,6 +105,42 @@ const corpus = [
     expect: { is_correct: null, earned: 0, needs_manual: true },
   },
   {
+    name: 'judge 真值归一命中（“对”对“正确”）',
+    q: { type: 'judge', options: ['正确', '错误'], answer: '正确' },
+    ans: '对',
+    expect: { is_correct: true, earned: PTS, needs_manual: false },
+  },
+  {
+    name: 'judge 真值归一未命中（“错”对“正确”）',
+    q: { type: 'judge', options: ['正确', '错误'], answer: '正确' },
+    ans: '错',
+    expect: { is_correct: false, earned: 0, needs_manual: false },
+  },
+  {
+    name: 'fill_in 单空同义 + 全角/大小写等价命中',
+    q: { type: 'fill_in', answer: 'apple,Apple' },
+    ans: 'ＡＰＰＬＥ',
+    expect: { is_correct: true, earned: PTS, needs_manual: false },
+  },
+  {
+    name: 'fill_in 多空全对满分',
+    q: { type: 'fill_in', answer: ['2,二', '4,四'] },
+    ans: ['2', '四'],
+    expect: { is_correct: true, earned: PTS, needs_manual: false },
+  },
+  {
+    name: 'fill_in 多空一对一错→部分得分（PTS=10两空各半→5）',
+    q: { type: 'fill_in', answer: ['2', '4'] },
+    ans: ['2', '9'],
+    expect: { is_correct: false, earned: 5, needs_manual: false },
+  },
+  {
+    name: 'short_answer 需人工判分（不自动给分）',
+    q: { type: 'short_answer', answer: '参考答案' },
+    ans: '学生作答',
+    expect: { is_correct: null, earned: 0, needs_manual: true },
+  },
+  {
     name: '空作答 null → 判错',
     q: { type: 'single', options: ['A1', 'B2'], answer: 'A' },
     ans: null,
@@ -122,9 +161,10 @@ describe('examScoring.generated 判分单轨口径回归（FR-110）', () => {
     }
   });
 
-  it('isAnswerCorrect 与 gradeQuestion.is_correct 口径一致（非编程题）', () => {
+  it('isAnswerCorrect 与 gradeQuestion.is_correct 口径一致（非短路题型）', () => {
     for (const c of corpus) {
-      if (c.q.type === 'programming') continue; // programming 在 gradeQuestion 短路，不看 isAnswerCorrect
+      // programming / short_answer 在 gradeQuestion 短路为 null，isAnswerCorrect 自动口径下恒 false，不可互比
+      if (c.q.type === 'programming' || c.q.type === 'short_answer') continue;
       expect([c.name, isAnswerCorrect(c.q, c.ans)]).toEqual([c.name, c.expect.is_correct]);
     }
   });

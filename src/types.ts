@@ -1,4 +1,4 @@
-export type QuestionType = 'single' | 'multiple' | 'programming';
+export type QuestionType = 'single' | 'multiple' | 'programming' | 'judge' | 'fill_in' | 'short_answer';
 
 // 科目ID类型
 export type SubjectId = 'chinese' | 'math' | 'english' | 'python' | string;

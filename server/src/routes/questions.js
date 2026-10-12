@@ -108,7 +108,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-const VALID_QUESTION_TYPES = ['single', 'multiple', 'programming'];
+const VALID_QUESTION_TYPES = ['single', 'multiple', 'programming', 'judge', 'fill_in', 'short_answer'];
 
 // 创建题目 — 自动绑定当前用户
 router.post('/', authMiddleware, async (req, res) => {

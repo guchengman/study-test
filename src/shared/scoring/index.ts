@@ -40,7 +40,65 @@ export function correctOptionIndices(question: Pick<Question, 'type' | 'answer' 
   return i >= 0 ? [i] : [];
 }
 
-/** 单题判分：支持 single / multiple / programming，含 A-Z 标签↔选项文本回退 */
+// ============ FR-101/102 新题型判分纯函数（零依赖，四端与 worker 同一实现） ============
+
+/** 真值 token 归一：判断类答案/作答 → 'true' | 'false' | null（无法判定） */
+function judgeTruth(value: unknown): 'true' | 'false' | null {
+  const s = String(value ?? '').trim().toLowerCase();
+  if (!s) return null;
+  const TRUE_TOKENS = ['true', 't', '1', '对', '正确', '是', '√', 'tf-true', 'yes', 'y', 'a'];
+  const FALSE_TOKENS = ['false', 'f', '0', '错', '错误', '否', '×', 'x', 'tf-false', 'no', 'n', 'b'];
+  if (TRUE_TOKENS.includes(s)) return 'true';
+  if (FALSE_TOKENS.includes(s)) return 'false';
+  return null;
+}
+
+/**
+ * 文本归一（填空/判断通用口径）：
+ *   - trim + 折叠内部连续空白为单个空格
+ *   - 全角 ASCII（U+FF01..FF5E）转半角、全角空格 U+3000 转半角空格
+ *   - 大小写不敏感（转小写）
+ * 纯函数，不依赖 Intl/Node API（NFKC 在不同 runtime 行为不一，手工映射更可控）。
+ */
+function normalizeText(value: unknown): string {
+  let s = value == null ? '' : String(value);
+  // 全角 → 半角
+  s = s.replace(/[\uFF01-\uFF5E]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+  s = s.replace(/\u3000/g, ' ');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s.toLowerCase();
+}
+
+/** 把答案（string|string[]）拆成「逐空」，每空再按中英文逗号拆同义项 */
+function fillInBlanks(answer: unknown): string[][] {
+  const rawBlanks = Array.isArray(answer) ? answer : [answer];
+  return rawBlanks.map((b) =>
+    String(b ?? '')
+      .split(/[,，]/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0)
+  );
+}
+
+/** 填空题逐空判分结果 */
+function fillInGrade(
+  question: Pick<Question, 'answer'>,
+  userAns: unknown
+): { correct: number; total: number; allCorrect: boolean } {
+  const blanks = fillInBlanks(question.answer);
+  const total = blanks.length;
+  const userArr = Array.isArray(userAns) ? userAns : userAns == null || userAns === '' ? [] : [userAns];
+  let correct = 0;
+  for (let i = 0; i < total; i++) {
+    const userNorm = normalizeText(userArr[i]);
+    if (!userNorm) continue; // 空作答该空不计分
+    const accepted = blanks[i].map(normalizeText);
+    if (accepted.includes(userNorm)) correct += 1;
+  }
+  return { correct, total, allCorrect: total > 0 && correct === total };
+}
+
+/** 单题判分：支持 single / multiple / programming / judge / fill_in / short_answer，含 A-Z 标签↔选项文本回退 */
 export function isAnswerCorrect(q: Question, userAns: unknown): boolean {
   if (!userAns) return false;
 
@@ -82,6 +140,20 @@ export function isAnswerCorrect(q: Question, userAns: unknown): boolean {
     return normalize(userAns as string) === normalize(q.answer as string);
   }
 
+  if (q.type === 'judge') {
+    const truth = judgeTruth(userAns);
+    return truth !== null && truth === judgeTruth(q.answer);
+  }
+
+  if (q.type === 'fill_in') {
+    return fillInGrade(q, userAns).allCorrect;
+  }
+
+  // short_answer：需人工判分，自动口径下一律 false（不计正确，分数由 gradeQuestion 短路）
+  if (q.type === 'short_answer') {
+    return false;
+  }
+
   return false;
 }
 
@@ -111,6 +183,18 @@ export function gradeQuestion(
 
   if (question && question.type === 'programming') {
     return { is_correct: null, earned: 0, needs_manual: true };
+  }
+
+  // 简答题：按题配分、人工判分工作流（AI 辅助仅建议，Phase 0 不自动给分）
+  if (question && question.type === 'short_answer') {
+    return { is_correct: null, earned: 0, needs_manual: true };
+  }
+
+  // 填空题：逐空给分，earned 按正确空占比折算（四舍五入），is_correct 仅在全部空正确时为 true
+  if (question && question.type === 'fill_in') {
+    const { correct, total } = fillInGrade(question, userAnswer);
+    const earned = total > 0 ? Math.round((pts * correct) / total) : 0;
+    return { is_correct: total > 0 && correct === total, earned, needs_manual: false };
   }
 
   const isCorrect = isAnswerCorrect(question, userAnswer);
