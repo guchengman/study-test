@@ -10,6 +10,7 @@
  *       -> FR-108：知识点标签 CRUD + 题目绑定/解绑 + 树查询
  *       -> FR-701：通知列表/未读数/单条已读/全部已读/越权拦截
  *       -> storage_usage：管理员手动扫描 → storage_usage 行写入 + 非管理员 403
+ *       -> FR-606：配额快照/exam_count 受限 429/上传熔断 429/放行记账/平台概览/BYO 登记
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -52,6 +53,7 @@ async function api(method, path, token, body) {
 const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
 async function cleanup(db) {
+  await db.execute("DELETE FROM quota_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM storage_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
   await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
@@ -547,6 +549,70 @@ const main = async () => {
     check('storage 未登录(401)', rNoAuth3.status === 401, rNoAuth3.status);
 
     try { fs.unlinkSync(testFile); } catch { /* ignore */ }
+  }
+
+  // ── 24. FR-606 配额框架 ──
+  {
+    // teacher 于 step23 已提升为 admin；aToken 块作作用域已销毁，此处重新登录获取
+    const [orgRows] = await db.execute("SELECT m.org_id FROM org_members m JOIN organizations o ON o.id=m.org_id AND o.type='PERSONAL' WHERE m.user_id=? LIMIT 1", [tId]);
+    const qOrgId = orgRows[0]?.org_id;
+    const yearKey = String(new Date(Date.now() + 8 * 3600 * 1000).getUTCFullYear());
+    const rlA = await api('POST', '/auth/login', null, { username: 'it_teacher', password: 'it123456' });
+    const aToken = rlA.data?.token;
+    check('FR-606 管理员登录(200)', rlA.status === 200 && !!aToken, rlA.status);
+
+    // 24a 本人配额快照
+    const rUsage = await api('GET', '/quota/usage', aToken);
+    const hasExam = Array.isArray(rUsage.data?.usage) && rUsage.data.usage.some((u) => u.resource_type === 'exam_count' && Number(u.limit) === 200);
+    check('FR-606 配额快照(200, FREE, exam_count=200)', rUsage.status === 200 && rUsage.data.plan === 'FREE' && hasExam, rUsage.data?.plan);
+
+    // 24b exam_count 受限：预置本年度已用量达上限 → 创建考试 429
+    await db.execute(
+      "INSERT INTO quota_usage (org_id, resource_type, period_key, used) VALUES (?, 'exam_count', ?, 200) ON DUPLICATE KEY UPDATE used=200",
+      [qOrgId, yearKey]
+    );
+    const rExam = await api('POST', '/exams', aToken, {
+      subject_id: 'it_subj_01', title: 'IT_QUOTA_EXAM', question_set: [{ question_id: 1, points: 10 }],
+    });
+    check('FR-606 考试创建受限(429)', rExam.status === 429 && rExam.data?.reason === 'quota_exceeded', rExam.status);
+    await db.execute("DELETE FROM quota_usage WHERE org_id=? AND resource_type='exam_count'", [qOrgId]);
+
+    // 24c 上传熔断：置 circuit_broken=1 → 上传图片 429 circuit_broken
+    await db.execute('UPDATE storage_usage SET circuit_broken=1 WHERE org_id=?', [qOrgId]);
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const form1 = new FormData();
+    form1.append('file', new Blob([PNG], { type: 'image/png' }), 'it_quota.png');
+    const up1 = await fetch(BASE + '/upload/image', { method: 'POST', headers: { Authorization: 'Bearer ' + aToken }, body: form1 });
+    const up1Data = await up1.json().catch(() => null);
+    check('FR-606 上传熔断(429 circuit_broken)', up1.status === 429 && up1Data?.reason === 'circuit_broken', up1.status);
+
+    // 24d 解除熔断 → 正常上传 200 且 upload_bytes 记账
+    await db.execute('UPDATE storage_usage SET circuit_broken=0 WHERE org_id=?', [qOrgId]);
+    const form2 = new FormData();
+    form2.append('file', new Blob([PNG], { type: 'image/png' }), 'it_quota.png');
+    const up2 = await fetch(BASE + '/upload/image', { method: 'POST', headers: { Authorization: 'Bearer ' + aToken }, body: form2 });
+    const up2Data = await up2.json().catch(() => null);
+    check('FR-606 上传放行(200)', up2.status === 200 && !!up2Data?.url, up2.status);
+    const [ub] = await db.execute("SELECT used FROM quota_usage WHERE org_id=? AND resource_type='upload_bytes'", [qOrgId]);
+    check('FR-606 upload_bytes 记账', ub.length === 1 && Number(ub[0].used) >= PNG.length, ub[0]);
+    // 清理上传产物
+    if (up2Data?.filename) { try { fs.unlinkSync(path.join(UPLOADS_ROOT, `user_${tId}`, up2Data.filename)); } catch { /* ignore */ } }
+
+    // 24e 平台概览：admin 200 / student 403
+    const rOv = await api('GET', '/quota/admin/overview', aToken);
+    check('FR-606 平台概览(admin 200)', rOv.status === 200 && Array.isArray(rOv.data?.overview), rOv.status);
+    const rOvDeny = await api('GET', '/quota/admin/overview', sToken);
+    check('FR-606 平台概览(student 403)', rOvDeny.status === 403, rOvDeny.status);
+
+    // 24f BYO Key 登记：返回 sha256 指纹
+    const rByo = await api('POST', '/quota/byo-register', aToken, { provider: 'gemini', key_preview: 'sk-test-abcdef' });
+    check('FR-606 BYO 登记(200, 64hex)', rByo.status === 200 && /^[0-9a-f]{64}$/.test(rByo.data?.key_hash || ''), rByo.data);
+    const rByoBad = await api('POST', '/quota/byo-register', aToken, { provider: 'unknown', key_preview: 'x' });
+    check('FR-606 BYO 非法provider(400)', rByoBad.status === 400, rByoBad.status);
+
+    // 24g 未登录 → 401
+    const rNoAuth4 = await api('GET', '/quota/usage', null);
+    check('FR-606 未登录(401)', rNoAuth4.status === 401, rNoAuth4.status);
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

@@ -73,8 +73,15 @@ function makeFakeDb(cfg = {}) {
         return [{ affectedRows: claimAffected }];
       }
       // Job fetch after claim
-      if (/^SELECT id, requested_by, exam_id, scope FROM export_jobs WHERE id = \?/i.test(trimmed)) {
+      if (/^SELECT id, requested_by, exam_id, scope(, org_id)? FROM export_jobs WHERE id = \?/i.test(trimmed)) {
         return [jobRow ? [jobRow] : []];
+      }
+      // FR-606 配额读取：organizations.plan / quotas（processJob 内 getPerRequestLimit）
+      if (/^SELECT plan FROM organizations/i.test(trimmed)) {
+        return [[]]; // 无 plan → 服务层回落 FREE
+      }
+      if (/^SELECT `limit`, period FROM quotas/i.test(trimmed)) {
+        return [[]]; // 无配额 → getPerRequestLimit 回落 MAX_EXPORT_ROWS
       }
       // SELECT exam meta
       if (/^SELECT id, title, question_set, total_points FROM exams WHERE id = \?/i.test(trimmed)) {

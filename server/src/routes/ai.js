@@ -5,6 +5,9 @@ import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { authMiddleware } from '../middleware/auth.js';
 import rateLimit from 'express-rate-limit';
+import pool from '../db.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { checkQuota, recordUsage } from '../utils/quotaService.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -39,12 +42,25 @@ router.post('/gemini/generate', authMiddleware, aiLimiter, async (req, res) => {
       return res.status(400).json({ error: '请求内容过大' });
     }
 
+    // FR-606：组织租户 AI 调用配额（ai_calls，月度）。基础设施异常不阻断主流程。
+    let quotaOrgId = null;
+    try {
+      quotaOrgId = await resolvePersonalOrgId(pool, req.user.id);
+      const quota = await checkQuota(pool, quotaOrgId, 'ai_calls', 1);
+      if (!quota.allowed) {
+        return res.status(quota.status || 429).json({ error: 'AI 调用已达本月配额上限', reason: quota.reason });
+      }
+    } catch (qerr) {
+      log.error('ai quota check error(不阻断):', qerr);
+    }
+
     const ai = new GoogleGenAI({ apiKey: String(apiKey).trim() });
     const response = await ai.models.generateContent({
       model,
       contents,
       config,
     });
+    try { await recordUsage(pool, quotaOrgId, 'ai_calls', 1); } catch (e) { log.warn('ai_calls 记账失败:', e.message); }
     res.json({ text: response.text });
   } catch (err) {
     log.error('Gemini 代理错误:', err?.message || err);

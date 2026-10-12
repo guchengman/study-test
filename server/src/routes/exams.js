@@ -19,6 +19,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { checkQuota, recordUsage } from '../utils/quotaService.js';
 import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
 import log from '../utils/logger.js';
 
@@ -66,6 +67,13 @@ router.post('/', authMiddleware, async (req, res) => {
       0
     );
 
+    // FR-606：创建考试前校验配额（exam_count，年度滚动）
+    const orgId = await resolvePersonalOrgId(pool, req.user.id);
+    const quota = await checkQuota(pool, orgId, 'exam_count', 1);
+    if (!quota.allowed) {
+      return res.status(quota.status || 429).json({ error: '考试创建已达配额上限', reason: quota.reason });
+    }
+
     const [result] = await pool.execute(
       `INSERT INTO exams
         (subject_id, title, description, created_by, question_set, total_points,
@@ -82,9 +90,12 @@ router.post('/', authMiddleware, async (req, res) => {
         start_time || null,
         end_time || null,
         pass_score != null ? Number(pass_score) : 60,
-        await resolvePersonalOrgId(pool, req.user.id),
+        orgId,
       ]
     );
+
+    // 记账（容错：配额基础设施异常不阻断创建结果）
+    try { await recordUsage(pool, orgId, 'exam_count', 1); } catch (e) { log.warn('exam_count 记账失败:', e.message); }
 
     res.json({ id: result.insertId, status: 'draft' });
   } catch (err) {

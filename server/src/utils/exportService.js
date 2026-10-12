@@ -14,12 +14,13 @@ import path from 'path';
 import { mkdirSync, createWriteStream } from 'fs';
 import { fileURLToPath } from 'url';
 import { parseJsonSafe } from './examSweep.js';
+import { getPerRequestLimit } from './quotaService.js';
 import log from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXPORTS_DIR = path.resolve(__dirname, '../../exports');
 
-/** 单次导出最大行数（PRD 护栏） */
+/** 单次导出最大行数（PRD 护栏；FR-606 落地后作为无配额时的默认上限） */
 const MAX_EXPORT_ROWS = 5000;
 
 /** 确保 exports 目录存在 */
@@ -77,7 +78,7 @@ export async function listJobs(db = pool, userId, { limit = 20 } = {}) {
  * scope='exam'：取本场全体 attempt 行 + 逐题得分列。
  * @returns {{ headers: string[], rows: string[][] }}
  */
-async function fetchExamRows(db, examId) {
+async function fetchExamRows(db, examId, rowLimit = MAX_EXPORT_ROWS) {
   // 取考试元数据（题序）
   const [examRows] = await db.execute(
     'SELECT id, title, question_set, total_points FROM exams WHERE id = ?',
@@ -97,7 +98,7 @@ async function fetchExamRows(db, examId) {
      WHERE a.exam_id = ?
      ORDER BY a.user_id, a.id
      LIMIT ?`,
-    [examId, String(MAX_EXPORT_ROWS)]
+    [examId, String(rowLimit)]
   );
 
   // 构建表头
@@ -131,7 +132,7 @@ async function fetchExamRows(db, examId) {
 /**
  * scope='self'：取本人历次成绩汇总。
  */
-async function fetchSelfRows(db, userId) {
+async function fetchSelfRows(db, userId, rowLimit = MAX_EXPORT_ROWS) {
   const [attempts] = await db.execute(
     `SELECT a.id, a.exam_id, a.status, a.score, a.started_at, a.submitted_at,
             e.title AS exam_title, e.total_points
@@ -140,7 +141,7 @@ async function fetchSelfRows(db, userId) {
      WHERE a.user_id = ?
      ORDER BY a.id DESC
      LIMIT ?`,
-    [userId, String(MAX_EXPORT_ROWS)]
+    [userId, String(rowLimit)]
   );
 
   const headers = ['考试标题', '状态', '得分', '满分', '开始时间', '提交时间'];
@@ -209,18 +210,21 @@ export async function processJob(db = pool, jobId) {
   try {
     // 取 job 信息
     const [jobs] = await db.execute(
-      'SELECT id, requested_by, exam_id, scope FROM export_jobs WHERE id = ?',
+      'SELECT id, requested_by, exam_id, scope, org_id FROM export_jobs WHERE id = ?',
       [jobId]
     );
     if (jobs.length === 0) throw new Error('job 不存在（认领后消失？）');
     const job = jobs[0];
 
+    // FR-606：从 quotas 解析本租户单请求导出行上限（无配额时回落 MAX_EXPORT_ROWS）
+    const rowLimit = await getPerRequestLimit(db, job.org_id, 'export_rows', MAX_EXPORT_ROWS);
+
     // 取数据
     let data;
     if (job.scope === 'exam') {
-      data = await fetchExamRows(db, job.exam_id);
+      data = await fetchExamRows(db, job.exam_id, rowLimit);
     } else {
-      data = await fetchSelfRows(db, job.requested_by);
+      data = await fetchSelfRows(db, job.requested_by, rowLimit);
     }
 
     // 生成 CSV

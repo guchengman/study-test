@@ -35,6 +35,7 @@ import exportRoutes from './routes/exports.js';
 import tagRoutes from './routes/tags.js';
 import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
+import quotaRoutes from './routes/quota.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -146,6 +147,7 @@ app.use('/api/exports', exportRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/quota', quotaRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
