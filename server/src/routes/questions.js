@@ -4,6 +4,7 @@ import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { snapshotCurrentVersion, isReferencedByExam } from '../utils/questionLifecycle.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -29,7 +30,7 @@ router.get('/', authMiddleware, async (req, res) => {
     if (teacherId) {
       sql = `
         SELECT q.* FROM questions q
-        WHERE (q.created_by = ? 
+        WHERE q.deleted_at IS NULL AND (q.created_by = ? 
            OR q.subject_id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved')
            OR q.subject_id IN (
              SELECT s.id FROM subjects s WHERE s.created_by = ? AND s.share_scope = 'all'
@@ -46,7 +47,7 @@ router.get('/', authMiddleware, async (req, res) => {
     } else {
       sql = `
         SELECT q.* FROM questions q
-        WHERE (q.created_by = ? 
+        WHERE q.deleted_at IS NULL AND (q.created_by = ? 
            OR q.subject_id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved')
         )`;
       params = [userId, userId];
@@ -82,13 +83,13 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// 获取单个题目 — 支持共享题目
-router.get('/:id', authMiddleware, async (req, res) => {
+// 获取单个题目 — 支持共享题目（限数字 id，避免吞噬 /recycle 等字面量路由）
+router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const [rows] = await pool.execute(
       `SELECT q.* FROM questions q
-       WHERE q.id = ? AND (
+       WHERE q.id = ? AND q.deleted_at IS NULL AND (
          q.created_by = ? 
          OR q.subject_id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved')
          OR q.subject_id IN (SELECT s.id FROM subjects s WHERE s.share_scope = 'all' AND s.created_by IN (SELECT teacher_id FROM users WHERE id = ?))
@@ -253,12 +254,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '标题不能为空' });
     }
     const [existing] = await pool.execute(
-      'SELECT id FROM questions WHERE id = ? AND created_by = ?',
+      'SELECT id FROM questions WHERE id = ? AND created_by = ? AND deleted_at IS NULL',
       [req.params.id, req.user.id]
     );
     if (existing.length === 0) {
       return res.status(404).json({ error: '题目不存在或无权限' });
     }
+    // FR-107 版本历史：编辑前把「当前内容」快照为一版，再应用更新
+    const orgId = await resolvePersonalOrgId(pool, req.user.id);
+    await snapshotCurrentVersion(pool, req.params.id, req.user.id, orgId);
     await pool.execute(
       `UPDATE questions SET subject_id=?, type=?, title=?, code=?, options=?, answer=?, explanation=?, points=?, updated_at=NOW()
        WHERE id = ? AND created_by = ?`,
@@ -272,21 +276,148 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// 删除题目 — 只能删除自己的，管理员可删除任意题目
+// 删除题目（FR-107 软删）— 只能删自己的，管理员可删任意；改为置 deleted_at 进回收站，不再物理删
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [result] = await pool.execute(
-      'DELETE FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
+      'UPDATE questions SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]
     );
     if (result.affectedRows === 0) {
+      return res.status(404).json({ error: '题目不存在、已删除或无权限' });
+    }
+    res.json({ message: '题目已移入回收站' });
+  } catch (err) {
+    log.error('软删除题目错误:', err);
+    res.status(500).json({ error: '题目删除失败' });
+  }
+});
+
+// 回收站列表 — 当前用户名下已软删题目（管理员看全部软删）
+router.get('/recycle', authMiddleware, async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const where = isAdmin ? 'deleted_at IS NOT NULL' : 'deleted_at IS NOT NULL AND created_by = ?';
+    const params = isAdmin ? [] : [req.user.id];
+
+    const [countRows] = await pool.execute(`SELECT COUNT(*) AS total FROM questions WHERE ${where}`, params);
+    const total = countRows[0].total;
+    const limitNum = Math.max(1, Math.min(200, parseInt(limit) || 50));
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const offsetNum = (pageNum - 1) * limitNum;
+    const [rows] = await pool.execute(
+      `SELECT * FROM questions WHERE ${where} ORDER BY deleted_at DESC LIMIT ${limitNum} OFFSET ${offsetNum}`,
+      params
+    );
+    res.json({ questions: rows, total, page: pageNum, limit: limitNum });
+  } catch (err) {
+    log.error('回收站列表错误:', err);
+    res.status(500).json({ error: '获取回收站失败' });
+  }
+});
+
+// 从回收站恢复题目
+router.post('/:id/restore', authMiddleware, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const [result] = await pool.execute(
+      'UPDATE questions SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL AND (created_by = ? OR ? = 1)',
+      [req.params.id, req.user.id, isAdmin]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: '回收站中无此题目或无权限' });
+    }
+    res.json({ message: '题目已恢复' });
+  } catch (err) {
+    log.error('恢复题目错误:', err);
+    res.status(500).json({ error: '题目恢复失败' });
+  }
+});
+
+// 彻底删除（物理删）— 考试引用过的题目禁止
+router.delete('/:id/permanent', authMiddleware, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const [rows] = await pool.execute(
+      'SELECT id, created_by FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
+      [req.params.id, req.user.id, isAdmin]
+    );
+    if (rows.length === 0) {
       return res.status(404).json({ error: '题目不存在或无权限' });
     }
-    res.json({ message: '题目删除成功' });
+    if (await isReferencedByExam(pool, req.params.id)) {
+      return res.status(409).json({ error: '该题目被考试引用，禁止彻底删除（PRD FR-107）' });
+    }
+    // question_versions 随 FK ON DELETE CASCADE 自动清理
+    await pool.execute('DELETE FROM questions WHERE id = ?', [req.params.id]);
+    res.json({ message: '题目已彻底删除' });
   } catch (err) {
-    log.error('删除题目错误:', err);
-    res.status(500).json({ error: '题目删除失败' });
+    log.error('彻底删除题目错误:', err);
+    res.status(500).json({ error: '彻底删除失败' });
+  }
+});
+
+// 版本历史列表（元信息 + payload，seq 降序）
+router.get('/:id/versions', authMiddleware, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const [own] = await pool.execute(
+      'SELECT id FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
+      [req.params.id, req.user.id, isAdmin]
+    );
+    if (own.length === 0) {
+      return res.status(404).json({ error: '题目不存在或无权限' });
+    }
+    const [rows] = await pool.execute(
+      'SELECT seq, payload, created_by, created_at FROM question_versions WHERE question_id = ? ORDER BY seq DESC',
+      [req.params.id]
+    );
+    res.json({ versions: rows });
+  } catch (err) {
+    log.error('获取版本历史错误:', err);
+    res.status(500).json({ error: '获取版本历史失败' });
+  }
+});
+
+// 回退到指定版本：先把当前内容快照为新版本，再用目标版本 payload 覆盖当前行
+router.post('/:id/versions/:seq/revert', authMiddleware, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const [own] = await pool.execute(
+      'SELECT id FROM questions WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)',
+      [req.params.id, req.user.id, isAdmin]
+    );
+    if (own.length === 0) {
+      return res.status(404).json({ error: '题目不存在、已删除或无权限' });
+    }
+    const [vRows] = await pool.execute(
+      'SELECT payload FROM question_versions WHERE question_id = ? AND seq = ?',
+      [req.params.id, req.params.seq]
+    );
+    if (vRows.length === 0) {
+      return res.status(404).json({ error: '版本不存在' });
+    }
+    const snap = typeof vRows[0].payload === 'string' ? JSON.parse(vRows[0].payload) : vRows[0].payload;
+    // 回退前保留当前版本
+    const orgId = await resolvePersonalOrgId(pool, req.user.id);
+    await snapshotCurrentVersion(pool, req.params.id, req.user.id, orgId);
+    await pool.execute(
+      `UPDATE questions SET subject_id=?, type=?, title=?, code=?, options=?, answer=?, explanation=?, points=?, updated_at=NOW()
+       WHERE id = ?`,
+      [
+        snap.subject_id, snap.type, snap.title, snap.code ?? null,
+        snap.options != null ? JSON.stringify(snap.options) : null,
+        snap.answer != null ? JSON.stringify(snap.answer) : null,
+        snap.explanation ?? null, snap.points ?? 1,
+        req.params.id,
+      ]
+    );
+    res.json({ message: `已回退到版本 #${req.params.seq}` });
+  } catch (err) {
+    log.error('回退版本错误:', err);
+    res.status(500).json({ error: '回退版本失败' });
   }
 });
 
@@ -311,7 +442,7 @@ router.post('/:id/share', authMiddleware, async (req, res) => {
 // 通过分享码获取题目
 router.get('/shared/:code', authMiddleware, async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM questions WHERE share_code = ?', [req.params.code]);
+    const [rows] = await pool.execute('SELECT * FROM questions WHERE share_code = ? AND deleted_at IS NULL', [req.params.code]);
     if (rows.length === 0) {
       return res.status(404).json({ error: '分享码无效' });
     }

@@ -416,7 +416,7 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
       const placeholders = questionIds.map(() => '?').join(',');
       const [qRows] = await pool.execute(
         `SELECT id, type, title, code, options, points
-         FROM questions WHERE id IN (${placeholders})`,
+         FROM questions WHERE deleted_at IS NULL AND id IN (${placeholders})`,
         questionIds
       );
       const qMap = {};

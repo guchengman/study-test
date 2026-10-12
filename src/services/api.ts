@@ -192,6 +192,28 @@ export interface MistakeItem { id: number; questionId: number; consecutiveCorrec
 export interface FavoriteItem { id: number; questionId: number; createdAt: string; }
 export interface StatsItem { id: number; subject: string; totalQuestions: number; correctCount: number; totalAttempts: number; studyTime: number; date: string; }
 
+// 回收站条目（软删题目，多一个 deleted_at）
+export interface RecycleQuestionItem extends QuestionItem {
+  deleted_at?: string | null;
+}
+
+// 题目版本历史（FR-107）
+export interface QuestionVersion {
+  seq: number;
+  payload: {
+    subject_id: string;
+    type: string;
+    title: string;
+    code?: string | null;
+    options?: string[] | null;
+    answer?: string | string[] | null;
+    explanation?: string | null;
+    points: number;
+  };
+  created_by: number | null;
+  created_at: string;
+}
+
 // ─── 认证 API ───────────────────────────────────────────────
 
 export const authApi = {
@@ -301,6 +323,26 @@ export const questionApi = {
   update: (id: number, data: Partial<QuestionItem>) => client.put<{ message: string }>(`/questions/${id}`, data),
   delete: (id: number) => client.delete<{ message: string }>(`/questions/${id}`),
   share: (id: number) => client.post<{ shareCode: string }>(`/questions/${id}/share`),
+  // ── FR-107 回收站 ──
+  /** 回收站列表：当前用户（管理员为全部）已软删题目 */
+  listRecycle: (params?: { page?: number; limit?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return client.get<{ questions: RecycleQuestionItem[]; total: number; page?: number; limit?: number }>(`/questions/recycle${qs ? '?' + qs : ''}`, signal);
+  },
+  /** 从回收站恢复 */
+  restore: (id: number) => client.post<{ message: string }>(`/questions/${id}/restore`),
+  /** 彻底删除（被考试引用时后端返回 409） */
+  deletePermanent: (id: number) => client.delete<{ message: string }>(`/questions/${id}/permanent`),
+  // ── FR-107 版本历史 ──
+  /** 版本历史列表（seq 降序） */
+  listVersions: (id: number, signal?: AbortSignal) =>
+    client.get<{ versions: QuestionVersion[] }>(`/questions/${id}/versions`, signal),
+  /** 回退到指定版本 */
+  revertVersion: (id: number, seq: number) =>
+    client.post<{ message: string }>(`/questions/${id}/versions/${seq}/revert`),
 };
 
 // ─── 练习/错题 API ─────────────────────────────────────────

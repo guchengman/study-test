@@ -135,7 +135,7 @@ router.get('/export', authMiddleware, async (req, res) => {
       [userId]
     );
     const [questions] = await pool.execute(
-      'SELECT * FROM questions WHERE created_by = ?',
+      'SELECT * FROM questions WHERE created_by = ? AND deleted_at IS NULL',
       [userId]
     );
     const [mistakes] = await pool.execute(

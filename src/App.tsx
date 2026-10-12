@@ -14,6 +14,7 @@ const ExamPage = lazy(() => import('./pages/ExamPage').then((m) => ({ default: m
 const ResultPage = lazy(() => import('./pages/ResultPage').then((m) => ({ default: m.ResultPage })));
 const FormalExamPage = lazy(() => import('./pages/FormalExamPage').then((m) => ({ default: m.FormalExamPage })));
 const ExamManagePage = lazy(() => import('./pages/ExamManagePage').then((m) => ({ default: m.ExamManagePage })));
+const QuestionManagePage = lazy(() => import('./pages/QuestionManagePage').then((m) => ({ default: m.QuestionManagePage })));
 
 const PageFallback = () => (
   <div className="flex min-h-[60vh] items-center justify-center text-gray-400">加载中…</div>
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="result" element={<Suspense fallback={<PageFallback />}><ResultPage /></Suspense>} />
           <Route path="formal-exam" element={<Suspense fallback={<PageFallback />}><FormalExamPage /></Suspense>} />
           <Route path="exams/manage" element={<Suspense fallback={<PageFallback />}><ExamManagePage /></Suspense>} />
+          <Route path="questions/manage" element={<Suspense fallback={<PageFallback />}><QuestionManagePage /></Suspense>} />
         </Route>
       </Routes>
     </AppProvider>

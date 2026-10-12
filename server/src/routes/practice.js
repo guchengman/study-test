@@ -20,7 +20,7 @@ router.get('/mistakes', authMiddleware, async (req, res) => {
       SELECT m.*, q.subject_id, q.type, q.title, q.code, q.options, q.answer, q.explanation, q.points
       FROM mistake_records m
       JOIN questions q ON m.question_id = q.id
-      WHERE m.user_id = ?
+      WHERE m.user_id = ? AND q.deleted_at IS NULL
     `;
     const params = [req.user.id];
     if (subject_id) {
@@ -49,7 +49,7 @@ router.post('/mistakes', authMiddleware, async (req, res) => {
     }
     // 验证题目对当前用户可见
     const [questionCheck] = await pool.execute(
-      `SELECT id FROM questions q WHERE q.id = ? AND (
+      `SELECT id FROM questions q WHERE q.id = ? AND q.deleted_at IS NULL AND (
          q.created_by = ? 
          OR q.subject_id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved')
          OR q.subject_id IN (SELECT s.id FROM subjects s WHERE s.share_scope = 'all' AND s.created_by IN (SELECT teacher_id FROM users WHERE id = ?))
@@ -166,7 +166,7 @@ router.get('/favorites', authMiddleware, async (req, res) => {
       `SELECT f.created_at as favorited_at, q.*
        FROM favorites f
        JOIN questions q ON f.question_id = q.id
-       WHERE f.user_id = ?
+       WHERE f.user_id = ? AND q.deleted_at IS NULL
        ORDER BY f.created_at DESC`,
       [req.user.id]
     );

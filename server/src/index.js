@@ -28,6 +28,7 @@ import aiRoutes from './routes/ai.js';
 import uploadRoutes, { uploadsRoot } from './routes/upload.js';
 import examsRoutes from './routes/exams.js';
 import { startExamSweepScheduler, stopExamSweepScheduler } from './utils/examSweepScheduler.js';
+import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './utils/recycleCleanupScheduler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -217,9 +218,12 @@ app.listen(PORT, '0.0.0.0', () => {
   log.info(`Study API 运行在 http://0.0.0.0:${PORT} (环境: ${process.env.NODE_ENV || 'development'})`);
   // FR-204：启动考试自动交卷后台调度器（带 GET_LOCK 单例守卫，周期分页兜底收卷）
   startExamSweepScheduler();
+  // FR-107：启动回收站过期清理调度器（带 GET_LOCK 单例守卫，物理删除软删超期且未被考试引用的题目）
+  startRecycleCleanupScheduler();
 });
 
 // 优雅退出：停掉后台调度器（PM2 reload/SIGTERM）
 process.on('SIGTERM', () => {
   stopExamSweepScheduler();
+  stopRecycleCleanupScheduler();
 });

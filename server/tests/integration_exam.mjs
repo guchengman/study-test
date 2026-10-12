@@ -4,6 +4,7 @@
  *       -> 历史最高分 -> 分析聚合 -> 多作答取最高分 -> 超时 sweep 自动交卷
  *       -> FR-204：owner 读路径(analysis)不再同步全场收卷；getAttempt 仅定向收单份
  *       -> FR-101/102/103：判断/填空(逐空部分得分+同义项)/简答(待定) 新题型端到端判分
+ *       -> FR-107：编辑生成版本快照 / 版本列表 / 回退 / 软删进回收站 / 恢复 / 彻底删(考试引用 409) / 版本 FK 级联
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -262,6 +263,48 @@ const main = async () => {
   const dFill2 = subN2.details.find((d) => d.question_id === qFillId);
   check('judge 答错(错↔正确) → is_correct=false 得0', dJudge2.is_correct === false && dJudge2.earned === 0, { ic: dJudge2.is_correct, e: dJudge2.earned });
   check('fill_in 同义项(二/四)全对 → is_correct=true 满分10', dFill2.is_correct === true && dFill2.earned === 10, { ic: dFill2.is_correct, e: dFill2.earned });
+
+  // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
+  r = await api('POST', '/questions', tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题', options: ['A', 'B'], answer: 'A', points: 5 });
+  check('FR-107 建题', r.status === 200 && r.data.id, r.status);
+  const qLife = r.data.id;
+
+  // 18a 编辑一次 -> 生成「编辑前」快照 seq1（原始标题/5 分）
+  r = await api('PUT', `/questions/${qLife}`, tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题-v2', options: ['A', 'B'], answer: 'B', points: 5 });
+  check('FR-107 编辑题目', r.status === 200, r.status);
+  r = await api('GET', `/questions/${qLife}/versions`, tToken);
+  check('FR-107 版本历史>=1且首版为编辑前快照', r.status === 200 && r.data.versions.length >= 1 && r.data.versions[0].payload.title === 'IT_生命周期题', { len: r.data.versions && r.data.versions.length });
+
+  // 18b 再编辑一次（v3/6分）-> 回退到 seq1，标题与分值应恢复原始
+  await api('PUT', `/questions/${qLife}`, tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题-v3', options: ['A', 'B'], answer: 'A', points: 6 });
+  r = await api('POST', `/questions/${qLife}/versions/1/revert`, tToken);
+  check('FR-107 回退到版本1', r.status === 200, r.status);
+  r = await api('GET', `/questions/${qLife}`, tToken);
+  check('FR-107 回退后标题/分值恢复原始', r.status === 200 && r.data.question.title === 'IT_生命周期题' && r.data.question.points === 5, { title: r.data && r.data.question && r.data.question.title });
+
+  // 18c 软删 -> 回收站可见 & 单题不可见 -> 恢复 -> 重新可见
+  r = await api('DELETE', `/questions/${qLife}`, tToken);
+  check('FR-107 软删移入回收站', r.status === 200 && /回收站/.test((r.data && r.data.message) || ''), r.status);
+  r = await api('GET', `/questions/recycle`, tToken);
+  check('FR-107 回收站列表含该题', r.status === 200 && r.data.questions.some((q) => q.id === qLife), r.status);
+  r = await api('GET', `/questions/${qLife}`, tToken);
+  check('FR-107 软删后单题不可见(404)', r.status === 404, r.status);
+  r = await api('POST', `/questions/${qLife}/restore`, tToken);
+  check('FR-107 恢复成功', r.status === 200, r.status);
+  r = await api('GET', `/questions/${qLife}`, tToken);
+  check('FR-107 恢复后重新可见', r.status === 200, r.status);
+
+  // 18d 被考试引用的题禁止物理删（qA 属于 IT_模拟考）
+  r = await api('DELETE', `/questions/${qA}/permanent`, tToken);
+  check('FR-107 考试引用禁止物理删(409)', r.status === 409, r.status);
+
+  // 18e 未被引用的题可彻底删除，且版本随 FK 级联清空
+  r = await api('DELETE', `/questions/${qLife}/permanent`, tToken);
+  check('FR-107 未被引用可彻底删除', r.status === 200, r.status);
+  r = await api('GET', `/questions/${qLife}`, tToken);
+  check('FR-107 彻底删后不存在(404)', r.status === 404, r.status);
+  const [vc] = await db.execute('SELECT COUNT(*) AS c FROM question_versions WHERE question_id = ?', [qLife]);
+  check('FR-107 版本随 FK ON DELETE CASCADE 清空', vc[0].c === 0, vc[0].c);
 
   await cleanup(db); // 收尾清理，保持库整洁
   await db.end();

@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useFormalExam } from '../hooks/useFormalExam';
 import { examApi } from '../services/examApi';
@@ -140,12 +140,20 @@ export function FormalExamPage() {
           <h1 className="text-2xl font-bold text-slate-800">正式考试</h1>
         </div>
         {isOwner && (
-          <button
-            onClick={() => navigate('/exams/manage')}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors text-sm"
-          >
-            <PlusCircle size={18} /> 管理考试
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/questions/manage')}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors text-sm"
+            >
+              <BookOpen size={18} /> 题目管理
+            </button>
+            <button
+              onClick={() => navigate('/exams/manage')}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors text-sm"
+            >
+              <PlusCircle size={18} /> 管理考试
+            </button>
+          </div>
         )}
       </div>
 

@@ -22,7 +22,7 @@ router.get('/', authMiddleware, async (req, res) => {
     if (userRole === 'admin') {
       const [rows] = await pool.execute(
         `SELECT DISTINCT s.*, u.username as creator_name,
-                (SELECT COUNT(*) FROM questions WHERE subject_id = s.id) as question_count,
+                (SELECT COUNT(*) FROM questions WHERE subject_id = s.id AND deleted_at IS NULL) as question_count,
                 (SELECT COUNT(*) FROM subject_subscriptions WHERE subject_id = s.id AND status = 'approved') as subscriber_count,
                 CASE WHEN ss.id IS NOT NULL THEN 1 ELSE 0 END as is_subscribed,
                 ss.status as subscription_status
@@ -54,7 +54,7 @@ router.get('/', authMiddleware, async (req, res) => {
         // 排除系统模板科目（is_system=1）
         rows = await pool.execute(
           `SELECT DISTINCT s.*, u.username as creator_name,
-                  (SELECT COUNT(*) FROM questions WHERE subject_id = s.id) as question_count,
+                  (SELECT COUNT(*) FROM questions WHERE subject_id = s.id AND deleted_at IS NULL) as question_count,
                   (SELECT COUNT(*) FROM subject_subscriptions WHERE subject_id = s.id AND status = 'approved') as subscriber_count,
                   CASE WHEN ss.id IS NOT NULL THEN 1 ELSE 0 END as is_subscribed,
                   ss.status as subscription_status
@@ -80,7 +80,7 @@ router.get('/', authMiddleware, async (req, res) => {
         // 排除系统模板科目（is_system=1）
         rows = await pool.execute(
           `SELECT DISTINCT s.*, u.username as creator_name,
-                  (SELECT COUNT(*) FROM questions WHERE subject_id = s.id) as question_count,
+                  (SELECT COUNT(*) FROM questions WHERE subject_id = s.id AND deleted_at IS NULL) as question_count,
                   (SELECT COUNT(*) FROM subject_subscriptions WHERE subject_id = s.id AND status = 'approved') as subscriber_count,
                   CASE WHEN ss.id IS NOT NULL THEN 1 ELSE 0 END as is_subscribed,
                   ss.status as subscription_status
@@ -107,7 +107,7 @@ router.get('/', authMiddleware, async (req, res) => {
     // 排除系统模板科目（is_system=1）
     const [rows] = await pool.execute(
       `SELECT DISTINCT s.*, u.username as creator_name,
-              (SELECT COUNT(*) FROM questions WHERE subject_id = s.id) as question_count,
+              (SELECT COUNT(*) FROM questions WHERE subject_id = s.id AND deleted_at IS NULL) as question_count,
               (SELECT COUNT(*) FROM subject_subscriptions WHERE subject_id = s.id AND status = 'approved') as subscriber_count,
               CASE WHEN ss.id IS NOT NULL THEN 1 ELSE 0 END as is_subscribed,
               ss.status as subscription_status
