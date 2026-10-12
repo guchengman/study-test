@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -90,8 +91,8 @@ router.post('/mistakes', authMiddleware, async (req, res) => {
     } else {
       if (!is_correct) {
         await pool.execute(
-          'INSERT INTO mistake_records (user_id, question_id, consecutive_correct) VALUES (?, ?, 0)',
-          [req.user.id, question_id]
+          'INSERT INTO mistake_records (user_id, question_id, consecutive_correct, org_id) VALUES (?, ?, 0, ?)',
+          [req.user.id, question_id, await resolvePersonalOrgId(pool, req.user.id)]
         );
         return res.json({ message: '已加入错题本', mastered: false });
       }
@@ -132,8 +133,8 @@ router.post('/mistakes/add', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '题目ID不能为空' });
     }
     await pool.execute(
-      'INSERT IGNORE INTO mistake_records (user_id, question_id, consecutive_correct) VALUES (?, ?, 0)',
-      [req.user.id, qid]
+      'INSERT IGNORE INTO mistake_records (user_id, question_id, consecutive_correct, org_id) VALUES (?, ?, 0, ?)',
+      [req.user.id, qid, await resolvePersonalOrgId(pool, req.user.id)]
     );
     res.json({ message: '已加入错题本' });
   } catch (err) {
@@ -188,8 +189,8 @@ router.post('/favorites', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '题目ID不能为空' });
     }
     await pool.execute(
-      'INSERT IGNORE INTO favorites (user_id, question_id) VALUES (?, ?)',
-      [req.user.id, question_id]
+      'INSERT IGNORE INTO favorites (user_id, question_id, org_id) VALUES (?, ?, ?)',
+      [req.user.id, question_id, await resolvePersonalOrgId(pool, req.user.id)]
     );
     res.json({ favorited: true, message: '已收藏' });
   } catch (err) {
@@ -292,8 +293,8 @@ router.post('/stats', authMiddleware, async (req, res) => {
       );
     } else {
       await conn.execute(
-        'INSERT INTO study_stats (user_id, subject_id, total_practiced, total_correct, streak_days, last_study_at) VALUES (?, ?, ?, ?, 1, NOW())',
-        [req.user.id, subject_id, totalNum, correctNum]
+        'INSERT INTO study_stats (user_id, subject_id, total_practiced, total_correct, streak_days, last_study_at, org_id) VALUES (?, ?, ?, ?, 1, NOW(), ?)',
+        [req.user.id, subject_id, totalNum, correctNum, await resolvePersonalOrgId(conn, req.user.id)]
       );
     }
 

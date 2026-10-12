@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -168,8 +169,8 @@ router.post('/', authMiddleware, async (req, res) => {
     const isShared = share_scope !== 'none' ? 1 : 0;
 
     await pool.execute(
-      'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, name, icon || '📚', welcome_title || '', welcome_desc || '', is_system ? 1 : 0, isShared, share_scope, req.user.id]
+      'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by, org_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, icon || '📚', welcome_title || '', welcome_desc || '', is_system ? 1 : 0, isShared, share_scope, req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
     );
     res.json({ id, message: '科目创建成功' });
   } catch (err) {

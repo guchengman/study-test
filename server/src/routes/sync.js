@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -15,6 +16,8 @@ router.post('/migrate', authMiddleware, async (req, res) => {
   try {
     const { subjects, questions, mistakes, favorites, stats } = req.body;
     const userId = req.user.id;
+    // S0 shadow：上行同步同一用户，租户只解析一次，各类写入复用
+    const orgId = await resolvePersonalOrgId(conn, userId);
     let migrated = { subjects: 0, questions: 0, mistakes: 0, favorites: 0, stats: 0 };
 
     await conn.beginTransaction();
@@ -24,8 +27,8 @@ router.post('/migrate', authMiddleware, async (req, res) => {
       for (const s of subjects) {
         try {
           await conn.execute(
-            'INSERT IGNORE INTO subjects (id, name, icon, is_system, created_by) VALUES (?, ?, ?, ?, ?)',
-            [s.id, s.name, s.icon || '📚', s.is_system || false, userId]
+            'INSERT IGNORE INTO subjects (id, name, icon, is_system, created_by, org_id) VALUES (?, ?, ?, ?, ?, ?)',
+            [s.id, s.name, s.icon || '📚', s.is_system || false, userId, orgId]
           );
           migrated.subjects++;
         } catch {}
@@ -37,8 +40,8 @@ router.post('/migrate', authMiddleware, async (req, res) => {
       for (const q of questions) {
         try {
           const [result] = await conn.execute(
-            `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               q.subject || q.subject_id,
               q.type || 'single',
@@ -49,6 +52,7 @@ router.post('/migrate', authMiddleware, async (req, res) => {
               q.explanation || null,
               q.points || 1,
               userId,
+              orgId,
             ]
           );
           // 记录旧ID到新ID的映射
@@ -62,9 +66,9 @@ router.post('/migrate', authMiddleware, async (req, res) => {
       for (const m of mistakes) {
         try {
           await conn.execute(
-            `INSERT IGNORE INTO mistake_records (user_id, question_id, consecutive_correct)
-             VALUES (?, ?, ?)`,
-            [userId, m.questionId || m.question_id, m.consecutiveCorrect || m.consecutive_correct || 0]
+            `INSERT IGNORE INTO mistake_records (user_id, question_id, consecutive_correct, org_id)
+             VALUES (?, ?, ?, ?)`,
+            [userId, m.questionId || m.question_id, m.consecutiveCorrect || m.consecutive_correct || 0, orgId]
           );
           migrated.mistakes++;
         } catch {}
@@ -77,8 +81,8 @@ router.post('/migrate', authMiddleware, async (req, res) => {
         try {
           const questionId = typeof f === 'number' ? f : (f.questionId || f.question_id);
           await conn.execute(
-            'INSERT IGNORE INTO favorites (user_id, question_id) VALUES (?, ?)',
-            [userId, questionId]
+            'INSERT IGNORE INTO favorites (user_id, question_id, org_id) VALUES (?, ?, ?)',
+            [userId, questionId, orgId]
           );
           migrated.favorites++;
         } catch {}
@@ -90,8 +94,8 @@ router.post('/migrate', authMiddleware, async (req, res) => {
       for (const s of stats) {
         try {
           await conn.execute(
-            `INSERT INTO study_stats (user_id, subject_id, total_practiced, total_correct, streak_days, last_study_at)
-             VALUES (?, ?, ?, ?, ?, ?)
+            `INSERT INTO study_stats (user_id, subject_id, total_practiced, total_correct, streak_days, last_study_at, org_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE
                total_practiced = VALUES(total_practiced),
                total_correct = VALUES(total_correct)`,
@@ -102,6 +106,7 @@ router.post('/migrate', authMiddleware, async (req, res) => {
               s.total_correct || 0,
               s.streak_days || 0,
               s.last_study_at || new Date(),
+              orgId,
             ]
           );
           migrated.stats++;

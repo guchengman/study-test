@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -136,8 +137,8 @@ router.post('/', authMiddleware, async (req, res) => {
       try {
         const autoName = typeof subject_id === 'string' ? subject_id.replace(/^custom_/, '').replace(/_/g, ' ') : String(subject_id);
         await pool.execute(
-          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [subject_id, autoName, '📚', '', '', 0, 0, 'none', req.user.id]
+          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by, org_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [subject_id, autoName, '📚', '', '', 0, 0, 'none', req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
         );
         subjectCheck = [{ id: subject_id, created_by: req.user.id }];
       } catch (createErr) {
@@ -153,10 +154,10 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     
     const [result] = await pool.execute(
-      `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [subject_id, type, title, code || null, options ? JSON.stringify(options) : null,
-       JSON.stringify(answer), explanation || null, points, req.user.id]
+       JSON.stringify(answer), explanation || null, points, req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
     );
     res.json({ id: result.insertId, message: '题目创建成功' });
   } catch (err) {
@@ -190,8 +191,8 @@ router.post('/batch', authMiddleware, async (req, res) => {
       try {
         const autoName = typeof effectiveSubjectId === 'string' ? effectiveSubjectId.replace(/^custom_/, '').replace(/_/g, ' ') : String(effectiveSubjectId);
         await conn.execute(
-          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [effectiveSubjectId, autoName, '📚', '', '', 0, 0, 'none', req.user.id]
+          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by, org_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [effectiveSubjectId, autoName, '📚', '', '', 0, 0, 'none', req.user.id, await resolvePersonalOrgId(conn, req.user.id)]
         );
         subjectCheck = [{ id: effectiveSubjectId, created_by: req.user.id }];
       } catch (createErr) {
@@ -207,6 +208,8 @@ router.post('/batch', authMiddleware, async (req, res) => {
     }
 
     await conn.beginTransaction();
+    // S0 shadow：批量导入同一用户，租户只解析一次，循环内复用
+    const batchOrgId = await resolvePersonalOrgId(conn, req.user.id);
     const results = [];
     for (const q of questions) {
       // 校验每道题的基本字段
@@ -220,11 +223,11 @@ router.post('/batch', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: `第 ${results.length + 1} 道题题型无效` });
       }
       const [result] = await conn.execute(
-        `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [q.subject_id || subject_id, q.type || 'single', q.title,
          q.code || null, q.options ? JSON.stringify(q.options) : null,
-         JSON.stringify(q.answer), q.explanation || null, q.points || 1, req.user.id]
+         JSON.stringify(q.answer), q.explanation || null, q.points || 1, req.user.id, batchOrgId]
       );
       results.push(result.insertId);
     }

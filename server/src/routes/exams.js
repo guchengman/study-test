@@ -18,6 +18,7 @@ import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
+import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -67,8 +68,8 @@ router.post('/', authMiddleware, async (req, res) => {
     const [result] = await pool.execute(
       `INSERT INTO exams
         (subject_id, title, description, created_by, question_set, total_points,
-         duration_minutes, start_time, end_time, pass_score, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+         duration_minutes, start_time, end_time, pass_score, status, org_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
       [
         subject_id,
         title,
@@ -80,6 +81,7 @@ router.post('/', authMiddleware, async (req, res) => {
         start_time || null,
         end_time || null,
         pass_score != null ? Number(pass_score) : 60,
+        await resolvePersonalOrgId(pool, req.user.id),
       ]
     );
 
@@ -397,9 +399,9 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
       reused = true;
     } else {
       const [ins] = await pool.execute(
-        `INSERT INTO exam_attempts (exam_id, user_id, status, answers, details, deadline)
-         VALUES (?, ?, 'in_progress', NULL, NULL, DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
-        [examId, req.user.id, exam.duration_minutes]
+        `INSERT INTO exam_attempts (exam_id, user_id, status, answers, details, deadline, org_id)
+         VALUES (?, ?, 'in_progress', NULL, NULL, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?)`,
+        [examId, req.user.id, exam.duration_minutes, await resolvePersonalOrgId(pool, req.user.id)]
       );
       attemptId = ins.insertId;
       const [fresh] = await pool.execute('SELECT deadline FROM exam_attempts WHERE id = ?', [attemptId]);

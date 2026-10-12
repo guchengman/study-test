@@ -11,6 +11,7 @@ import {
   isEmailVerificationEnforced,
 } from '../utils/emailVerification.js';
 import log from '../utils/logger.js';
+import { ensurePersonalOrg, resolvePersonalOrgId } from '../utils/personalOrg.js';
 
 const router = Router();
 
@@ -271,6 +272,11 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
 
     // 为新用户自动创建默认科目（完全属于该用户）
     const newUserId = result.insertId;
+
+    // S0 shadow schema：同步建档 PERSONAL 租户（与迁移 013 存量回填同规则），
+    // 后续默认科目/复制题写入即赋值 org_id（写入即赋值、查询不过滤）
+    await ensurePersonalOrg(pool, newUserId, username, effectiveRole);
+    const newOrgId = await resolvePersonalOrgId(pool, newUserId);
     const defaultSubjects = [
       { id: `chinese_${newUserId}`, name: '语文考试', icon: '✍️', welcome_title: '笔下生花，文以载道', welcome_desc: '涵盖古诗词鉴赏、现代文阅读、文学常识与语言运用', systemId: 'chinese' },
       { id: `math_${newUserId}`, name: '数学考试', icon: '🧮', welcome_title: '以数启智，以理明思', welcome_desc: '从基础运算到逻辑推理，在数字间锤炼思维力量', systemId: 'math' },
@@ -280,8 +286,8 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
     for (const subj of defaultSubjects) {
       try {
         await pool.execute(
-          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by) VALUES (?, ?, ?, ?, ?, 0, 0, \'none\', ?)',
-          [subj.id, subj.name, subj.icon, subj.welcome_title, subj.welcome_desc, newUserId]
+          'INSERT INTO subjects (id, name, icon, welcome_title, welcome_desc, is_system, is_shared, share_scope, created_by, org_id) VALUES (?, ?, ?, ?, ?, 0, 0, \'none\', ?, ?)',
+          [subj.id, subj.name, subj.icon, subj.welcome_title, subj.welcome_desc, newUserId, newOrgId]
         );
 
         // 从系统题库复制题目到新用户科目
@@ -293,8 +299,8 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
           for (const q of systemQuestions) {
             try {
               await pool.execute(
-                `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                   subj.id,
                   q.type,
@@ -304,7 +310,8 @@ router.post('/register', loginRegisterLimiter, async (req, res) => {
                   q.answer,
                   q.explanation,
                   q.points,
-                  newUserId
+                  newUserId,
+                  newOrgId
                 ]
               );
             } catch (e) { /* 忽略单题复制失败 */ }
