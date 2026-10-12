@@ -3,6 +3,7 @@ import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { tickDay } from '../utils/streakService.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -299,6 +300,8 @@ router.post('/stats', authMiddleware, async (req, res) => {
     }
 
     await conn.commit();
+    // FR-501：练习活跃 → 记录今日打卡（非阻断，失败仅告警）
+    tickDay(pool, req.user.id).catch((e) => log.warn('[streak] tickDay(practice) 失败:', e.message));
     res.json({ message: '统计更新成功' });
   } catch (err) {
     await conn.rollback();

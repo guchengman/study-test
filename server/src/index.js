@@ -32,12 +32,14 @@ import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './uti
 import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
 import { startStorageUsageScheduler, stopStorageUsageScheduler } from './utils/storageUsageScheduler.js';
 import { startStatsAggScheduler, stopStatsAggScheduler } from './utils/statsAggregationScheduler.js';
+import { startStreakBreakScheduler, stopStreakBreakScheduler } from './utils/streakBreakScheduler.js';
 import exportRoutes from './routes/exports.js';
 import tagRoutes from './routes/tags.js';
 import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
 import quotaRoutes from './routes/quota.js';
 import statsRoutes from './routes/stats.js';
+import streakRoutes from './routes/streak.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -151,6 +153,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/quota', quotaRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/streak', streakRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
@@ -241,6 +244,8 @@ app.listen(PORT, '0.0.0.0', () => {
   startStorageUsageScheduler();
   // FR-301/302：启动学情日聚合调度器（GET_LOCK 单例，周期把 exam_attempts 明细预聚合进 stats_daily）
   startStatsAggScheduler();
+  // FR-501：启动 Streak 断流检测调度器（GET_LOCK 单例，跨日未活跃归零并下发 streak_break 通知）
+  startStreakBreakScheduler();
 });
 
 // 优雅退出：停掉后台调度器（PM2 reload/SIGTERM）
@@ -250,4 +255,5 @@ process.on('SIGTERM', () => {
   stopExportJobScheduler();
   stopStorageUsageScheduler();
   stopStatsAggScheduler();
+  stopStreakBreakScheduler();
 });

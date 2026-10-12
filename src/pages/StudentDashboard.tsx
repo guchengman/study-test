@@ -10,6 +10,7 @@ import { motion } from 'motion/react';
 import { TrendingUp, Target, Loader2 } from 'lucide-react';
 import { statsApi, type StatsMetric, type TrendPoint, type MasteryItem } from '../services/statsApi';
 import { LineChart, RadarChart, type LinePoint, type RadarAxis } from '../components/charts/SimpleCharts';
+import { StreakCard } from '../components/StreakCard';
 
 const METRICS: { key: StatsMetric; label: string }[] = [
   { key: 'practiced', label: '练习量' },
@@ -55,6 +56,10 @@ export function StudentDashboard() {
       </h1>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>}
+
+      <div className="mb-6">
+        <StreakCard />
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {METRICS.map((m) => (

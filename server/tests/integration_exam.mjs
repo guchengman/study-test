@@ -12,6 +12,7 @@
  *       -> storage_usage：管理员手动扫描 → storage_usage 行写入 + 非管理员 403
  *       -> FR-606：配额快照/exam_count 受限 429/上传熔断 429/放行记账/平台概览/BYO 登记
  *       -> FR-301/302：日聚合/趋势/标签掌握度/深度考情(样本不足护栏)/班级横向/越权拦截
+ *       -> FR-501：提交触发打卡/同tickDay幂等/补签条件/未登录/跨日断流归零+通知
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -21,6 +22,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { tickDay, checkBroken } from '../src/utils/streakService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.resolve(__dirname, '../uploads');
@@ -65,6 +67,8 @@ async function cleanup(db) {
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
   await db.execute("DELETE FROM questions WHERE subject_id='it_subj_01'");
   await db.execute("DELETE FROM subjects WHERE id='it_subj_01'");
+  await db.execute("DELETE FROM streak_events WHERE user_id IN (SELECT id FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2'))");
+  await db.execute("DELETE FROM streaks WHERE user_id IN (SELECT id FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2'))");
   await db.execute("DELETE FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2')");
   await db.execute("DELETE FROM email_verifications WHERE email IN ('it_teacher@test.com','it_teacher2@test.com','it_student@test.com','it_student2@test.com')");
 }
@@ -689,6 +693,45 @@ const main = async () => {
     // 25j 未登录 → 401
     const rNoAuth5 = await api('GET', '/stats/me/trend', null);
     check('FR-301 未登录(401)', rNoAuth5.status === 401, rNoAuth5.status);
+  }
+
+  // ── 26. FR-501 Streak 连续打卡 ──
+  {
+    const rlS26 = await api('POST', '/auth/login', null, { username: 'it_student', password: 'it123456' });
+    const stuTok = rlS26.data?.token;
+
+    // 26a 早前 exam/practice 提交已触发 tickDay → 本人 streak 建立且今日活跃
+    const rSt = await api('GET', '/streak', stuTok);
+    const st = rSt.data?.streak;
+    check('FR-501 streak状态(200 今日已打卡)', rSt.status === 200 && !!st && st.active_today === true && Number(st.current) >= 1, st);
+
+    // 26b 幂等：同日再次 tickDay 不重复计数
+    const before = Number(st?.current);
+    await tickDay(db, sId);
+    const rSt2 = await api('GET', '/streak', stuTok);
+    check('FR-501 同日tickDay幂等(current不变)', Number(rSt2.data?.streak?.current) === before, { before, after: rSt2.data?.streak?.current });
+
+    // 26c 补签：今日已活跃 → 400 already_active_today
+    const rMk = await api('POST', '/streak/makeup', stuTok);
+    check('FR-501 补签今日已活跃(400)', rMk.status === 400 && rMk.data?.error === 'already_active_today' && rMk.data?.ok === false, rMk.data);
+
+    // 26d 未登录 → 401
+    const rNoAuth6 = await api('GET', '/streak', null);
+    check('FR-501 未登录(401)', rNoAuth6.status === 401, rNoAuth6.status);
+
+    // 26e 断流：回填 8 天前活跃且仍计数 → checkBroken 归零 + streak_break 通知 + break 事件
+    await db.execute(
+      'UPDATE streaks SET current=4, last_active_date = DATE_SUB(CURDATE(), INTERVAL 8 DAY) WHERE user_id=?',
+      [sId]
+    );
+    const brk = await checkBroken(db);
+    check('FR-501 checkBroken 归零(>=1)', brk.broken >= 1, brk);
+    const [cur0] = await db.execute('SELECT current FROM streaks WHERE user_id=?', [sId]);
+    check('FR-501 断流后 current=0', cur0.length === 1 && Number(cur0[0].current) === 0, cur0[0]);
+    const [nb] = await db.execute("SELECT id FROM notifications WHERE user_id=? AND type='streak_break'", [sId]);
+    check('FR-501 断流下发 streak_break 通知', nb.length >= 1, { n: nb.length });
+    const [evb] = await db.execute("SELECT id FROM streak_events WHERE user_id=? AND event='break'", [sId]);
+    check('FR-501 断流写 break 事件', evb.length >= 1, { n: evb.length });
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

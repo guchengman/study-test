@@ -20,6 +20,7 @@ import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { checkQuota, recordUsage } from '../utils/quotaService.js';
+import { tickDay } from '../utils/streakService.js';
 import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
 import log from '../utils/logger.js';
 
@@ -574,6 +575,9 @@ router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
       ]
     );
     await conn.commit();
+
+    // FR-501：考试提交 → 记录今日打卡（非阻断，失败仅告警）
+    tickDay(pool, req.user.id).catch((e) => log.warn('[streak] tickDay(exam) 失败:', e.message));
 
     res.json({
       score,
