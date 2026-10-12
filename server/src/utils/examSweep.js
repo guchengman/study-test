@@ -11,11 +11,11 @@
  *   - 分页：候选查询 ORDER BY deadline ASC + LIMIT，每批 ≤ batchSize，批间 setImmediate 释放事件循环，
  *     单次调用累计 ≤ maxRows（多余积压留给后续调用 / 后台调度器 tick）。
  *   - 幂等：事务内 FOR UPDATE 重查 status，一旦 != 'in_progress' 即跳过。
- *   - 判分口径与结果零改变：仍调用同一 gradeQuestion（examScoring）。
+ *   - 判分口径与结果零改变：调用 SSOT 生成物 examScoring.generated.js 的 gradeQuestion（单一事实源，FR-110）。
  *   - 可测：db 作为依赖注入（默认 pool），单测可 mock。
  */
 import pool from '../db.js';
-import { gradeQuestion } from './examScoring.js';
+import { gradeQuestion } from './examScoring.generated.js';
 import log from './logger.js';
 
 /** 单请求/单 tick 候选积压超过该阈值即告警（PRD R11）。 */
