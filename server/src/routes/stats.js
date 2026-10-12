@@ -22,9 +22,9 @@ router.use(apiLimiter);
 
 const VALID_METRICS = ['practiced', 'correct', 'time_spent', 'exam_score'];
 
-/** owner 判定：admin/teacher 或试卷创建者。 */
+/** owner 判定：platform admin 或试卷创建者本人（teacher 需为创建者，避免跨租户越权）。 */
 function isOwner(exam, userId, role) {
-  return role === 'admin' || role === 'teacher' || exam.created_by === userId;
+  return role === 'admin' || exam.created_by === userId;
 }
 
 // GET /me/trend

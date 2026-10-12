@@ -2,7 +2,7 @@
  * 正式考试模块路由 /api/exams
  *
  * 鉴权：全部端点需 authMiddleware（在 index.js 已挂载）。
- * owner = req.user 是 admin/teacher 或 req.user.id === exams.created_by。
+ * owner = req.user 是 platform admin 或 req.user.id === exams.created_by（teacher 需为创建者）。
  *
  * 关键约定（见技术方案第六节）：
  *   - 所有查询用 pool.execute 参数化；JSON 列 SELECT 后 JSON.parse，INSERT 前 JSON.stringify。
@@ -27,9 +27,9 @@ const router = Router();
 
 // ============ 通用辅助 ============
 
-/** owner 判定：admin/teacher 或试卷创建者本人。 */
+/** owner 判定：platform admin 或试卷创建者本人（teacher 需为创建者，避免跨租户越权）。 */
 function isOwner(exam, userId, role) {
-  return role === 'admin' || role === 'teacher' || exam.created_by === userId;
+  return role === 'admin' || exam.created_by === userId;
 }
 
 // ============ owner 组卷管理 ============

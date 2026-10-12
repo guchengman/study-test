@@ -65,8 +65,8 @@ async function cleanup(db) {
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
   await db.execute("DELETE FROM questions WHERE subject_id='it_subj_01'");
   await db.execute("DELETE FROM subjects WHERE id='it_subj_01'");
-  await db.execute("DELETE FROM users WHERE username IN ('it_teacher','it_student','it_student2')");
-  await db.execute("DELETE FROM email_verifications WHERE email IN ('it_teacher@test.com','it_student@test.com','it_student2@test.com')");
+  await db.execute("DELETE FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2')");
+  await db.execute("DELETE FROM email_verifications WHERE email IN ('it_teacher@test.com','it_teacher2@test.com','it_student@test.com','it_student2@test.com')");
 }
 
 /**
@@ -671,6 +671,14 @@ const main = async () => {
     // 25h 越权：非 owner 学员查看他人试卷分析 → 403
     const rAnDeny = await api('GET', `/stats/exam/${examId}/analysis`, stuToken);
     check('FR-302 非owner学员(403)', rAnDeny.status === 403, rAnDeny.status);
+
+    // 25h2 越权收紧（L3 回归）：非创建者的 teacher 也不能访问他人试卷→ 403（stats + exams 同时生效）
+    const rT2 = await registerWithCode(db, { username: 'it_teacher2', password: 'it123456', email: 'it_teacher2@test.com', role: 'teacher', phone: '13800000002' });
+    const t2Token = rT2.data?.token;
+    const rAnT2 = await api('GET', `/stats/exam/${examId}/analysis`, t2Token);
+    check('L3回归 非owner教师 stats(403)', rAnT2.status === 403, rAnT2.status);
+    const rExamT2 = await api('GET', `/exams/${examId}`, t2Token);
+    check('L3回归 非owner教师 exams(403)', rExamT2.status === 403, rExamT2.status);
 
     // 25i 班级横向：admin 200 含 it_student；student 403
     const rCls = await api('GET', '/stats/class/compare', admToken);
