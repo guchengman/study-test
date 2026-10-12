@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen, FileDown, Tag } from 'lucide-react';
+import { Trophy, ClipboardList, History, Clock, PlusCircle, Star, AlertTriangle, CheckCircle2, BookOpen, FileDown, Tag, TrendingUp, BarChart3 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useFormalExam } from '../hooks/useFormalExam';
 import { examApi } from '../services/examApi';
@@ -160,6 +160,18 @@ export function FormalExamPage() {
               className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-bold hover:bg-emerald-100 transition-colors text-sm"
             >
               <Tag size={18} /> 标签
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/study')}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-bold hover:bg-blue-100 transition-colors text-sm"
+            >
+              <TrendingUp size={18} /> 学情
+            </button>
+            <button
+              onClick={() => navigate('/dashboard/exam-analysis')}
+              className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl font-bold hover:bg-sky-100 transition-colors text-sm"
+            >
+              <BarChart3 size={18} /> 考情
             </button>
           </div>
         )}

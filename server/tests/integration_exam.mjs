@@ -11,6 +11,7 @@
  *       -> FR-701：通知列表/未读数/单条已读/全部已读/越权拦截
  *       -> storage_usage：管理员手动扫描 → storage_usage 行写入 + 非管理员 403
  *       -> FR-606：配额快照/exam_count 受限 429/上传熔断 429/放行记账/平台概览/BYO 登记
+ *       -> FR-301/302：日聚合/趋势/标签掌握度/深度考情(样本不足护栏)/班级横向/越权拦截
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -53,6 +54,9 @@ async function api(method, path, token, body) {
 const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
 async function cleanup(db) {
+  await db.execute("DELETE FROM stats_daily WHERE user_id IN (SELECT id FROM users WHERE username IN ('it_teacher','it_student'))");
+  await db.execute("DELETE FROM question_tag_map WHERE tag_id IN (SELECT id FROM question_tags WHERE name='IT_统计标签')");
+  await db.execute("DELETE FROM question_tags WHERE name='IT_统计标签'");
   await db.execute("DELETE FROM quota_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM storage_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
@@ -613,6 +617,70 @@ const main = async () => {
     // 24g 未登录 → 401
     const rNoAuth4 = await api('GET', '/quota/usage', null);
     check('FR-606 未登录(401)', rNoAuth4.status === 401, rNoAuth4.status);
+  }
+
+  // ── 25. FR-301/302 学情/考情看板 ──
+  {
+    // teacher 于 step23 已提升为 admin；学员/管理员分别重新登录取 token
+    const rlS = await api('POST', '/auth/login', null, { username: 'it_student', password: 'it123456' });
+    const stuToken = rlS.data?.token;
+    const rlT = await api('POST', '/auth/login', null, { username: 'it_teacher', password: 'it123456' });
+    const admToken = rlT.data?.token;
+
+    // 25a 绑定标签到 qA（FR-108 维度），供掌握度统计（须在聚合前完成）
+    const [tagIns] = await db.execute("INSERT INTO question_tags (org_id, name, parent_id, level) VALUES (NULL, 'IT_统计标签', NULL, 1)");
+    const statTagId = tagIns.insertId;
+    await db.execute('INSERT INTO question_tag_map (question_id, tag_id) VALUES (?, ?)', [qA, statTagId]);
+
+    // 25b 取已提交答卷的业务日（与 aggregate 的 DATE(submitted_at) 同源，避免时区错配）
+    const [adRow] = await db.execute(
+      "SELECT DATE_FORMAT(submitted_at,'%Y-%m-%d') AS d FROM exam_attempts WHERE user_id=? AND exam_id=? AND status IN ('submitted','auto_submitted') ORDER BY id DESC LIMIT 1",
+      [sId, examId]
+    );
+    const aggDate = adRow[0]?.d;
+    check('FR-301 存在已交卷业务日', !!aggDate, aggDate);
+
+    // 25c 手动聚合：越权(student 403) / 管理员(200, rows>0)
+    const rAggDeny = await api('POST', `/stats/admin/aggregate?date=${aggDate}`, stuToken);
+    check('FR-301 聚合越权(student 403)', rAggDeny.status === 403, rAggDeny.status);
+    const rAgg = await api('POST', `/stats/admin/aggregate?date=${aggDate}`, admToken);
+    check('FR-301 手动聚合(200 rows>0)', rAgg.status === 200 && rAgg.data.ok && Number(rAgg.data.rows) > 0, rAgg.data);
+
+    // 25d stats_daily 落库（practiced/correct 总量口径 dim_key IS NULL）
+    const [sd] = await db.execute(
+      "SELECT metric, dim_key, value FROM stats_daily WHERE user_id=? AND date=? AND metric IN ('practiced','correct') AND dim_key IS NULL",
+      [sId, aggDate]
+    );
+    const pracRow = sd.find((x) => x.metric === 'practiced');
+    check('FR-301 stats_daily practiced 落库(>=2)', !!pracRow && Number(pracRow.value) >= 2, sd);
+
+    // 25e 本人指标趋势
+    const rTrend = await api('GET', '/stats/me/trend?metric=practiced&days=30', stuToken);
+    check('FR-301 趋势含聚合日', rTrend.status === 200 && rTrend.data.trend.some((p) => p.date === aggDate && Number(p.value) >= 2), rTrend.data);
+
+    // 25f 标签掌握度雷达（依赖 tag 维度）
+    const rMast = await api('GET', '/stats/me/mastery', stuToken);
+    const mi = rMast.data?.mastery?.find((m) => m.tag_id === statTagId);
+    check('FR-301 掌握度含标签且100%', !!mi && mi.practiced >= 1 && mi.mastery === 100, rMast.data?.mastery);
+
+    // 25g 深度考情：owner(admin) 200；n<50 样本不足不产出区分度
+    const rAn = await api('GET', `/stats/exam/${examId}/analysis`, admToken);
+    check('FR-302 考情owner(200)', rAn.status === 200 && rAn.data.analysis.referenceCount >= 1, rAn.status);
+    check('FR-302 样本不足(n<50 不显示区分度)', rAn.data.analysis.sample_insufficient === true && rAn.data.analysis.discrimination === null, { n: rAn.data.analysis?.sampleSize });
+
+    // 25h 越权：非 owner 学员查看他人试卷分析 → 403
+    const rAnDeny = await api('GET', `/stats/exam/${examId}/analysis`, stuToken);
+    check('FR-302 非owner学员(403)', rAnDeny.status === 403, rAnDeny.status);
+
+    // 25i 班级横向：admin 200 含 it_student；student 403
+    const rCls = await api('GET', '/stats/class/compare', admToken);
+    check('FR-302 班级对比(admin 200)', rCls.status === 200 && Array.isArray(rCls.data.students), rCls.status);
+    const rClsDeny = await api('GET', '/stats/class/compare', stuToken);
+    check('FR-302 班级对比(student 403)', rClsDeny.status === 403, rClsDeny.status);
+
+    // 25j 未登录 → 401
+    const rNoAuth5 = await api('GET', '/stats/me/trend', null);
+    check('FR-301 未登录(401)', rNoAuth5.status === 401, rNoAuth5.status);
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

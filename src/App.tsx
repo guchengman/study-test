@@ -17,6 +17,8 @@ const ExamManagePage = lazy(() => import('./pages/ExamManagePage').then((m) => (
 const QuestionManagePage = lazy(() => import('./pages/QuestionManagePage').then((m) => ({ default: m.QuestionManagePage })));
 const TagManagePage = lazy(() => import('./pages/TagManagePage').then((m) => ({ default: m.TagManagePage })));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
+const ExamAnalysisDashboard = lazy(() => import('./pages/ExamAnalysisDashboard').then((m) => ({ default: m.ExamAnalysisDashboard })));
 
 const PageFallback = () => (
   <div className="flex min-h-[60vh] items-center justify-center text-gray-400">加载中…</div>
@@ -35,6 +37,8 @@ export default function App() {
           <Route path="questions/manage" element={<Suspense fallback={<PageFallback />}><QuestionManagePage /></Suspense>} />
           <Route path="tags/manage" element={<Suspense fallback={<PageFallback />}><TagManagePage /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<PageFallback />}><NotificationsPage /></Suspense>} />
+          <Route path="dashboard/study" element={<Suspense fallback={<PageFallback />}><StudentDashboard /></Suspense>} />
+          <Route path="dashboard/exam-analysis" element={<Suspense fallback={<PageFallback />}><ExamAnalysisDashboard /></Suspense>} />
         </Route>
       </Routes>
     </AppProvider>
