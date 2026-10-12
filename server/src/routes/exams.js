@@ -19,6 +19,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -381,9 +382,9 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: '无权参加该考试' });
     }
 
-    // 复用进行中且未超时的 attempt
+    // 复用进行中且未超时的 attempt（FR-202: 同时读取 shuffle_seed/option_order 保证不复洗）
     const [existing] = await pool.execute(
-      `SELECT id, deadline FROM exam_attempts
+      `SELECT id, deadline, shuffle_seed, option_order FROM exam_attempts
        WHERE exam_id = ? AND user_id = ? AND status = 'in_progress' AND deadline > NOW()
        ORDER BY id DESC LIMIT 1`,
       [examId, req.user.id]
@@ -392,16 +393,21 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
     let attemptId;
     let deadline;
     let reused = false;
+    let shuffleSeed;
+    let storedOptionOrder;
 
     if (existing.length > 0) {
       attemptId = existing[0].id;
       deadline = existing[0].deadline;
       reused = true;
+      shuffleSeed = existing[0].shuffle_seed || null;
+      storedOptionOrder = parseJsonSafe(existing[0].option_order, null);
     } else {
+      shuffleSeed = generateSeed();
       const [ins] = await pool.execute(
-        `INSERT INTO exam_attempts (exam_id, user_id, status, answers, details, deadline, org_id)
-         VALUES (?, ?, 'in_progress', NULL, NULL, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?)`,
-        [examId, req.user.id, exam.duration_minutes, await resolvePersonalOrgId(pool, req.user.id)]
+        `INSERT INTO exam_attempts (exam_id, user_id, status, answers, details, deadline, org_id, shuffle_seed)
+         VALUES (?, ?, 'in_progress', NULL, NULL, DATE_ADD(NOW(), INTERVAL ? MINUTE), ?, ?)`,
+        [examId, req.user.id, exam.duration_minutes, await resolvePersonalOrgId(pool, req.user.id), shuffleSeed]
       );
       attemptId = ins.insertId;
       const [fresh] = await pool.execute('SELECT deadline FROM exam_attempts WHERE id = ?', [attemptId]);
@@ -439,11 +445,43 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
         .filter(Boolean);
     }
 
+    // ── FR-202 乱序处理 ──
+    let finalQuestions = questions;
+    let optionOrder;
+
+    if (reused) {
+      // 复用：用已持久化的 seed + option_order，不重洗
+      optionOrder = storedOptionOrder;
+    } else {
+      // 新建：基于 seed 生成题序 + 选项序，持久化 option_order
+      optionOrder = buildOptionOrder(questions, shuffleSeed);
+      await pool.execute(
+        `UPDATE exam_attempts SET option_order = ? WHERE id = ?`,
+        [JSON.stringify(optionOrder), attemptId]
+      );
+    }
+
+    // 应用题序乱序
+    if (shuffleSeed && finalQuestions.length > 0) {
+      finalQuestions = shuffleQuestions(finalQuestions, shuffleSeed);
+    }
+
+    // 应用选项乱序（每题）
+    if (optionOrder && Object.keys(optionOrder).length > 0) {
+      finalQuestions = finalQuestions.map((q) => {
+        const perm = optionOrder[q.id] || optionOrder[String(q.id)];
+        if (perm && q.options && q.options.length > 1) {
+          return { ...q, options: applyOptionOrder(q.options, perm) };
+        }
+        return q;
+      });
+    }
+
     res.json({
       attemptId,
       deadline,
       reused,
-      questions,
+      questions: finalQuestions,
       total_points: exam.total_points,
     });
   } catch (err) {

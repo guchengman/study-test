@@ -6,6 +6,7 @@
  *       -> FR-101/102/103：判断/填空(逐空部分得分+同义项)/简答(待定) 新题型端到端判分
  *       -> FR-107：编辑生成版本快照 / 版本列表 / 回退 / 软删进回收站 / 恢复 / 彻底删(考试引用 409) / 版本 FK 级联
  *       -> FR-206：创建导出任务 / 轮询状态 / 下载 CSV 含 BOM+表头 / 权限校验 / 学生自助导出
+ *       -> FR-202：题目/选项乱序确定性 + 复用 attempt 不复洗 + shuffle_seed/option_order 持久化
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -358,6 +359,46 @@ const main = async () => {
     // 19f 学生不能导出他人考试
     const r3 = await api('POST', '/exports', sToken, { scope: 'exam', exam_id: examId });
     check('FR-206 非owner禁止导出exam(403)', r3.status === 403, r3.status);
+  }
+
+  // ── 20. FR-202 试题/选项乱序（确定性 + 复用不复洗） ──
+  {
+    // 20a 新建 attempt：返回含题序且 DB 持久化 shuffle_seed
+    const r = await api('POST', `/exams/${examId}/start`, sToken);
+    check('FR-202 start(200)', r.status === 200, r.status);
+    const { attemptId: newAid, questions: qs1, reused: re1 } = r.data;
+    check('FR-202 新建 attempt (reused=false)', re1 === false, re1);
+    check('FR-202 返回题目数量>0', Array.isArray(qs1) && qs1.length > 0, qs1?.length);
+
+    // 查询 DB 确认 shuffle_seed 非空
+    const [seedRows] = await db.execute('SELECT shuffle_seed, option_order FROM exam_attempts WHERE id = ?', [newAid]);
+    check('FR-202 shuffle_seed 已持久化', seedRows[0]?.shuffle_seed != null && seedRows[0].shuffle_seed > 0, seedRows[0]?.shuffle_seed);
+    check('FR-202 option_order 已持久化', seedRows[0]?.option_order != null, typeof seedRows[0]?.option_order);
+
+    // 20b 再次 start（复用）：应返回同题序、同选项序
+    const r2 = await api('POST', `/exams/${examId}/start`, sToken);
+    const { questions: qs2, reused: re2 } = r2.data;
+    check('FR-202 复用 attempt (reused=true)', re2 === true, re2);
+    const ids1 = qs1.map((q) => q.id);
+    const ids2 = qs2.map((q) => q.id);
+    check('FR-202 复用后题序一致', JSON.stringify(ids1) === JSON.stringify(ids2), { ids1, ids2 });
+
+    // 20c 选项一致性：同题的 options 顺序相同
+    if (qs1.length > 0 && qs1[0].options && qs1[0].options.length > 1) {
+      const opt1 = JSON.stringify(qs1[0].options);
+      const matching = qs2.find((q) => q.id === qs1[0].id);
+      const opt2 = JSON.stringify(matching?.options);
+      check('FR-202 复用后选项序一致', opt1 === opt2);
+    } else {
+      check('FR-202 题目无多选选项，跳过选项序比对', true);
+    }
+
+    // 20d 乱序效果：题序与原 question_set 可能不同（非强断言，因小概率能原序）
+    const [examRow] = await db.execute('SELECT question_set FROM exams WHERE id = ?', [examId]);
+    const qset = typeof examRow[0].question_set === 'string' ? JSON.parse(examRow[0].question_set) : examRow[0].question_set;
+    const origIds = qset.map((x) => x.question_id).filter((id) => ids1.includes(id));
+    // 不要求必须不同（概率性）；仅确认返回的题 ID 集合与原集合相同
+    check('FR-202 乱序后题ID集合不变', JSON.stringify(ids1.slice().sort()) === JSON.stringify(origIds.slice().sort()));
   }
 
   await cleanup(db); // 收尾清理，保持库整洁
