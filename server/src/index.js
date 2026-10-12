@@ -32,6 +32,7 @@ import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './uti
 import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
 import exportRoutes from './routes/exports.js';
 import tagRoutes from './routes/tags.js';
+import notificationRoutes from './routes/notifications.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -141,6 +142,7 @@ app.use('/api/uploads', authMiddleware, express.static(uploadsRoot, {
 app.use('/api/exams', examsRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次

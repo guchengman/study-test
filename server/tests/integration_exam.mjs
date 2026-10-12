@@ -8,6 +8,7 @@
  *       -> FR-206：创建导出任务 / 轮询状态 / 下载 CSV 含 BOM+表头 / 权限校验 / 学生自助导出
  *       -> FR-202：题目/选项乱序确定性 + 复用 attempt 不复洗 + shuffle_seed/option_order 持久化
  *       -> FR-108：知识点标签 CRUD + 题目绑定/解绑 + 树查询
+ *       -> FR-701：通知列表/未读数/单条已读/全部已读/越权拦截
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
@@ -452,6 +453,51 @@ const main = async () => {
     // 21i 未登录禁止
     const rNoAuth = await api('GET', '/tags/tree', null);
     check('FR-108 未登录(401)', rNoAuth.status === 401, rNoAuth.status);
+  }
+
+  // ── 22. FR-701/702 通知中心 ──
+  {
+    // 直接种入两条通知（服务端由 notificationService 内部创建，此处模拟数据面读/标记接口）
+    const [n1] = await db.execute(
+      "INSERT INTO notifications (user_id, type, title, payload) VALUES (?, 'exam_published', '新考试已发布', ?)",
+      [tId, JSON.stringify({ exam_id: 1 })]
+    );
+    const notifId = n1.insertId;
+    await db.execute(
+      "INSERT INTO notification_deliveries (notification_id, channel, status, sent_at) VALUES (?, 'site', 'sent', NOW())",
+      [notifId]
+    );
+    await db.execute("INSERT INTO notifications (user_id, type, title) VALUES (?, 'system', '系统维护公告')", [tId]);
+
+    // 22a 通知列表
+    const rl = await api('GET', '/notifications', tToken);
+    check('FR-701 通知列表(200)', rl.status === 200 && rl.data.notifications.length >= 2, rl.data?.notifications?.length);
+
+    // 22b 未读数
+    const ru0 = await api('GET', '/notifications/unread-count', tToken);
+    check('FR-701 未读数>=2', ru0.status === 200 && ru0.data.count >= 2, ru0.data?.count);
+
+    // 22c 单条标记已读
+    const rm = await api('PUT', `/notifications/${notifId}/read`, tToken);
+    check('FR-701 标记已读(200)', rm.status === 200 && rm.data.ok, rm.status);
+
+    // 22d 未读数下降
+    const ru1 = await api('GET', '/notifications/unread-count', tToken);
+    check('FR-701 标已读后未读下降', ru1.data.count === ru0.data.count - 1, { before: ru0.data.count, after: ru1.data.count });
+
+    // 22e 越权：学员标记他人通知 → 404（仅本人可读）
+    const rr = await api('PUT', `/notifications/${notifId}/read`, sToken);
+    check('FR-701 越权标记(404)', rr.status === 404, rr.status);
+
+    // 22f 全部标记已读
+    const rall = await api('PUT', '/notifications/read-all', tToken);
+    check('FR-701 全部已读(200)', rall.status === 200 && rall.data.ok, rall.status);
+    const ru2 = await api('GET', '/notifications/unread-count', tToken);
+    check('FR-701 全部已读后未读=0', ru2.data.count === 0, ru2.data?.count);
+
+    // 22g 未登录禁止
+    const rNoAuth2 = await api('GET', '/notifications', null);
+    check('FR-701 未登录(401)', rNoAuth2.status === 401, rNoAuth2.status);
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

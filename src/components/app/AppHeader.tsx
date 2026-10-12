@@ -19,6 +19,7 @@ import {
 import type { Subject } from '../../types';
 import type { AuthUser } from '../../services/api';
 import { formatTime } from '../../utils/examScoring';
+import { NotificationBell } from '../NotificationBell';
 
 export type AppHeaderStatus = 'welcome' | 'exam' | 'result' | 'mistakes';
 
@@ -147,6 +148,7 @@ export function AppHeader(props: AppHeaderProps) {
               <span className="hidden sm:inline">学生管理</span>
             </button>
           )}
+          <NotificationBell />
           <button
             onClick={() => setIsHelpOpen(true)}
             className="px-2.5 sm:px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg font-medium text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center gap-1.5"
@@ -155,7 +157,6 @@ export function AppHeader(props: AppHeaderProps) {
             <HelpCircle size={15} />
             <span className="hidden sm:inline">帮助</span>
           </button>
-
           {currentUser ? (
             <div className="relative">
               <button
