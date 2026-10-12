@@ -9,191 +9,24 @@
  *   - 评分权威在服务端：submit 用 questions 表原答案逐题评分，不信任前端分数。
  *   - 编程题不自动判分：type='programming' => is_correct=null, earned=0, needs_manual=true。
  *   - 多次参考取最高分：exam_attempts 无唯一约束；start 复用进行中未超时 attempt。
- *   - 强制自动交卷（三管齐下）：start/listAvailable/submit/getAttempt/my-history/analysis/attempts
- *     入口统一前置 sweepExpiredAttempts(scope)（后端惰性兜底）；owner 可 POST /:id/sweep 主动触发。
+ *   - 强制自动交卷（FR-204 重构）：权威兜底改由后台调度器 examSweepScheduler 周期性带锁分页收卷（见 utils/examSweepScheduler.js）；
+ *     写路径（start/submit）与学员读路径（available/my-history）保留有界(用户/本场)即时收卷；getAttempt 仅定向收单份；
+ *     owner 读路径（analysis/attempts）不再同步全卷收卷，需即时可 POST /:id/sweep 触发（经分页模块）。
  */
 import { Router } from 'express';
 import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
-import { gradeQuestion } from '../utils/examScoring.js';
+import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import log from '../utils/logger.js';
 
 const router = Router();
 
 // ============ 通用辅助 ============
 
-/** 安全解析 JSON 列（mysql2 可能返回字符串，也可能已解析；两者皆兼容）。 */
-function parseJsonSafe(value, fallback = null) {
-  if (value === null || value === undefined) return fallback;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return fallback;
-    }
-  }
-  return value; // 已是对象/数组
-}
-
 /** owner 判定：admin/teacher 或试卷创建者本人。 */
 function isOwner(exam, userId, role) {
   return role === 'admin' || role === 'teacher' || exam.created_by === userId;
-}
-
-/**
- * 惰性自动交卷：将 status='in_progress' 且 deadline < NOW() 的 attempt 按"当前已填 answers"评分并置 auto_submitted。
- * 幂等：一旦 status != 'in_progress' 不再被选中。
- *
- * @param {number|null} examId   限定考试（owner 端点用）；null 表示全部
- * @param {number|null} userId    限定用户（学员端点用）；null 表示全部
- * @param {number|null} excludeAttemptId 排除指定 attempt（submit 自身正在提交的 attempt，避免被提前抢占）
- * @returns {Promise<number>} 本次自动交卷数量
- */
-async function sweepExpiredAttempts(examId = null, userId = null, excludeAttemptId = null) {
-  const where = ["a.status = 'in_progress'", 'a.deadline < NOW()'];
-  const params = [];
-  if (examId) {
-    where.push('a.exam_id = ?');
-    params.push(examId);
-  }
-  if (userId) {
-    where.push('a.user_id = ?');
-    params.push(userId);
-  }
-  if (excludeAttemptId) {
-    where.push('a.id <> ?');
-    params.push(excludeAttemptId);
-  }
-
-  const [rows] = await pool.execute(
-    `SELECT a.id, a.answers, e.question_set
-     FROM exam_attempts a
-     JOIN exams e ON a.exam_id = e.id
-     WHERE ${where.join(' AND ')}`,
-    params
-  );
-
-  let autoSubmitted = 0;
-  for (const attempt of rows) {
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
-      // 事务内加锁重查，保证幂等（并发安全）
-      const [cur] = await conn.execute(
-        'SELECT status, answers FROM exam_attempts WHERE id = ? FOR UPDATE',
-        [attempt.id]
-      );
-      if (cur.length === 0 || cur[0].status !== 'in_progress') {
-        await conn.commit();
-        continue;
-      }
-      const currentAnswers = parseJsonSafe(cur[0].answers, {});
-      const exam = { question_set: attempt.question_set };
-      const { details, score, correctCount, totalCount } = await gradeAttempt(conn, exam, currentAnswers);
-      await conn.execute(
-        `UPDATE exam_attempts
-         SET status = 'auto_submitted',
-             answers = ?,
-             details = ?,
-             score = ?,
-             correct_count = ?,
-             total_count = ?,
-             submitted_at = NOW(),
-             updated_at = NOW()
-         WHERE id = ?`,
-        [
-          JSON.stringify(currentAnswers),
-          JSON.stringify(details),
-          score,
-          correctCount,
-          totalCount,
-          attempt.id,
-        ]
-      );
-      await conn.commit();
-      autoSubmitted += 1;
-    } catch (err) {
-      await conn.rollback();
-      log.error('sweepExpiredAttempts 单条失败:', err);
-    } finally {
-      conn.release();
-    }
-  }
-  return autoSubmitted;
-}
-
-/**
- * 用服务端 questions 表答案对一次 attempt 评分（缺题判错，编程题不自动判分）。
- * @param {Object} conn 数据库连接（用于 FOR UPDATE / 事务）
- * @param {Object} exam 试卷对象（需含 question_set JSON 文本/数组）
- * @param {Object} answers { [question_id]: userAnswer }
- * @returns {Promise<{details: Array, score: number, correctCount: number, totalCount: number}>}
- */
-async function gradeAttempt(conn, exam, answers) {
-  const questionSet = parseJsonSafe(exam.question_set, []);
-  const questionIds = questionSet.map((q) => q.question_id).filter((id) => id != null);
-  const questionMap = {};
-
-  if (questionIds.length > 0) {
-    const placeholders = questionIds.map(() => '?').join(',');
-    const [rows] = await conn.execute(
-      `SELECT id, type, options, answer, explanation, points
-       FROM questions WHERE id IN (${placeholders})`,
-      questionIds
-    );
-    rows.forEach((r) => {
-      questionMap[r.id] = r;
-    });
-  }
-
-  const details = [];
-  let score = 0;
-  let correctCount = 0;
-  let totalCount = 0;
-
-  for (const item of questionSet) {
-    const qid = item.question_id;
-    const q = questionMap[qid];
-    const points = item.points != null ? Number(item.points) : q ? Number(q.points) || 0 : 0;
-    totalCount += 1;
-    const userAnswer = answers ? answers[qid] : undefined;
-
-    if (!q) {
-      // 题目已被删除（科目级联删除等）：无法评分，按判错处理并注明
-      details.push({
-        question_id: qid,
-        user_answer: userAnswer ?? null,
-        correct_answer: null,
-        is_correct: false,
-        points,
-        earned: 0,
-        explanation: '题目已被删除，无法评分',
-        needs_manual: false,
-      });
-      continue;
-    }
-
-    const options = parseJsonSafe(q.options, []);
-    const answer = parseJsonSafe(q.answer, q.answer);
-    const graded = gradeQuestion({ type: q.type, answer, options }, userAnswer, points);
-
-    details.push({
-      question_id: qid,
-      user_answer: userAnswer ?? null,
-      correct_answer: answer,
-      is_correct: graded.is_correct,
-      points,
-      earned: graded.earned,
-      explanation: q.explanation || '',
-      needs_manual: graded.needs_manual,
-    });
-
-    score += graded.earned;
-    if (graded.is_correct === true) correctCount += 1;
-  }
-
-  return { details, score, correctCount, totalCount };
 }
 
 // ============ owner 组卷管理 ============
@@ -457,8 +290,8 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
 /** GET /api/exams/available — 可参加列表（published + 窗口内 + 科目可访问），每项带 attempt_state */
 router.get('/available', authMiddleware, async (req, res) => {
   try {
-    // 惰性兜底：先自动交卷本用户所有过期 attempt
-    await sweepExpiredAttempts(null, req.user.id);
+    // 有界收卷：仅本用户过期 attempt（代价有界，刷新本人彽标）
+    await sweepExpiredAttempts(null, req.user.id, null, { batchSize: 5, maxRows: 10 });
 
     const [rows] = await pool.execute(
       `SELECT * FROM exams e
@@ -516,8 +349,8 @@ router.get('/available', authMiddleware, async (req, res) => {
 router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
   try {
     const examId = Number(req.params.id);
-    // 惰性兜底：先自动交卷本用户在本场过期 attempt（不影响即将复用的进行中 attempt）
-    await sweepExpiredAttempts(examId, req.user.id);
+    // 有界收卷：仅本用户在本场过期 attempt（不影响即将复用的进行中 attempt）
+    await sweepExpiredAttempts(examId, req.user.id, null, { batchSize: 5, maxRows: 5 });
 
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
     if (examRows.length === 0) {
@@ -630,8 +463,8 @@ router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'attemptId 不能为空' });
     }
 
-    // 惰性兜底：自动交卷本场其他过期 attempt（排除当前正在提交的 attempt）
-    await sweepExpiredAttempts(examId, req.user.id, Number(attemptId));
+    // 有界收卷：本场其他过期 attempt（排除当前正在提交的 attempt）
+    await sweepExpiredAttempts(examId, req.user.id, Number(attemptId), { batchSize: 5, maxRows: 5 });
 
     conn = await pool.getConnection();
     await conn.beginTransaction();
@@ -718,8 +551,8 @@ router.get('/attempts/:attemptId', authMiddleware, async (req, res) => {
     }
     const attempt = attemptRows[0];
 
-    // 惰性兜底：先自动交卷本场过期 attempt
-    await sweepExpiredAttempts(attempt.exam_id, null);
+    // 定向收卷：仅处理当前正在查看的这一份 attempt（避免触发全场扫描）
+    await sweepSingleAttempt(attemptId);
 
     const [attemptRows2] = await pool.execute('SELECT * FROM exam_attempts WHERE id = ?', [attemptId]);
     const a = attemptRows2[0];
@@ -788,8 +621,8 @@ router.get('/attempts/:attemptId', authMiddleware, async (req, res) => {
 /** GET /api/exams/my-history — 我的历史成绩（全部 attempt + 每场考试 bestScores + is_best 标记） */
 router.get('/my-history', authMiddleware, async (req, res) => {
   try {
-    // 惰性兜底：自动交卷本用户所有过期 attempt
-    await sweepExpiredAttempts(null, req.user.id);
+    // 有界收卷：仅本用户过期 attempt（代价有界）
+    await sweepExpiredAttempts(null, req.user.id, null, { batchSize: 10, maxRows: 20 });
 
     const [rows] = await pool.execute(
       `SELECT a.*, e.title AS exam_title, e.total_points, e.pass_score
@@ -852,9 +685,7 @@ router.get('/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: '无权查看该考试分析' });
     }
 
-    // 惰性兜底：自动交卷本场所有过期 attempt
-    await sweepExpiredAttempts(examId, null);
-
+    // FR-204：不再在读路径同步全卷收卷；成绩新鲜度由后台调度器维护（≤ 1 tick），owner 需即时可调 POST /:id/sweep。
     // 取本场所有已交卷 attempt（按 user + score 降序，便于取每学生最高分）
     const [attempts] = await pool.execute(
       `SELECT id, user_id, score, details
@@ -944,8 +775,7 @@ router.get('/:id(\\d+)/attempts', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: '无权查看该考试答卷' });
     }
 
-    // 惰性兜底：自动交卷本场所有过期 attempt
-    await sweepExpiredAttempts(examId, null);
+    // FR-204：不再同步全卷收卷；成绩新鲜度由后台调度器维护（≤ 1 tick），owner 需即时可调 POST /:id/sweep。
 
     const [rows] = await pool.execute(
       `SELECT a.*, u.username
@@ -980,8 +810,9 @@ router.post('/:id(\\d+)/sweep', authMiddleware, async (req, res) => {
     if (!isOwner(examRows[0], req.user.id, req.user.role)) {
       return res.status(403).json({ error: '无权对该考试执行自动交卷' });
     }
-    const autoSubmitted = await sweepExpiredAttempts(examId, null);
-    res.json({ autoSubmitted });
+    // owner 手动即时收卷本场：经分页模块、单次上限 500（超大场次剩余由后台调度器继续排空）
+    const processed = await sweepExpiredAttempts(examId, null, null, { batchSize: 50, maxRows: 500 });
+    res.json({ autoSubmitted: processed });
   } catch (err) {
     log.error('批量自动交卷错误:', err);
     res.status(500).json({ error: '批量自动交卷失败' });
