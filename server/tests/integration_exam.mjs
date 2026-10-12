@@ -9,12 +9,19 @@
  *       -> FR-202：题目/选项乱序确定性 + 复用 attempt 不复洗 + shuffle_seed/option_order 持久化
  *       -> FR-108：知识点标签 CRUD + 题目绑定/解绑 + 树查询
  *       -> FR-701：通知列表/未读数/单条已读/全部已读/越权拦截
+ *       -> storage_usage：管理员手动扫描 → storage_usage 行写入 + 非管理员 403
  *
  * 运行：node server/tests/integration_exam.mjs  （需先启动后端，默认 http://localhost:3100/api；可用 EXAM_IT_BASE 覆盖）
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
  */
 import mysql from 'mysql2/promise';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_ROOT = path.resolve(__dirname, '../uploads');
 
 const BASE = process.env.EXAM_IT_BASE || 'http://localhost:3100/api';
 const DB = {
@@ -45,6 +52,7 @@ async function api(method, path, token, body) {
 const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
 async function cleanup(db) {
+  await db.execute("DELETE FROM storage_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
   await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%')");
@@ -498,6 +506,47 @@ const main = async () => {
     // 22g 未登录禁止
     const rNoAuth2 = await api('GET', '/notifications', null);
     check('FR-701 未登录(401)', rNoAuth2.status === 401, rNoAuth2.status);
+  }
+
+  // ── 23. storage_usage 存储用量统计与告警 ──
+  {
+    // 提升 teacher 为平台管理员，重新登录取 token（role 来自 JWT）
+    await db.execute("UPDATE users SET role='admin' WHERE id=?", [tId]);
+    const rl = await api('POST', '/auth/login', null, { username: 'it_teacher', password: 'it123456' });
+    const aToken = rl.data?.token;
+    check('storage 管理员登录(200)', rl.status === 200 && !!aToken, rl.status);
+
+    // 种一个真实上传文件到 uploads/user_<tId>
+    const userDir = path.join(UPLOADS_ROOT, `user_${tId}`);
+    fs.mkdirSync(userDir, { recursive: true });
+    const testFile = path.join(userDir, 'it_storage_probe.bin');
+    fs.writeFileSync(testFile, Buffer.alloc(2048));
+
+    // 23a 手动触发扫描
+    const rScan = await api('POST', '/admin/storage-usage/scan', aToken);
+    check('storage 扫描触发(200)', rScan.status === 200 && typeof rScan.data.users === 'number', rScan.data);
+
+    // 23b DB 校验 storage_usage 行
+    const [orgRows] = await db.execute("SELECT m.org_id FROM org_members m JOIN organizations o ON o.id=m.org_id AND o.type='PERSONAL' WHERE m.user_id=? LIMIT 1", [tId]);
+    const orgId = orgRows[0]?.org_id;
+    check('storage 个人租户存在', orgId != null, orgId);
+    const [su] = await db.execute('SELECT bytes_used, file_count, circuit_broken FROM storage_usage WHERE org_id=?', [orgId]);
+    check('storage_usage 行已写入', su.length === 1 && Number(su[0]?.bytes_used) >= 2048 && Number(su[0]?.file_count) >= 1, su[0]);
+    check('storage_usage 小用量未熔断', Number(su[0]?.circuit_broken) === 0);
+
+    // 23c 非管理员(student)禁止 → 403
+    const rDeny = await api('GET', '/admin/storage-usage', sToken);
+    check('storage 非管理员禁止(403)', rDeny.status === 403, rDeny.status);
+
+    // 23d 管理员查看全部用量 → 200 数组
+    const rAll = await api('GET', '/admin/storage-usage', aToken);
+    check('storage 管理员列表(200)', rAll.status === 200 && Array.isArray(rAll.data.usage), rAll.status);
+
+    // 23e 未登录 → 401
+    const rNoAuth3 = await api('GET', '/admin/storage-usage', null);
+    check('storage 未登录(401)', rNoAuth3.status === 401, rNoAuth3.status);
+
+    try { fs.unlinkSync(testFile); } catch { /* ignore */ }
   }
 
   await cleanup(db); // 收尾清理，保持库整洁

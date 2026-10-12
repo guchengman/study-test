@@ -30,9 +30,11 @@ import examsRoutes from './routes/exams.js';
 import { startExamSweepScheduler, stopExamSweepScheduler } from './utils/examSweepScheduler.js';
 import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './utils/recycleCleanupScheduler.js';
 import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
+import { startStorageUsageScheduler, stopStorageUsageScheduler } from './utils/storageUsageScheduler.js';
 import exportRoutes from './routes/exports.js';
 import tagRoutes from './routes/tags.js';
 import notificationRoutes from './routes/notifications.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -143,6 +145,7 @@ app.use('/api/exams', examsRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
@@ -229,6 +232,8 @@ app.listen(PORT, '0.0.0.0', () => {
   startRecycleCleanupScheduler();
   // FR-206：启动导出任务兜底调度器（GET_LOCK 单例，轮询 queued jobs 处理）
   startExportJobScheduler();
+  // storage_usage：启动存储用量扫描调度器（GET_LOCK 单例，周期汇总磁盘用量 + 阈值告警/熔断）
+  startStorageUsageScheduler();
 });
 
 // 优雅退出：停掉后台调度器（PM2 reload/SIGTERM）
@@ -236,4 +241,5 @@ process.on('SIGTERM', () => {
   stopExamSweepScheduler();
   stopRecycleCleanupScheduler();
   stopExportJobScheduler();
+  stopStorageUsageScheduler();
 });
