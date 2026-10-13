@@ -21,11 +21,20 @@ router.post('/practice', authMiddleware, async (req, res) => {
     const qid = Number(req.body?.question_id);
     const code = String(req.body?.code ?? '');
     if (!qid) return res.status(400).json({ error: 'question_id 不能为空' });
+    const userId = req.user.id;
+    // 属主/共享可见性校验（与 questions 详情、practice 同一谓词）：不可见则 404，防跨租户越权触发判题/隔空探测期望输出
     const [jc] = await pool.execute(
       `SELECT jc.language, jc.time_limit_ms, jc.memory_limit_mb, jc.test_cases
        FROM question_judge_configs jc JOIN questions q ON q.id = jc.question_id
-       WHERE jc.question_id = ? AND q.type = 'programming' AND q.deleted_at IS NULL`, [qid]);
-    if (jc.length === 0) return res.status(404).json({ error: '该题无判题配置' });
+       WHERE jc.question_id = ? AND q.type = 'programming' AND q.deleted_at IS NULL AND (
+         q.created_by = ?
+         OR q.subject_id IN (SELECT ss.subject_id FROM subject_subscriptions ss WHERE ss.user_id = ? AND ss.status = 'approved')
+         OR q.subject_id IN (SELECT s.id FROM subjects s WHERE s.share_scope = 'all' AND s.created_by IN (SELECT teacher_id FROM users WHERE id = ?))
+         OR q.subject_id IN (SELECT s.id FROM subjects s WHERE s.share_scope = 'students' AND s.created_by IN (SELECT teacher_id FROM users WHERE id = ?)
+           AND (NOT EXISTS (SELECT 1 FROM subject_student_access sa WHERE sa.subject_id = s.id) OR EXISTS (SELECT 1 FROM subject_student_access sa WHERE sa.subject_id = s.id AND sa.student_user_id = ?)))
+       )`,
+      [qid, userId, userId, userId, userId, userId]);
+    if (jc.length === 0) return res.status(404).json({ error: '题目不存在或无判题配置' });
     const all = asArray(jc[0].test_cases);
     const samples = all.filter((c) => c.is_sample !== false);
     const cases = (samples.length ? samples : all);

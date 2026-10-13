@@ -21,6 +21,7 @@ async function cleanup(db) {
     "DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'ISO\\_%')",
     "DELETE FROM exams WHERE title LIKE 'ISO\\_%'",
     "DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE title LIKE 'ISO\\_%')",
+    "DELETE FROM question_judge_configs WHERE question_id IN (SELECT id FROM questions WHERE title LIKE 'ISO\\_%')",
     "DELETE FROM question_tags WHERE name LIKE 'ISO\\_%'",
     "DELETE FROM questions WHERE title LIKE 'ISO\\_%'",
     "DELETE FROM question_groups WHERE subject_id LIKE 'iso\\_subj\\_%'",
@@ -280,6 +281,24 @@ const main = async () => {
     check('ISO tags B树不含A标签',
       treeB.status === 200 && !JSON.stringify(treeB.data?.tags || []).includes('ISO_标签A'),
       { status: treeB.status });
+
+    // ===== FR-106 编程判题跨租户：A 建带 config 编程题；B 读 config / 练习触发判题均不可越权 =====
+    {
+      const jc = { language: 'python', time_limit_ms: 2000, memory_limit_mb: 128, test_cases: [{ input: '2', expected_output: '4', is_sample: true }] };
+      const ca = await api('POST', '/questions', tA.token, { subject_id: 'iso_subj_A', type: 'programming', title: 'ISO_编程题A', answer: 'x', judge_config: jc });
+      const qProgA = ca.data?.id;
+      check('ISO FR106 A建编程题带config', ca.status === 200 && !!qProgA, ca.status);
+      // 同端点正向对照：属主 tA 读回 judge_config 必一致（防详情带出回归时 B 侧 404 假绿）
+      const da = await api('GET', `/questions/${qProgA}`, tA.token);
+      check('ISO FR106 A读回config(正向对照)', da.status === 200 && da.data?.question?.judge_config?.language === 'python', { status: da.status });
+      if (qProgA) {
+        checkBlocked('ISO FR106 B读A编程题(403/404)', await api('GET', `/questions/${qProgA}`, tB.token));
+        checkBlocked('ISO FR106 B练习判A题config(403/404)', await api('POST', '/judge/practice', tB.token, { question_id: qProgA, code: 'print(4)' }));
+      } else {
+        check('ISO FR106 B读A编程题(403/404)', false, 'qProgA 缺失');
+        check('ISO FR106 B练习判A题config(403/404)', false, 'qProgA 缺失');
+      }
+    }
 
     // TODO(覆盖度备忘，M1 范围外)：questions 组目前只冻结了读端点 GET /questions/:id 与列表；
     //   写端点 PUT/DELETE /questions/:id、GET /questions/:id/versions、GET /subjects/:id/students 尚未纳入门禁
