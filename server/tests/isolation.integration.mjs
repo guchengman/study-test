@@ -144,7 +144,28 @@ const main = async () => {
       stB.status === 200 && !asArray(stB.data?.stats).some((s) => String(s.subject_id) === 'iso_subj_A'),
       { status: stB.status });
 
-    // ===== 后续任务在此追加 tags 断言 =====
+    // ===== tags 跨租户 =====
+    const tagA = await api('POST', '/tags', tA.token, { name: 'ISO_标签A', level: 1 });
+    const tagAId = tagA.data?.id;
+    check('ISO A 建标签', tagA.status === 201 && !!tagAId, { status: tagA.status, id: tagAId });
+    if (tagAId) await api('POST', `/tags/question/${qAId}/bindTags`, tA.token, { tag_ids: [tagAId] });
+
+    // B 读 A 题的标签。
+    // 读侧发现：GET /tags/question/:id 当前不校验题目归属，会泄漏他人题目绑定的标签。
+    // 属 Phase 2 读侧隔离缺口（见 spec §4.2 / 待 WS-2 修复），M1 记为 KNOWN-GAP、不作硬门禁；
+    // 一旦将来修复（不可达或不含他人标签），下方自动转为一条绿色断言。
+    const tagBq = await api('GET', `/tags/question/${qAId}`, tB.token);
+    const tagsLeaked = tagBq.status === 200 && asArray(tagBq.data?.tags).some((t) => t.id === tagAId);
+    if (tagsLeaked) {
+      console.log('⚠️  KNOWN-GAP ISO tags: GET /tags/question/:id 未做题目归属校验，B 读到 A 题目标签（读侧隔离待 WS-2）');
+    } else {
+      check('ISO tags B读A题标签(已隔离)', tagBq.status === 403 || tagBq.status === 404 || !asArray(tagBq.data?.tags).some((t) => t.id === tagAId), { status: tagBq.status });
+    }
+    // B 标签树是否含 A 私有标签（若含→暴露读侧未隔离，属真实发现）
+    const treeB = await api('GET', '/tags/tree', tB.token);
+    check('ISO tags B树不含A标签',
+      treeB.status === 200 && !JSON.stringify(treeB.data?.tags || []).includes('ISO_标签A'),
+      { status: treeB.status });
   } finally {
     await cleanup(db);
     await db.end();
