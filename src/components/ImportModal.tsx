@@ -742,6 +742,14 @@ D. I **has** seen that movie.
                 preview={preview}
                 onReparse={() => setPreview([])}
                 onConfirm={handleConfirmImportClick}
+                onAudioUpload={async (index, file) => {
+                  try {
+                    const { url } = await uploadApi.audio(file);
+                    setPreview((prev) => prev.map((q, i) => (i === index ? { ...q, audioUrl: url } : q)));
+                  } catch (e) {
+                    setError((e as { message?: string })?.message || '音频上传失败');
+                  }
+                }}
               />
             )}
           </div>

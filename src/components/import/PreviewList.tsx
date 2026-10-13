@@ -1,13 +1,15 @@
 // 解析结果预览列表（从 ImportModal 抽取）
 import React from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Upload } from 'lucide-react';
 import type { Question } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
+import { AudioPlayer } from '../AudioPlayer';
 
 interface PreviewListProps {
   preview: Question[];
   onReparse: () => void;
   onConfirm: () => void;
+  onAudioUpload?: (index: number, file: File) => Promise<void>;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -20,6 +22,7 @@ export const PreviewList: React.FC<PreviewListProps> = ({
   preview,
   onReparse,
   onConfirm,
+  onAudioUpload,
 }) => {
   return (
     <div className="space-y-4">
@@ -55,6 +58,30 @@ export const PreviewList: React.FC<PreviewListProps> = ({
               <span className="text-[10px] text-slate-400">第 {idx + 1} 题</span>
               {q.points && <span className="text-[10px] text-slate-400">{q.points} 分</span>}
             </div>
+            {onAudioUpload && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 cursor-pointer">
+                  <Upload size={12} />
+                  {q.audioUrl ? '重传音频' : '上传音频'}
+                  <input
+                    type="file"
+                    accept="audio/mpeg,audio/mp3,audio/x-m4a,audio/wav,.mp3,.m4a,.wav"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void onAudioUpload(idx, f);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                {q.audioUrl ? (
+                  <span className="inline-flex items-center gap-2 min-w-[160px]">
+                    <AudioPlayer src={q.audioUrl} />
+                    <span className="text-[10px] text-emerald-600">已挂载</span>
+                  </span>
+                ) : null}
+              </div>
+            )}
             <MarkdownRenderer content={q.title} className="text-sm text-slate-800 mb-3 leading-relaxed" />
             {q.options && q.options.length > 0 && (
               <div className="space-y-1.5 mb-3 ml-1">
