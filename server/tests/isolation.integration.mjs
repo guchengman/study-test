@@ -114,7 +114,37 @@ const main = async () => {
     check('ISO exams A考试不在B学员可参加列表',
       availB.status === 200 && !asArray(availB.data?.exams).some((e) => e.id === examAId), { status: availB.status });
 
-    // ===== 后续任务在此追加 practice/tags 断言 =====
+    // ===== mistakes / favorites / study_stats（学员维度"仅见己有"）=====
+    // A 学员产生错题/收藏/学习统计（均基于 A 的题 qAId）
+    await api('POST', '/practice/mistakes', sA.token, { question_id: qAId, is_correct: false });
+    await api('POST', '/practice/favorites', sA.token, { question_id: qAId });
+    await api('POST', '/practice/stats', sA.token, { subject_id: 'iso_subj_A', correct: 4, total: 5 });
+
+    // 正向校验：A 学员确实能看到自己的数据（避免 B 断言沦为"空集合"假通过）
+    const mkA = await api('GET', '/practice/mistakes', sA.token);
+    check('ISO mistakes A确有该记录',
+      mkA.status === 200 && asArray(mkA.data?.mistakes).some((m) => String(m.question_id) === String(qAId)), { status: mkA.status });
+    const favA = await api('GET', '/practice/favorites', sA.token);
+    check('ISO favorites A确有该记录',
+      favA.status === 200 && asArray(favA.data?.favorites).some((f) => String(f.id) === String(qAId)), { status: favA.status });
+    const stA = await api('GET', '/practice/stats', sA.token);
+    check('ISO study_stats A确有该科目统计',
+      stA.status === 200 && asArray(stA.data?.stats).some((s) => String(s.subject_id) === 'iso_subj_A'), { status: stA.status });
+
+    const mkB = await api('GET', '/practice/mistakes', sB.token);
+    check('ISO mistakes B列表不含A记录',
+      mkB.status === 200 && !asArray(mkB.data?.mistakes).some((m) => String(m.question_id) === String(qAId)),
+      { status: mkB.status });
+    const favB = await api('GET', '/practice/favorites', sB.token);
+    check('ISO favorites B列表不含A记录',
+      favB.status === 200 && !asArray(favB.data?.favorites).some((f) => String(f.id) === String(qAId)),
+      { status: favB.status });
+    const stB = await api('GET', '/practice/stats', sB.token);
+    check('ISO study_stats B不含A科目统计',
+      stB.status === 200 && !asArray(stB.data?.stats).some((s) => String(s.subject_id) === 'iso_subj_A'),
+      { status: stB.status });
+
+    // ===== 后续任务在此追加 tags 断言 =====
   } finally {
     await cleanup(db);
     await db.end();
