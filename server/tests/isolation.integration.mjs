@@ -61,7 +61,7 @@ const main = async () => {
     const sB = await makeStudent(db, 'stuB', tB.id);
 
     // A、B 各一私有科目（DB 直插，与 integration_exam 同法；share_scope=none 不对外共享）
-    await db.execute("INSERT INTO subjects (id, name, created_by, share_scope) VALUES ('iso_subj_A', 'ISO_科目A', ?, 'none')", [tA.id]);
+    await db.execute("INSERT INTO subjects (id, name, created_by, share_scope) VALUES ('iso_subj_A', 'ISO_科目A', ?, 'students')", [tA.id]);
     await db.execute("INSERT INTO subjects (id, name, created_by, share_scope) VALUES ('iso_subj_B', 'ISO_科目B', ?, 'none')", [tB.id]);
 
     // A 用 API 建题（返回 data.id）
@@ -86,8 +86,35 @@ const main = async () => {
     checkBlocked('ISO subjects B改A科目(403/404)', await api('PUT', '/subjects/iso_subj_A', tB.token, { name: 'ISO_被篡改' }));
     checkBlocked('ISO subjects B删A科目(403/404)', await api('DELETE', '/subjects/iso_subj_A', tB.token));
 
-    // ===== 后续任务在此追加 exams/attempts/practice/tags 断言 =====
-    void sA; void sB; void qAId;
+    // ===== exams / exam_attempts 跨租户 =====
+    const examA = await api('POST', '/exams', tA.token, {
+      subject_id: 'iso_subj_A', title: 'ISO_考A',
+      question_set: [{ question_id: qAId, points: 100 }],
+      duration_minutes: 30, pass_score: 60,
+    });
+    check('ISO A 建考试', examA.status === 200 && examA.data?.id, examA.status);
+    const examAId = examA.data?.id;
+    const _now = new Date();
+    await api('PUT', `/exams/${examAId}`, tA.token, {
+      status: 'published',
+      start_time: fmt(new Date(_now.getTime() - 60000)),
+      end_time: fmt(new Date(_now.getTime() + 86400000)),
+    });
+    const startA = await api('POST', `/exams/${examAId}/start`, sA.token);
+    const attemptAId = startA.data?.attemptId;
+    check('ISO A 学员开考产出 attemptId', !!attemptAId, startA.status);
+
+    checkBlocked('ISO exams B看A考试详情(403/404)', await api('GET', `/exams/${examAId}`, tB.token));
+    checkBlocked('ISO exams B看A答卷列表(403/404)', await api('GET', `/exams/${examAId}/attempts`, tB.token));
+    checkBlocked('ISO exams B看A考情分析(403/404)', await api('GET', `/exams/${examAId}/analysis`, tB.token));
+    if (attemptAId) {
+      checkBlocked('ISO exam_attempts B读A学员答卷(403/404)', await api('GET', `/exams/attempts/${attemptAId}`, tB.token));
+    }
+    const availB = await api('GET', '/exams/available', sB.token);
+    check('ISO exams A考试不在B学员可参加列表',
+      availB.status === 200 && !asArray(availB.data?.exams).some((e) => e.id === examAId), { status: availB.status });
+
+    // ===== 后续任务在此追加 practice/tags 断言 =====
   } finally {
     await cleanup(db);
     await db.end();
