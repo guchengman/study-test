@@ -34,16 +34,21 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
   const [points, setPoints] = useState<number>(1);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [starter, setStarter] = useState<string>('');
+  const [cases, setCases] = useState<{ input: string; expected_output: string; is_sample: boolean }[]>(
+    [{ input: '', expected_output: '', is_sample: true }]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   if (!open) return null;
   const needsOptions = type === 'single' || type === 'multiple';
+  const isProgramming = type === 'programming';
 
   const reset = () => {
     setSubjectId(subjects[0]?.id || '');
     setType('single'); setTitle(''); setOptionsText(''); setAnswer('');
     setExplanation(''); setPoints(1); setAudioUrl(null); setError(null);
+    setStarter(''); setCases([{ input: '', expected_output: '', is_sample: true }]);
   };
   const handleClose = () => { reset(); onClose(); };
 
@@ -67,6 +72,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
     if (!answer.trim()) { setError('答案不能为空'); return; }
     const opts = needsOptions ? optionsText.split('\n').map((s) => s.trim()).filter(Boolean) : undefined;
     if (needsOptions && (!opts || opts.length < 2)) { setError('单选/多选题选项至少 2 项（每行一个）'); return; }
+    if (isProgramming && !cases.some((c) => c.expected_output.trim())) { setError('编程题至少填一个样例用例的期望输出'); return; }
 
     setSubmitting(true);
     try {
@@ -76,6 +82,10 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
         answer: type === 'multiple' ? answer.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : answer.trim(),
         explanation: explanation.trim() || undefined, points: Number(points) > 0 ? Number(points) : 1,
         audio_url: audioUrl,
+        judge_config: isProgramming
+          ? { language: 'python', time_limit_ms: 2000, memory_limit_mb: 128, starter_code: starter || null,
+              test_cases: cases.filter((c) => c.expected_output.trim()).map((c) => ({ input: c.input, expected_output: c.expected_output, is_sample: c.is_sample !== false })) }
+          : undefined,
       });
       reset();
       onCreated();
@@ -180,6 +190,35 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
               </div>
             )}
           </div>
+
+          {/* FR-106 编程题判题配置（仅 programming）：初始代码 + 样例用例增删 */}
+          {isProgramming && (
+            <div className="p-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-600">编程题判题配置</span>
+                <span className="text-xs text-slate-400">语言固定 Python · 2s / 128MB</span>
+              </div>
+              <label className="block text-sm">
+                <span className="font-bold text-slate-600">初始代码（可选）</span>
+                <textarea value={starter} onChange={(e) => setStarter(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-xl border-2 border-slate-100 focus:border-emerald-600 outline-none font-mono text-xs h-20 resize-none" />
+              </label>
+              <div className="space-y-2">
+                <span className="text-sm font-bold text-slate-600">样例用例（输入 → 期望输出）</span>
+                {cases.map((c, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <textarea value={c.input} onChange={(e) => setCases((p) => p.map((x, j) => j === i ? { ...x, input: e.target.value } : x))}
+                      placeholder="stdin 输入" className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 font-mono text-xs h-16 resize-none" />
+                    <textarea value={c.expected_output} onChange={(e) => setCases((p) => p.map((x, j) => j === i ? { ...x, expected_output: e.target.value } : x))}
+                      placeholder="期望 stdout" className="flex-1 px-2 py-1.5 rounded-lg border border-slate-200 font-mono text-xs h-16 resize-none" />
+                    <button type="button" onClick={() => setCases((p) => p.filter((_, j) => j !== i))} className="text-rose-500 text-xs px-1">删除</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setCases((p) => [...p, { input: '', expected_output: '', is_sample: true }])}
+                  className="text-xs text-emerald-600 font-bold">+ 添加用例</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-slate-100">
