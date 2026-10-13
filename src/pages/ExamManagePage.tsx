@@ -9,9 +9,11 @@
  *  - 调用 examApi，刷新列表。
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   ClipboardList,
+  ClipboardCheck,
   PlusCircle,
   Pencil,
   Trash2,
@@ -42,6 +44,7 @@ function statusMeta(status: ExamStatus): { label: string; cls: string } {
 
 export function ExamManagePage() {
   const ctx = useAppContext();
+  const navigate = useNavigate();
 
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -263,6 +266,12 @@ export function ExamManagePage() {
                         className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100 transition-colors text-sm"
                       >
                         <BarChart3 size={14} /> 分析
+                      </button>
+                      <button
+                        onClick={() => navigate(`/exams/grading?examId=${exam.id}`)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-violet-50 text-violet-600 rounded-lg font-bold hover:bg-violet-100 transition-colors text-sm"
+                      >
+                        <ClipboardCheck size={14} /> 人工判分
                       </button>
                       <button
                         onClick={() => handleExport(exam)}
