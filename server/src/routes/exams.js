@@ -22,7 +22,8 @@ import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { checkQuota, recordUsage } from '../utils/quotaService.js';
 import { tickDay } from '../utils/streakService.js';
 import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
-import { applyManualScore } from '../utils/manualGrading.js';
+import { applyManualScore, applyJudgeScore } from '../utils/manualGrading.js';
+import { getRunner, acquireSlot, releaseSlot } from '../services/judgeService.js';
 import { createNotification } from '../utils/notificationService.js';
 import log from '../utils/logger.js';
 
@@ -515,6 +516,73 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
 });
 
 /**
+ * FR-106 交卷异步判题：为本次答卷中「有判题配置的编程题」建 judge_runs 并异步执行。
+ * 非阻断；执行异常/无 docker 时该题 details 仍保持 needs_manual（回落人工），绝不误给分。
+ */
+async function enqueueProgrammingJudges(examId, attemptId, userId) {
+  const [examRows] = await pool.execute('SELECT question_set FROM exams WHERE id = ?', [examId]);
+  const qs = parseJsonSafe(examRows[0]?.question_set, []).map((x) => x.question_id);
+  if (!qs.length) return;
+  const ph = qs.map(() => '?').join(',');
+  const [rows] = await pool.query(
+    `SELECT q.id, jc.language, jc.time_limit_ms, jc.memory_limit_mb, jc.test_cases
+     FROM questions q JOIN question_judge_configs jc ON jc.question_id = q.id
+     WHERE q.id IN (${ph}) AND q.type = 'programming' AND q.deleted_at IS NULL`, qs);
+  if (!rows.length) return;
+  const [att] = await pool.execute('SELECT answers, org_id FROM exam_attempts WHERE id = ?', [attemptId]);
+  if (!att.length) return;
+  const answers = parseJsonSafe(att[0].answers, {});
+  for (const r of rows) {
+    const [ins] = await pool.execute(
+      `INSERT INTO judge_runs (attempt_id, question_id, status, created_by, org_id) VALUES (?, ?, 'queued', ?, ?)`,
+      [attemptId, r.id, userId, att[0].org_id ?? null]);
+    runJudge(ins.insertId, attemptId, r, answers[r.id] ?? '', att[0].org_id ?? null).catch((e) => log.warn('[fr106] run 失败:', e.message));
+  }
+}
+
+async function runJudge(runId, attemptId, cfg, code, orgId) {
+  await pool.execute(`UPDATE judge_runs SET status='running', updated_at=NOW() WHERE id=?`, [runId]);
+  await acquireSlot();
+  let res;
+  try {
+    res = await getRunner().run({ code, language: cfg.language, testCases: parseJsonSafe(cfg.test_cases, []), timeLimitMs: cfg.time_limit_ms, memoryLimitMb: cfg.memory_limit_mb });
+  } catch (e) {
+    await pool.execute(`UPDATE judge_runs SET status='failed', log=?, updated_at=NOW() WHERE id=?`, [String(e.message || e).slice(0, 500), runId]);
+    return; // 回落人工：该题 details 仍 needs_manual
+  } finally { releaseSlot(); }
+  await pool.execute(`UPDATE judge_runs SET status='done', verdict=?, passed=?, total=?, time_ms=?, updated_at=NOW() WHERE id=?`,
+    [res.verdict, res.passed, res.total, res.time_ms ?? null, runId]);
+  await writeJudgeScoreToAttempt(attemptId, cfg.id, res, orgId);
+}
+
+async function writeJudgeScoreToAttempt(attemptId, qid, res, orgId) {
+  const wconn = await pool.getConnection();
+  try {
+    await wconn.beginTransaction();
+    const [rows] = await wconn.execute('SELECT * FROM exam_attempts WHERE id = ? FOR UPDATE', [attemptId]);
+    if (rows.length === 0) { await wconn.rollback(); return; }
+    const attempt = rows[0];
+    if (!['submitted', 'auto_submitted'].includes(attempt.status)) { await wconn.rollback(); return; }
+    const details = parseJsonSafe(attempt.details, []);
+    const item = details.find((d) => Number(d.question_id) === Number(qid));
+    const pts = Number(item?.points) || 0;
+    const earned = res.total > 0 ? Math.round((pts * res.passed) / res.total) : 0;
+    const r = applyJudgeScore(details, qid, { earned, verdict: res.verdict, passed: res.passed, total: res.total });
+    await wconn.execute('UPDATE exam_attempts SET details=?, score=?, correct_count=?, updated_at=NOW() WHERE id=?',
+      [JSON.stringify(r.details), r.score, r.correctCount, attemptId]);
+    await wconn.commit();
+    if (r.changedToComplete) {
+      const [ex] = await pool.execute('SELECT title FROM exams WHERE id=?', [attempt.exam_id]);
+      createNotification(pool, {
+        user_id: attempt.user_id, type: 'score_ready', title: `${ex[0]?.title || '考试'} 成绩已更新`,
+        payload: { exam_id: attempt.exam_id, attempt_id: attemptId }, org_id: orgId,
+      }).catch((e) => log.warn('[fr106] 通知失败:', e.message));
+    }
+  } catch (e) { try { await wconn.rollback(); } catch { /* ignore */ } log.error('[fr106] 判题回写错误:', e); }
+  finally { wconn.release(); }
+}
+
+/**
  * POST /api/exams/:id/submit — 提交评分
  * 入口先 sweep 本场（排除当前 attempt）；用服务端 answers 逐题评分；返回含 correct_answer+explanation 的 details。
  */
@@ -587,6 +655,9 @@ router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
       ]
     );
     await conn.commit();
+
+    // FR-106：交卷后为「有判题配置的编程题」建 judge_runs 并异步判题（非阻断，失败回落人工）
+    enqueueProgrammingJudges(examId, Number(attemptId), req.user.id).catch((e) => log.warn('[fr106] enqueue 失败:', e.message));
 
     // FR-501：考试提交 → 记录今日打卡（非阻断，失败仅告警）
     tickDay(pool, req.user.id).catch((e) => log.warn('[streak] tickDay(exam) 失败:', e.message));

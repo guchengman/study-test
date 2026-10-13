@@ -40,6 +40,7 @@ async function cleanup(db) {
   await db.execute("DELETE FROM storage_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
   await db.execute("DELETE FROM question_judge_configs WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
+  await db.execute("DELETE FROM judge_runs WHERE attempt_id IN (SELECT id FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%'))");
   await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%')");
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
@@ -470,6 +471,27 @@ const main = async () => {
     check('FR106 练习运行样例 AC', rp.status === 200 && rp.data?.verdict === 'AC' && rp.data?.passed === rp.data?.total && rp.data.total >= 1, { status: rp.status, d: rp.data });
     const rbad = await api('POST', '/judge/practice', tToken, { question_id: qProg, code: 'print(0)' });
     check('FR106 练习运行样例 WA', rbad.status === 200 && rbad.data?.verdict === 'WA', rbad.data?.verdict);
+
+    // 19f) FR-106 考试异步判题：交卷→judge_runs done→details 回写 earned→score 命中
+    const rex = await api('POST', '/exams', tToken, { subject_id: 'it_subj_01', title: 'IT_FR106编考',
+      question_set: [{ question_id: qProg, points: 10 }], duration_minutes: 30, pass_score: 6 });
+    const exProg = rex.data?.id;
+    await api('PUT', `/exams/${exProg}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+    const rst = await api('POST', `/exams/${exProg}/start`, sToken);
+    const aid = rst.data?.attemptId;
+    const rsub = await api('POST', `/exams/${exProg}/submit`, sToken, { attemptId: aid, answers: { [qProg]: 'print(42)' } });
+    check('FR106 交卷(初判 needs_manual)', rsub.status === 200, rsub.status);
+    let final = null;
+    for (let i = 0; i < 30; i++) {
+      const ra = await api('GET', `/exams/attempts/${aid}`, sToken);
+      const body = ra.data?.attempt || ra.data;
+      const d = (body?.details || []).find((x) => Number(x.question_id) === Number(qProg));
+      if (d && d.needs_manual === false) { final = { score: body?.score, d }; break; }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    check('FR106 判题回写 earned=10 needs_manual=false', !!final && final.d.earned === 10 && final.d.judge_status === 'AC', final);
+    const rr = await api('GET', `/judge/runs/${aid}`, sToken);
+    check('FR106 judge_runs done', rr.status === 200 && (rr.data?.runs || []).some((x) => x.status === 'done' && x.verdict === 'AC'), rr.data);
   }
 
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）

@@ -62,4 +62,37 @@ export function applyManualScore(details, questionId, { earned, gradedBy = null 
   return { details: updated, ...totals, changedToComplete };
 }
 
-export default { applyManualScore, recomputeTotals };
+/**
+ * FR-106 判题回写：同 applyManualScore 口径，额外记录 judge_status/passed/total，graded_by 置 null(=judge)。
+ * earned 由调用方按 passed/total 比例算好后传入。
+ * @param {Array} details 原 details 数组（不修改入参）
+ * @param {number} questionId
+ * @param {{earned:number, verdict:string, passed:number, total:number}} opts
+ * @returns {{details:Array, score:number, correctCount:number, totalCount:number, changedToComplete:boolean}}
+ */
+export function applyJudgeScore(details, questionId, { earned, verdict, passed, total }) {
+  const idx = details.findIndex((d) => Number(d.question_id) === Number(questionId));
+  if (idx === -1) throw new Error(`题目 ${questionId} 不在答卷明细中`);
+  const points = Number(details[idx].points) || 0;
+  const e = clampEarned(earned, points);
+  const updated = details.map((d, i) =>
+    i === idx
+      ? {
+          ...d,
+          earned: e,
+          is_correct: points > 0 && e === points,
+          needs_manual: false,
+          graded_by: null,
+          graded_at: new Date().toISOString(),
+          judge_status: verdict,
+          judge_passed: passed,
+          judge_total: total,
+        }
+      : d,
+  );
+  const totals = recomputeTotals(updated);
+  const changedToComplete = !updated.some((d) => d.needs_manual === true);
+  return { details: updated, ...totals, changedToComplete };
+}
+
+export default { applyManualScore, recomputeTotals, applyJudgeScore };
