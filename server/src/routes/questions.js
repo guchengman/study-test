@@ -102,6 +102,14 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: '题目不存在或无权限' });
     }
     rows[0].is_owner = (rows[0].created_by === userId);
+    // FR-106：属主守卫内带出判题配置（027）；test_cases 为 JSON 列，mysql2 已解析为对象，字符串时兜底 parse
+    const [jcRows] = await pool.execute('SELECT language, time_limit_ms, memory_limit_mb, starter_code, test_cases FROM question_judge_configs WHERE question_id = ?', [rows[0].id]);
+    if (jcRows.length) {
+      const tc = typeof jcRows[0].test_cases === 'string' ? JSON.parse(jcRows[0].test_cases || '[]') : (jcRows[0].test_cases || []);
+      rows[0].judge_config = { ...jcRows[0], test_cases: tc };
+    } else {
+      rows[0].judge_config = null;
+    }
     res.json({ question: rows[0] });
   } catch (err) {
     log.error('获取题目错误:', err);
@@ -114,7 +122,7 @@ const VALID_QUESTION_TYPES = ['single', 'multiple', 'programming', 'judge', 'fil
 // 创建题目 — 自动绑定当前用户
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { subject_id, type, title, code, options, answer, explanation, points = 1, audio_url } = req.body;
+    const { subject_id, type, title, code, options, answer, explanation, points = 1, audio_url, judge_config } = req.body;
     if (!subject_id || !type || !title || !answer) {
       return res.status(400).json({ error: '科目、题型、标题和答案不能为空' });
     }
@@ -160,6 +168,16 @@ router.post('/', authMiddleware, async (req, res) => {
       [subject_id, type, title, code || null, options ? JSON.stringify(options) : null,
        JSON.stringify(answer), explanation || null, points, audio_url || null, req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
     );
+    // FR-106：编程题判题配置写 027 表（软引用，无 FK）
+    if (type === 'programming' && judge_config && Array.isArray(judge_config.test_cases)) {
+      await pool.execute(
+        `INSERT INTO question_judge_configs (question_id, language, time_limit_ms, memory_limit_mb, starter_code, test_cases, created_by, org_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [result.insertId, judge_config.language || 'python', Number(judge_config.time_limit_ms) || 2000,
+         Number(judge_config.memory_limit_mb) || 128, judge_config.starter_code || null,
+         JSON.stringify(judge_config.test_cases), req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
+      );
+    }
     res.json({ id: result.insertId, message: '题目创建成功' });
   } catch (err) {
     log.error('创建题目错误:', err);
@@ -230,6 +248,18 @@ router.post('/batch', authMiddleware, async (req, res) => {
          q.code || null, q.options ? JSON.stringify(q.options) : null,
          JSON.stringify(q.answer), q.explanation || null, q.points || 1, q.audio_url || null, req.user.id, batchOrgId]
       );
+      // FR-106：批量建编程题带 judge_config → 写 027（同事务，幂等 upsert）
+      if (qType === 'programming' && q.judge_config && Array.isArray(q.judge_config.test_cases)) {
+        await conn.execute(
+          `INSERT INTO question_judge_configs (question_id, language, time_limit_ms, memory_limit_mb, starter_code, test_cases, created_by, org_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE language=VALUES(language), time_limit_ms=VALUES(time_limit_ms), memory_limit_mb=VALUES(memory_limit_mb),
+             starter_code=VALUES(starter_code), test_cases=VALUES(test_cases), updated_at=NOW()`,
+          [result.insertId, q.judge_config.language || 'python', Number(q.judge_config.time_limit_ms) || 2000,
+           Number(q.judge_config.memory_limit_mb) || 128, q.judge_config.starter_code || null,
+           JSON.stringify(q.judge_config.test_cases), req.user.id, batchOrgId]
+        );
+      }
       results.push(result.insertId);
     }
     await conn.commit();
@@ -246,7 +276,7 @@ router.post('/batch', authMiddleware, async (req, res) => {
 // 更新题目 — 只能更新自己的
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { subject_id, type, title, code, options, answer, explanation, points, audio_url } = req.body;
+    const { subject_id, type, title, code, options, answer, explanation, points, audio_url, judge_config } = req.body;
     if (type && !VALID_QUESTION_TYPES.includes(type)) {
       return res.status(400).json({ error: `题型无效，仅支持: ${VALID_QUESTION_TYPES.join(', ')}` });
     }
@@ -269,6 +299,19 @@ router.put('/:id', authMiddleware, async (req, res) => {
       [subject_id, type, title, code || null, options ? JSON.stringify(options) : null,
        JSON.stringify(answer), explanation || null, points || 1, audio_url ?? null, req.params.id, req.user.id]
     );
+    // FR-106：更新判题配置（有则 upsert，显式 null 则清空）
+    if (judge_config && Array.isArray(judge_config.test_cases)) {
+      await pool.execute(
+        `INSERT INTO question_judge_configs (question_id, language, time_limit_ms, memory_limit_mb, starter_code, test_cases, created_by, org_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE language=VALUES(language), time_limit_ms=VALUES(time_limit_ms), memory_limit_mb=VALUES(memory_limit_mb),
+           starter_code=VALUES(starter_code), test_cases=VALUES(test_cases), updated_at=NOW()`,
+        [req.params.id, judge_config.language || 'python', Number(judge_config.time_limit_ms) || 2000,
+         Number(judge_config.memory_limit_mb) || 128, judge_config.starter_code || null, JSON.stringify(judge_config.test_cases), req.user.id, orgId]
+      );
+    } else if (judge_config === null) {
+      await pool.execute('DELETE FROM question_judge_configs WHERE question_id = ?', [req.params.id]);
+    }
     res.json({ message: '题目更新成功' });
   } catch (err) {
     log.error('更新题目错误:', err);

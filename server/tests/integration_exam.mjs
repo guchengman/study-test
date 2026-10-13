@@ -39,6 +39,7 @@ async function cleanup(db) {
   await db.execute("DELETE FROM quota_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM storage_usage WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
+  await db.execute("DELETE FROM question_judge_configs WHERE question_id IN (SELECT id FROM questions WHERE subject_id='it_subj_01')");
   await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%')");
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
@@ -449,6 +450,20 @@ const main = async () => {
 
     // 清理落盘音频文件（题/科目由既有 cleanup 覆盖）
     if (aUpData?.filename) { try { fs.unlinkSync(path.join(UPLOADS_ROOT, `user_${tId}`, aUpData.filename)); } catch { /* ignore */ } }
+  }
+
+  // 19d) FR-106 编程题判题配置：建题带 judge_config → 详情回读一致
+  {
+    const jc = { language: 'python', time_limit_ms: 2000, memory_limit_mb: 128, starter_code: 'def solve():\n    pass',
+      test_cases: [{ input: '21', expected_output: '42', is_sample: true }] };
+    const rc = await api('POST', '/questions', tToken, {
+      subject_id: 'it_subj_01', type: 'programming', title: 'IT_FR106编程题', answer: '(参考解)', judge_config: jc,
+    });
+    check('FR106 建编程题(200,id)', rc.status === 200 && rc.data?.id, rc.status);
+    const qProg = rc.data?.id;
+    const rd = await api('GET', `/questions/${qProg}`, tToken);
+    const got = rd.data?.question?.judge_config;
+    check('FR106 详情回读judge_config', rd.status === 200 && got?.language === 'python' && Array.isArray(got?.test_cases) && got.test_cases[0].expected_output === '42', { got });
   }
 
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
