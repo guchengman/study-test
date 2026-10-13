@@ -83,7 +83,10 @@ const main = async () => {
     const qAId = qA.data?.id;
 
     // ===== questions 跨租户 =====
-    // 正向对照（同端点/同键）：A 自己列表确有该题；同时内嵌 qAId 真值守卫，避免夹具 id 缺失时负向断言假绿
+    // 同端点正向对照：属主 tA 取自已题详情必 200（防详情路由本身回归时 B 侧 404 假绿）
+    const ownDetail = await api('GET', `/questions/${qAId}`, tA.token);
+    check('ISO questions A取A题(200,同端点对照)', !!qAId && ownDetail.status === 200, ownDetail.status);
+    // 正向对照（列表端点/同键）：A 自己列表确有该题；同时内嵌 qAId 真值守卫，避免夹具 id 缺失时负向断言假绿
     const listA = await api('GET', '/questions?subject_id=iso_subj_A', tA.token);
     check('ISO questions A列表确有该题(正向对照)',
       !!qAId && listA.status === 200 && asArray(listA.data?.questions).some((q) => q.id === qAId),
@@ -135,16 +138,22 @@ const main = async () => {
       { status: availA.status });
 
     if (examAId) {
+      // 同端点正向对照：属主 tA 看自己考试详情必 200（防详情路由自身回归时 B 侧 404 假绿）
+      const examOwn = await api('GET', `/exams/${examAId}`, tA.token);
+      check('ISO exams A看A考试详情(200,同端点对照)', examOwn.status === 200, examOwn.status);
       checkBlocked('ISO exams B看A考试详情(403/404)', await api('GET', `/exams/${examAId}`, tB.token));
       checkBlocked('ISO exams B看A答卷列表(403/404)', await api('GET', `/exams/${examAId}/attempts`, tB.token));
       checkBlocked('ISO exams B看A考情分析(403/404)', await api('GET', `/exams/${examAId}/analysis`, tB.token));
     } else {
+      check('ISO exams A看A考试详情(200,同端点对照)', false, 'examAId 缺失');
       check('ISO exams B看A考试详情(403/404)', false, 'examAId 缺失');
       check('ISO exams B看A答卷列表(403/404)', false, 'examAId 缺失');
       check('ISO exams B看A考情分析(403/404)', false, 'examAId 缺失');
     }
     if (attemptAId) {
       checkBlocked('ISO exam_attempts B读A学员答卷(403/404)', await api('GET', `/exams/attempts/${attemptAId}`, tB.token));
+    } else {
+      check('ISO exam_attempts B读A学员答卷(403/404)', false, 'attemptAId 缺失');
     }
     const availB = await api('GET', '/exams/available', sB.token);
     check('ISO exams A考试不在B学员可参加列表',
@@ -196,7 +205,7 @@ const main = async () => {
     // 记为一条恒定 ok:true 的断言，保证分母不随泄漏与否漂移，且名称可 grep；若缺口修复，名称会提示“请下线本软告警”。
     const tagBq = await api('GET', `/tags/question/${qAId}`, tB.token);
     const tagsLeaked = !!qAId && !!tagAId && tagBq.status === 200 && asArray(tagBq.data?.tags).some((t) => t.id === tagAId);
-    check(`ISO tags [KNOWN-GAP] 读侧越权${tagsLeaked ? '仍存在(待WS-2)' : '已消失→请下线本软告警'}`, true, { status: tagBq.status });
+    check(`ISO tags [KNOWN-GAP] 读侧越权${tagsLeaked ? '仍存在(待WS-2)' : '未泄漏(若已修复请下线本软告警)'}`, true, { status: tagBq.status, leaked: !!tagsLeaked, probed: !!(qAId && tagAId) });
 
     // B 标签树不含 A 私有标签（真实隔离断言，已核实通过）；补 A 树含自己标签的正向对照
     const treeA = await api('GET', '/tags/tree', tA.token);

@@ -29,7 +29,7 @@ export function resolveDbConfig() {
     password: process.env.EXAM_IT_DB_PASSWORD || process.env.DB_PASSWORD || '',
     database: process.env.EXAM_IT_DB_NAME || process.env.DB_NAME || 'study_test',
   };
-  if (!/test|ci/i.test(cfg.database) && !process.env.EXAM_IT_ALLOW_UNSAFE_DB) {
+  if (!/(^|[_-])(test|ci)([_-]|$)/i.test(cfg.database) && process.env.EXAM_IT_ALLOW_UNSAFE_DB !== '1') {
     throw new Error(`[integrationHarness] 拒绝在非测试库执行破坏性清理: ${cfg.host}/${cfg.database}（确需请设 EXAM_IT_ALLOW_UNSAFE_DB=1）`);
   }
   return cfg;
