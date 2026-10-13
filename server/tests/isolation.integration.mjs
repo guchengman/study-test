@@ -143,6 +143,29 @@ const main = async () => {
       check('ISO FR104 A列组确有该组(正向对照)', false, 'grpAId 缺失');
     }
 
+    // ===== FR-105 音频题跨租户（audio_url 依附 questions，读路径沿用 created_by 隔离）=====
+    const audioUrlFake = '/api/uploads/user_0/iso-audio-fake.mp3'; // 软引用字符串，不实际落盘，仅验证列随题隔离
+    const qAudioRes = await api('POST', '/questions', tA.token, {
+      subject_id: 'iso_subj_A', type: 'single', title: 'ISO_音频题A',
+      options: ['甲', '乙'], answer: '甲', audio_url: audioUrlFake,
+    });
+    check('ISO FR105 A建音频题', qAudioRes.status === 200 && qAudioRes.data?.id, qAudioRes.status);
+    const qAudioId = qAudioRes.data?.id;
+    if (qAudioId) {
+      // 属主正向对照：A 读回自己的音频题详情，audio_url 落库一致
+      const ownAudio = await api('GET', `/questions/${qAudioId}`, tA.token);
+      check('ISO FR105 A读回A音频题audio_url一致(200)', ownAudio.status === 200 && ownAudio.data?.question?.audio_url === audioUrlFake, ownAudio.status);
+      // 越权探测：B 读 A 的音频题详情应 403/404（音频路径不跨租户泄漏）
+      checkBlocked('ISO FR105 B读A音频题详情(403/404)', await api('GET', `/questions/${qAudioId}`, tB.token));
+      // 列表越权：B 按 A 的 subject_id 列题不含 A 音频题
+      const listAudioB = await api('GET', '/questions?subject_id=iso_subj_A', tB.token);
+      check('ISO FR105 B列表不含A音频题', listAudioB.status === 200 && !asArray(listAudioB.data?.questions).some((q) => q.id === qAudioId), { status: listAudioB.status });
+    } else {
+      check('ISO FR105 A读回A音频题audio_url一致(200)', false, 'qAudioId 缺失');
+      check('ISO FR105 B读A音频题详情(403/404)', false, 'qAudioId 缺失');
+      check('ISO FR105 B列表不含A音频题', false, 'qAudioId 缺失');
+    }
+
     // ===== exams / exam_attempts 跨租户 =====
     const examA = await api('POST', '/exams', tA.token, {
       subject_id: 'iso_subj_A', title: 'ISO_考A',
