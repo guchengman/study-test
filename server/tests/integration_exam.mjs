@@ -464,6 +464,12 @@ const main = async () => {
     const rd = await api('GET', `/questions/${qProg}`, tToken);
     const got = rd.data?.question?.judge_config;
     check('FR106 详情回读judge_config', rd.status === 200 && got?.language === 'python' && Array.isArray(got?.test_cases) && got.test_cases[0].expected_output === '42', { got });
+
+    // 19e) FR-106 练习同步运行样例（stub 判题：代码含 expected 子串即 AC，否则 WA）
+    const rp = await api('POST', '/judge/practice', tToken, { question_id: qProg, code: 'print(42)' });
+    check('FR106 练习运行样例 AC', rp.status === 200 && rp.data?.verdict === 'AC' && rp.data?.passed === rp.data?.total && rp.data.total >= 1, { status: rp.status, d: rp.data });
+    const rbad = await api('POST', '/judge/practice', tToken, { question_id: qProg, code: 'print(0)' });
+    check('FR106 练习运行样例 WA', rbad.status === 200 && rbad.data?.verdict === 'WA', rbad.data?.verdict);
   }
 
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）

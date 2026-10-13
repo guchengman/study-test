@@ -28,6 +28,7 @@ import studentRoutes from './routes/students.js';
 import aiRoutes from './routes/ai.js';
 import uploadRoutes, { uploadsRoot } from './routes/upload.js';
 import examsRoutes from './routes/exams.js';
+import judgeRoutes from './routes/judge.js';
 import { startExamSweepScheduler, stopExamSweepScheduler } from './utils/examSweepScheduler.js';
 import { startRecycleCleanupScheduler, stopRecycleCleanupScheduler } from './utils/recycleCleanupScheduler.js';
 import { startExportJobScheduler, stopExportJobScheduler } from './utils/exportJobScheduler.js';
@@ -149,6 +150,7 @@ app.use('/api/uploads', authMiddleware, express.static(uploadsRoot, {
   },
 }));
 app.use('/api/exams', examsRoutes);
+app.use('/api/judge', judgeRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/tags', tagRoutes);
 app.use('/api/notifications', notificationRoutes);
