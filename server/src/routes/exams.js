@@ -253,8 +253,10 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
     if (questionIds.length > 0) {
       const placeholders = questionIds.map(() => '?').join(',');
       const [qRows] = await pool.execute(
-        `SELECT id, type, title, code, options, answer, explanation, points
-         FROM questions WHERE id IN (${placeholders})`,
+        `SELECT q.id, q.type, q.title, q.code, q.options, q.answer, q.explanation, q.points,
+                q.group_id, qg.material AS group_material
+         FROM questions q LEFT JOIN question_groups qg ON q.group_id = qg.id
+         WHERE q.id IN (${placeholders})`,
         questionIds
       );
       qRows.forEach((r) => {
@@ -286,6 +288,8 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
         answer: parseJsonSafe(q.answer, q.answer),
         explanation: q.explanation || '',
         points: item.points,
+        group_id: q.group_id ?? null,
+        group_material: q.group_material ?? null,
       };
     });
 
@@ -435,8 +439,10 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
     if (questionIds.length > 0) {
       const placeholders = questionIds.map(() => '?').join(',');
       const [qRows] = await pool.execute(
-        `SELECT id, type, title, code, options, points
-         FROM questions WHERE deleted_at IS NULL AND id IN (${placeholders})`,
+        `SELECT q.id, q.type, q.title, q.code, q.options, q.points,
+                q.group_id, qg.material AS group_material
+         FROM questions q LEFT JOIN question_groups qg ON q.group_id = qg.id
+         WHERE q.deleted_at IS NULL AND q.id IN (${placeholders})`,
         questionIds
       );
       const qMap = {};
@@ -454,6 +460,8 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
             code: q.code,
             options: parseJsonSafe(q.options, []),
             points: item.points,
+            group_id: q.group_id ?? null,
+            group_material: q.group_material ?? null,
           };
         })
         .filter(Boolean);
