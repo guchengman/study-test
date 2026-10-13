@@ -23,6 +23,7 @@ async function cleanup(db) {
     "DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE title LIKE 'ISO\\_%')",
     "DELETE FROM question_tags WHERE name LIKE 'ISO\\_%'",
     "DELETE FROM questions WHERE title LIKE 'ISO\\_%'",
+    "DELETE FROM question_groups WHERE subject_id LIKE 'iso\\_subj\\_%'",
     "DELETE FROM mistake_records WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
     "DELETE FROM favorites WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
     "DELETE FROM study_stats WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
@@ -112,6 +113,35 @@ const main = async () => {
       { status: subjListB.status });
     checkBlocked('ISO subjects B改A科目(403/404)', await api('PUT', '/subjects/iso_subj_A', tB.token, { name: 'ISO_被篡改' }));
     checkBlocked('ISO subjects B删A科目(403/404)', await api('DELETE', '/subjects/iso_subj_A', tB.token));
+
+    // ===== FR-104 question_groups 材料组跨租户 =====
+    const grpA = await api('POST', '/question-groups', tA.token, {
+      subject_id: 'iso_subj_A',
+      material: 'ISO_材料A：阅读下列文字后作答。',
+      questions: [
+        { type: 'single', title: 'ISO_grp题1', options: ['甲', '乙'], answer: '甲', points: 5 },
+        { type: 'fill_in', title: 'ISO_grp题2', answer: '绿', points: 3 },
+      ],
+    });
+    check('ISO FR104 A 建材料组', grpA.status === 200 && grpA.data?.group_id && grpA.data?.question_ids?.length === 2, grpA.status);
+    const grpAId = grpA.data?.group_id;
+    if (grpAId) {
+      // 同端点正向对照：属主 tA 读自己组详情必 200（防详情路由自身回归时 B 侧 403 假绿）
+      const grpOwn = await api('GET', `/question-groups/${grpAId}`, tA.token);
+      check('ISO FR104 A读A组详情(200,同端点对照)', grpOwn.status === 200 && grpOwn.data?.group?.id === grpAId, grpOwn.status);
+      checkBlocked('ISO FR104 B读A组详情(403/404)', await api('GET', `/question-groups/${grpAId}`, tB.token));
+      // 列表越权：B 按 A 的 subject_id 列组，经 created_by 过滤应不含 A 组
+      const grpListB = await api('GET', '/question-groups?subject_id=iso_subj_A', tB.token);
+      check('ISO FR104 B列组不含A组', grpListB.status === 200 && !asArray(grpListB.data?.groups).some((g) => g.id === grpAId), { status: grpListB.status });
+      // 正向对照：A 自己列组确有该组
+      const grpListA = await api('GET', '/question-groups?subject_id=iso_subj_A', tA.token);
+      check('ISO FR104 A列组确有该组(正向对照)', grpListA.status === 200 && asArray(grpListA.data?.groups).some((g) => g.id === grpAId), { status: grpListA.status });
+    } else {
+      check('ISO FR104 A读A组详情(200,同端点对照)', false, 'grpAId 缺失');
+      check('ISO FR104 B读A组详情(403/404)', false, 'grpAId 缺失');
+      check('ISO FR104 B列组不含A组', false, 'grpAId 缺失');
+      check('ISO FR104 A列组确有该组(正向对照)', false, 'grpAId 缺失');
+    }
 
     // ===== exams / exam_attempts 跨租户 =====
     const examA = await api('POST', '/exams', tA.token, {

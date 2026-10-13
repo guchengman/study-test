@@ -70,10 +70,14 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const { subject_id } = req.query;
     if (!subject_id) return res.status(400).json({ error: 'subject_id 必填' });
-    const [groups] = await pool.execute(
-      'SELECT id, subject_id, material, created_by, created_at FROM question_groups WHERE subject_id = ? ORDER BY created_at DESC',
-      [subject_id]
-    );
+    // 属主隔离：非管理员仅见自己创建的组（与 GET /:id 的 created_by 守卫一致，杜绝按 subject_id 横向越权读取）
+    const mineOnly = req.user.role !== 'admin';
+    const listSql =
+      'SELECT id, subject_id, material, created_by, created_at FROM question_groups WHERE subject_id = ?' +
+      (mineOnly ? ' AND created_by = ?' : '') +
+      ' ORDER BY created_at DESC';
+    const listParams = mineOnly ? [subject_id, req.user.id] : [subject_id];
+    const [groups] = await pool.execute(listSql, listParams);
     const ids = groups.map((g) => g.id);
     const qMap = {};
     if (ids.length > 0) {
