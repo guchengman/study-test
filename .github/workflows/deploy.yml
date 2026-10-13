@@ -56,11 +56,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
-      - name: Install deps (scoring + server)
-        run: |
-          npm ci
-          node scripts/build-scoring.mjs
-          cd server && npm ci && cd ..
+      - name: Install server deps
+        run: cd server && npm ci
+        # 说明：不跑根 npm ci / build-scoring。本 job 不需前端构建；examScoring.generated.js 已入库；
+        #   集成/隔离脚本与后端仅依赖 server/node_modules（mysql2/dotenv/express 等），根 esbuild 为隐式传递依赖、不可靠。
       - name: Run migrations
         run: node server/src/migrate.js
       - name: Boot server (background)
@@ -75,6 +74,9 @@ jobs:
           done
           echo "server not healthy"; cat server.log; exit 1
       - name: Run integration + isolation suites
+        # 注：apiLimiter 为单实例跨 questions/subjects/practice/sync/upload/tags/notifications/admin 等 11 路由共享，
+        #   即 300 次/15分钟/每 IP 为这些前缀的【合计】单桶（非各自 300）。当前两套件受限调用约 ~100 次，余量 2–3 倍。
+        #   若后续新增大量断言触发 429 随机红，则需为限流提供 env 上限开关（API_LIMIT_MAX）或拆分重启后端，不属 M1 范围。
         run: |
           node server/tests/integration_exam.mjs
           node server/tests/isolation.integration.mjs
