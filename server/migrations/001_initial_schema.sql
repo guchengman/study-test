@@ -11,7 +11,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE IF NOT EXISTS visit_counter (
   id INT PRIMARY KEY DEFAULT 1,
   count INT DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 INSERT IGNORE INTO visit_counter (id, count) VALUES (1, 0);
 
 -- 2. 用户表
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
   KEY idx_teacher (teacher_id),
   KEY idx_role (role),
   FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. 科目表
 CREATE TABLE IF NOT EXISTS subjects (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS subjects (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_created_by (created_by),
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. 题目表
 CREATE TABLE IF NOT EXISTS questions (
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS questions (
   KEY idx_type (type),
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. 错题记录
 CREATE TABLE IF NOT EXISTS mistake_records (
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS mistake_records (
   KEY idx_user (user_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. 收藏夹
 CREATE TABLE IF NOT EXISTS favorites (
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS favorites (
   UNIQUE KEY uk_user_question (user_id, question_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. 学习统计
 CREATE TABLE IF NOT EXISTS study_stats (
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS study_stats (
   UNIQUE KEY uk_user_subject (user_id, subject_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. 邀请码表
 CREATE TABLE IF NOT EXISTS invite_codes (
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS invite_codes (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9. 科目订阅关系表
 CREATE TABLE IF NOT EXISTS subject_subscriptions (
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS subject_subscriptions (
   UNIQUE KEY uk_user_subject (user_id, subject_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 10. 科目-学生授权表（白名单模式，空表=全体学生）
 CREATE TABLE IF NOT EXISTS subject_student_access (
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS subject_student_access (
   KEY idx_student (student_user_id),
   FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
   FOREIGN KEY (student_user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
