@@ -144,11 +144,22 @@ const main = async () => {
       checkBlocked('ISO exams B看A考试详情(403/404)', await api('GET', `/exams/${examAId}`, tB.token));
       checkBlocked('ISO exams B看A答卷列表(403/404)', await api('GET', `/exams/${examAId}/attempts`, tB.token));
       checkBlocked('ISO exams B看A考情分析(403/404)', await api('GET', `/exams/${examAId}/analysis`, tB.token));
+      // ===== FR-103 人工判分端点跨租户（写端点纳入门禁，补上 M1 遗留 TODO）=====
+      // 同端点正向对照：属主 tA 读判分总览必 200（isOwner 先于题型校验，非人工题返回空数组仍 200）
+      const gradeOwn = await api('GET', `/exams/${examAId}/grading`, tA.token);
+      check('ISO fr103 grading A读A判分总览(200,同端点对照)', gradeOwn.status === 200, gradeOwn.status);
+      checkBlocked('ISO fr103 grading B读A判分总览(403/404)', await api('GET', `/exams/${examAId}/grading`, tB.token));
+      checkBlocked('ISO fr103 grading B读A某题作答(403/404)', await api('GET', `/exams/${examAId}/grading/${qAId}`, tB.token));
+      checkBlocked('ISO fr103 grading B写A判分(403/404)', await api('POST', `/exams/${examAId}/grading/${qAId}`, tB.token, { scores: [{ attempt_id: attemptAId || 1, earned: 5 }] }));
     } else {
       check('ISO exams A看A考试详情(200,同端点对照)', false, 'examAId 缺失');
       check('ISO exams B看A考试详情(403/404)', false, 'examAId 缺失');
       check('ISO exams B看A答卷列表(403/404)', false, 'examAId 缺失');
       check('ISO exams B看A考情分析(403/404)', false, 'examAId 缺失');
+      check('ISO fr103 grading A读A判分总览(200,同端点对照)', false, 'examAId 缺失');
+      check('ISO fr103 grading B读A判分总览(403/404)', false, 'examAId 缺失');
+      check('ISO fr103 grading B读A某题作答(403/404)', false, 'examAId 缺失');
+      check('ISO fr103 grading B写A判分(403/404)', false, 'examAId 缺失');
     }
     if (attemptAId) {
       checkBlocked('ISO exam_attempts B读A学员答卷(403/404)', await api('GET', `/exams/attempts/${attemptAId}`, tB.token));
