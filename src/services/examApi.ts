@@ -17,6 +17,10 @@ import type {
   ExamAnalysis,
   ExamCreatePayload,
   ExamUpdatePayload,
+  GradingQuestionItem,
+  GradingResponses,
+  GradeScoreInput,
+  GradeResult,
 } from '../types';
 
 export const examApi = {
@@ -75,6 +79,18 @@ export const examApi = {
   /** POST /api/exams/:id/sweep — 批量强制自动交卷（owner / 外部 cron） */
   sweep: (id: number) =>
     client.post<{ autoSubmitted: number }>(`/exams/${id}/sweep`),
+
+  /** GET /api/exams/:id/grading — FR-103 人工题判分总览（进度） */
+  gradingOverview: (id: number) =>
+    client.get<{ questions: GradingQuestionItem[] }>(`/exams/${id}/grading`),
+
+  /** GET /api/exams/:id/grading/:questionId — FR-103 某题跨学生作答 */
+  getResponses: (id: number, qid: number) =>
+    client.get<GradingResponses>(`/exams/${id}/grading/${qid}`),
+
+  /** POST /api/exams/:id/grading/:questionId — FR-103 批量回写分数 */
+  gradeResponses: (id: number, qid: number, scores: GradeScoreInput[]) =>
+    client.post<GradeResult>(`/exams/${id}/grading/${qid}`, { scores }),
 };
 
 export default examApi;

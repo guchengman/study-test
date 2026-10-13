@@ -384,3 +384,51 @@ export type ExamUpdatePayload = Partial<ExamCreatePayload> & { status?: ExamStat
 export interface ExamFormPayload extends ExamCreatePayload {
   status: ExamStatus;
 }
+
+// ===== FR-103 简答题/编程题人工判分 =====
+
+/** 判分总览中的人工题条目（仅 short_answer/programming） */
+export interface GradingQuestionItem {
+  question_id: number;
+  type: 'short_answer' | 'programming';
+  title: string;
+  points: number;
+  total_responses: number;
+  graded_count: number;
+}
+
+/** 某人工题的一份学生作答 */
+export interface GradingResponse {
+  attempt_id: number;
+  user_id: number;
+  username: string;
+  submitted_at: string;
+  user_answer: string | string[] | null;
+  earned: number;
+  graded: boolean;
+}
+
+/** GET /exams/:id/grading/:questionId 响应 */
+export interface GradingResponses {
+  question: {
+    question_id: number;
+    type: string;
+    title: string;
+    points: number;
+    reference_answer: unknown;
+    explanation: string;
+  };
+  responses: GradingResponse[];
+}
+
+/** 批量回写的单项分数 */
+export interface GradeScoreInput {
+  attempt_id: number;
+  earned: number;
+}
+
+/** POST 回写响应 */
+export interface GradeResult {
+  updated: number;
+  attempts: { attempt_id: number; score: number }[];
+}
