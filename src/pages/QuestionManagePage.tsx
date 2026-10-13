@@ -22,10 +22,12 @@ import {
   Inbox,
   ChevronLeft,
   Undo2,
+  Layers,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { questionApi } from '../services/api';
 import type { QuestionItem, RecycleQuestionItem, QuestionVersion } from '../services/api';
+import { QuestionGroupForm } from '../components/exam/QuestionGroupForm';
 
 const TYPE_LABELS: Record<string, string> = {
   single: '单选题',
@@ -58,6 +60,9 @@ export function QuestionManagePage() {
   const [versions, setVersions] = useState<QuestionVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState<boolean>(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  // FR-104 新建材料组模态
+  const [showGroupForm, setShowGroupForm] = useState<boolean>(false);
 
   const subjectName = useCallback(
     (id: string): string => ctx.allSubjects.find((s) => s.id === id)?.name || id,
@@ -191,6 +196,12 @@ export function QuestionManagePage() {
           <BookOpen size={26} className="text-indigo-500" />
           <h1 className="text-2xl font-bold text-slate-800">题目管理</h1>
         </div>
+        <button
+          onClick={() => setShowGroupForm(true)}
+          className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
+        >
+          <Layers size={16} /> 新建材料组
+        </button>
       </div>
 
       {/* Tab 切换 */}
@@ -363,6 +374,21 @@ export function QuestionManagePage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FR-104 新建材料组模态 */}
+      <AnimatePresence>
+        {showGroupForm && (
+          <QuestionGroupForm
+            open={showGroupForm}
+            subjects={ctx.allSubjects.map((s) => ({ id: s.id, name: s.name }))}
+            onClose={() => setShowGroupForm(false)}
+            onCreated={() => {
+              setShowGroupForm(false);
+              void loadQuestions();
+            }}
+          />
         )}
       </AnimatePresence>
     </motion.div>

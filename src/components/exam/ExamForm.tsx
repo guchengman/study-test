@@ -7,9 +7,9 @@
  */
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Save, CheckSquare, Square, AlertTriangle, Shuffle, Info } from 'lucide-react';
-import { questionApi, type QuestionItem } from '../../services/api';
-import type { Exam, ExamFormPayload, ExamStatus, Subject } from '../../types';
+import { X, Save, CheckSquare, Square, AlertTriangle, Shuffle, Info, Layers } from 'lucide-react';
+import { questionApi, questionGroupApi, type QuestionItem } from '../../services/api';
+import type { Exam, ExamFormPayload, ExamStatus, Subject, QuestionGroupSummary } from '../../types';
 import { VirtualList } from '../ui/VirtualList';
 
 /** 选题列表面板高度（px），与原 max-h-72 等价 */
@@ -149,6 +149,7 @@ export function ExamForm(props: ExamFormProps) {
 
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState<boolean>(false);
+  const [groups, setGroups] = useState<QuestionGroupSummary[]>([]);
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -202,6 +203,15 @@ export function ExamForm(props: ExamFormProps) {
       .finally(() => {
         if (active) setQuestionsLoading(false);
       });
+    // FR-104：并行拉取该科目的材料组（失败不阻断选题主流程）
+    questionGroupApi
+      .list(subjectId)
+      .then((res) => {
+        if (active) setGroups(res.groups || []);
+      })
+      .catch(() => {
+        if (active) setGroups([]);
+      });
     return () => {
       active = false;
     };
@@ -222,6 +232,17 @@ export function ExamForm(props: ExamFormProps) {
 
   const setPoints = (qid: number, points: number) => {
     setSelected((prev) => ({ ...prev, [qid]: points }));
+  };
+
+  /** FR-104 选组：将整组子题批量加入已选（已选保留原分，新加入默认题面分或 1 分） */
+  const addGroupToSelected = (g: QuestionGroupSummary) => {
+    setSelected((prev) => {
+      const next = { ...prev };
+      g.questions.forEach((q) => {
+        if (next[q.id] === undefined) next[q.id] = q.points || 1;
+      });
+      return next;
+    });
   };
 
   const subjectName = subjects.find((s) => s.id === subjectId)?.name || '';
@@ -541,6 +562,32 @@ export function ExamForm(props: ExamFormProps) {
 
           )}
         </div>
+
+        {/* FR-104 材料组：整组一键加入 */}
+        {groups.length > 0 && (
+          <div>
+            <label className="block text-sm font-bold text-slate-600 mb-2">
+              <Layers size={14} className="inline mr-1 text-amber-600" /> 材料组（{groups.length}）
+            </label>
+            <div className="space-y-2">
+              {groups.map((g) => (
+                <div key={g.id} className="flex items-center gap-3 p-3 rounded-2xl border border-amber-100 bg-amber-50/40">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-amber-600 font-bold uppercase mb-0.5">含 {g.questions.length} 道子题</div>
+                    <div className="text-sm text-slate-600 truncate">{g.material}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addGroupToSelected(g)}
+                    className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors"
+                  >
+                    <CheckSquare size={14} /> 加入整组
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 操作 */}
         <div className="flex items-center justify-end gap-3 pt-2">

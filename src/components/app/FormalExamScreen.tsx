@@ -167,6 +167,13 @@ export function FormalExamScreen(props: FormalExamScreenProps) {
           </div>
         </div>
 
+        {currentQuestion.group_material ? (
+          <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-100">
+            <div className="text-xs font-bold text-amber-600 uppercase mb-1">阅读材料</div>
+            <MarkdownRenderer content={currentQuestion.group_material} className="text-slate-700 leading-relaxed" />
+          </div>
+        ) : null}
+
         <MarkdownRenderer content={currentQuestion.title} className="text-xl font-bold mb-6 leading-snug" />
 
         <div className="space-y-3">
