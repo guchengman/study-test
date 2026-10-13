@@ -254,7 +254,7 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
       const placeholders = questionIds.map(() => '?').join(',');
       const [qRows] = await pool.execute(
         `SELECT q.id, q.type, q.title, q.code, q.options, q.answer, q.explanation, q.points,
-                q.group_id, qg.material AS group_material
+                q.group_id, qg.material AS group_material, q.audio_url
          FROM questions q LEFT JOIN question_groups qg ON q.group_id = qg.id
          WHERE q.id IN (${placeholders})`,
         questionIds
@@ -290,6 +290,7 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
         points: item.points,
         group_id: q.group_id ?? null,
         group_material: q.group_material ?? null,
+        audio_url: q.audio_url ?? null,
       };
     });
 
@@ -440,7 +441,7 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
       const placeholders = questionIds.map(() => '?').join(',');
       const [qRows] = await pool.execute(
         `SELECT q.id, q.type, q.title, q.code, q.options, q.points,
-                q.group_id, qg.material AS group_material
+                q.group_id, qg.material AS group_material, q.audio_url
          FROM questions q LEFT JOIN question_groups qg ON q.group_id = qg.id
          WHERE q.deleted_at IS NULL AND q.id IN (${placeholders})`,
         questionIds
@@ -462,6 +463,7 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
             points: item.points,
             group_id: q.group_id ?? null,
             group_material: q.group_material ?? null,
+            audio_url: q.audio_url ?? null,
           };
         })
         .filter(Boolean);

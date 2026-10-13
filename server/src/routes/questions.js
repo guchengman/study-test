@@ -114,7 +114,7 @@ const VALID_QUESTION_TYPES = ['single', 'multiple', 'programming', 'judge', 'fil
 // 创建题目 — 自动绑定当前用户
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { subject_id, type, title, code, options, answer, explanation, points = 1 } = req.body;
+    const { subject_id, type, title, code, options, answer, explanation, points = 1, audio_url } = req.body;
     if (!subject_id || !type || !title || !answer) {
       return res.status(400).json({ error: '科目、题型、标题和答案不能为空' });
     }
@@ -155,10 +155,10 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     
     const [result] = await pool.execute(
-      `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, audio_url, created_by, org_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [subject_id, type, title, code || null, options ? JSON.stringify(options) : null,
-       JSON.stringify(answer), explanation || null, points, req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
+       JSON.stringify(answer), explanation || null, points, audio_url || null, req.user.id, await resolvePersonalOrgId(pool, req.user.id)]
     );
     res.json({ id: result.insertId, message: '题目创建成功' });
   } catch (err) {
@@ -224,11 +224,11 @@ router.post('/batch', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: `第 ${results.length + 1} 道题题型无效` });
       }
       const [result] = await conn.execute(
-        `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, created_by, org_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO questions (subject_id, type, title, code, options, answer, explanation, points, audio_url, created_by, org_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [q.subject_id || subject_id, q.type || 'single', q.title,
          q.code || null, q.options ? JSON.stringify(q.options) : null,
-         JSON.stringify(q.answer), q.explanation || null, q.points || 1, req.user.id, batchOrgId]
+         JSON.stringify(q.answer), q.explanation || null, q.points || 1, q.audio_url || null, req.user.id, batchOrgId]
       );
       results.push(result.insertId);
     }
@@ -246,7 +246,7 @@ router.post('/batch', authMiddleware, async (req, res) => {
 // 更新题目 — 只能更新自己的
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { subject_id, type, title, code, options, answer, explanation, points } = req.body;
+    const { subject_id, type, title, code, options, answer, explanation, points, audio_url } = req.body;
     if (type && !VALID_QUESTION_TYPES.includes(type)) {
       return res.status(400).json({ error: `题型无效，仅支持: ${VALID_QUESTION_TYPES.join(', ')}` });
     }
@@ -264,10 +264,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const orgId = await resolvePersonalOrgId(pool, req.user.id);
     await snapshotCurrentVersion(pool, req.params.id, req.user.id, orgId);
     await pool.execute(
-      `UPDATE questions SET subject_id=?, type=?, title=?, code=?, options=?, answer=?, explanation=?, points=?, updated_at=NOW()
+      `UPDATE questions SET subject_id=?, type=?, title=?, code=?, options=?, answer=?, explanation=?, points=?, audio_url=?, updated_at=NOW()
        WHERE id = ? AND created_by = ?`,
       [subject_id, type, title, code || null, options ? JSON.stringify(options) : null,
-       JSON.stringify(answer), explanation || null, points || 1, req.params.id, req.user.id]
+       JSON.stringify(answer), explanation || null, points || 1, audio_url ?? null, req.params.id, req.user.id]
     );
     res.json({ message: '题目更新成功' });
   } catch (err) {

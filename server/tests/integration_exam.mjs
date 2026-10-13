@@ -388,6 +388,69 @@ const main = async () => {
   r = await api('POST', '/question-groups', tToken, { subject_id: 'it_subj_grp', material: 'm', questions: [] });
   check('FR104 子题空→400', r.status === 400, r.status);
 
+  // 19c) FR-105 听力题（音频挂载）端到端：上传音频→建题挂 audio_url→列/详情/开考下发→判分不变
+  {
+    // 用合法音频 MIME（fileFilter 校验扩展名 + mimetype，无需真实解码）
+    const MP3 = Buffer.from('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA', 'base64');
+    const aForm = new FormData();
+    aForm.append('file', new Blob([MP3], { type: 'audio/mpeg' }), 'it_audio.mp3');
+    const aUp = await fetch(BASE + '/upload/audio', { method: 'POST', headers: { Authorization: 'Bearer ' + tToken }, body: aForm });
+    const aUpData = await aUp.json().catch(() => null);
+    check('FR105 上传音频(200,含url)', aUp.status === 200 && typeof aUpData?.url === 'string' && /\/api\/uploads\/user_\d+\//.test(aUpData.url), { status: aUp.status, body: aUpData });
+    const audioUrl = aUpData?.url;
+
+    // 非法格式（伪装 .exe + 非 audio MIME）应 400
+    const badForm = new FormData();
+    badForm.append('file', new Blob([Buffer.from('notaudio')], { type: 'application/octet-stream' }), 'it_bad.exe');
+    const badUp = await fetch(BASE + '/upload/audio', { method: 'POST', headers: { Authorization: 'Bearer ' + tToken }, body: badForm });
+    check('FR105 非法音频格式被拒(400)', badUp.status === 400, badUp.status);
+
+    // 建题挂 audio_url（走 create 端点）
+    const rc = await api('POST', '/questions', tToken, {
+      subject_id: 'it_subj_01', type: 'single', title: 'IT_FR105音频题',
+      options: ['甲', '乙'], answer: '甲', audio_url: audioUrl,
+    });
+    check('FR105 建题(200,id)', rc.status === 200 && rc.data?.id, rc.status);
+    const qAudio = rc.data?.id;
+
+    // 列表原样回读 audio_url（SELECT q.* 自动带出）
+    const rl = await api('GET', '/questions?subject_id=it_subj_01', tToken);
+    const rowAudio = (rl.data?.questions || []).find((x) => x.id === qAudio);
+    check('FR105 列表回读audio_url一致', rl.status === 200 && rowAudio?.audio_url === audioUrl, { got: rowAudio?.audio_url });
+
+    // 详情回读
+    const rd = await api('GET', `/questions/${qAudio}`, tToken);
+    check('FR105 详情回读audio_url', rd.status === 200 && rd.data?.question?.audio_url === audioUrl, rd.status);
+
+    // 组卷 → 发布 → 开考：start 下发的题携 audio_url（脱敏仍成立，不含 answer/explanation）
+    const rex = await api('POST', '/exams', tToken, {
+      subject_id: 'it_subj_01', title: 'IT_FR105听考',
+      question_set: [{ question_id: qAudio, points: 100 }], duration_minutes: 30, pass_score: 60,
+    });
+    const exAudio = rex.data?.id;
+    await api('PUT', `/exams/${exAudio}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+    const rst = await api('POST', `/exams/${exAudio}/start`, sToken);
+    const startQ = (rst.data?.questions || []).find((x) => x.id === qAudio);
+    check('FR105 开考下发audio_url且脱敏', rst.status === 200 && startQ?.audio_url === audioUrl && !('answer' in (startQ || {})), { status: rst.status });
+
+    // 详情(组卷预览)也带出 audio_url
+    const redx = await api('GET', `/exams/${exAudio}`, tToken);
+    const detailQ = (redx.data?.exam?.questions || []).find((x) => x.id === qAudio);
+    check('FR105 试卷详情携audio_url', redx.status === 200 && detailQ?.audio_url === audioUrl, redx.status);
+
+    // 交卷判分不变：答对满分（证明音频列不影响 SSOT）
+    const rsub = await api('POST', `/exams/${exAudio}/submit`, sToken, { attemptId: rst.data.attemptId, answers: { [qAudio]: '甲' } });
+    check('FR105 判分不受影响 score=100', rsub.status === 200 && rsub.data.score === 100 && rsub.data.correct_count === 1, { status: rsub.status, score: rsub.data?.score });
+
+    // 更新可清空 audio_url（去掉音频回归普通题）
+    await api('PUT', `/questions/${qAudio}`, tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_FR105音频题', options: ['甲', '乙'], answer: '甲', audio_url: null });
+    const rnull = await api('GET', `/questions/${qAudio}`, tToken);
+    check('FR105 更新可清空audio_url', rnull.status === 200 && (rnull.data?.question?.audio_url == null), rnull.data?.question?.audio_url);
+
+    // 清理落盘音频文件（题/科目由既有 cleanup 覆盖）
+    if (aUpData?.filename) { try { fs.unlinkSync(path.join(UPLOADS_ROOT, `user_${tId}`, aUpData.filename)); } catch { /* ignore */ } }
+  }
+
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
   r = await api('POST', '/questions', tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题', options: ['A', 'B'], answer: 'A', points: 5 });
   check('FR-107 建题', r.status === 200 && r.data.id, r.status);
