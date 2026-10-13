@@ -215,6 +215,8 @@ export interface ExamQuestionDetail {
   code?: string | null;
   options?: string[];
   points: number;
+  group_id?: number | null;        // FR-104 材料题组软引用
+  group_material?: string | null;  // FR-104 共享材料本体（LEFT JOIN question_groups 带出）
 }
 
 /** 试卷详情 / 编辑中的完整题目（含答案，供 owner 预览与组卷） */
@@ -228,7 +230,25 @@ export interface ExamQuestionFull {
   explanation: string;
   points: number;
   missing?: boolean;
+  group_id?: number | null;        // FR-104
+  group_material?: string | null;  // FR-104
 }
+
+/** FR-104 建组提交体：一段共享材料 + N 道普通子题 */
+export interface QuestionGroupInput {
+  subject_id: string;
+  material: string;
+  questions: Array<{ type: string; title: string; code?: string; options?: string[]; answer: string | string[]; explanation?: string; points?: number }>;
+}
+
+/** FR-104 列组返回项（组卷「选组批量加入」用，子题不含答案） */
+export interface QuestionGroupSummary {
+  id: number; subject_id: string; material: string; created_by: number; created_at: string;
+  questions: { id: number; group_id: number; type: string; title: string; points: number }[];
+}
+
+/** FR-104 组详情（owner/管理员视角，子题含答案） */
+export interface QuestionGroupDetail { id: number; subject_id: string; material: string; questions: Record<string, unknown>[]; }
 
 /** 答卷明细项（exam_attempts.details JSON 元素，含正确答案 + 解析，供错题回顾） */
 export interface ExamAttemptDetail {

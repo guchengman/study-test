@@ -3,7 +3,7 @@
  * JWT Token 自动管理，请求/响应拦截
  */
 
-import { AISettings } from '../types';
+import { AISettings, QuestionGroupInput, QuestionGroupSummary, QuestionGroupDetail } from '../types';
 
 // 根据环境确定 API 基础 URL
 // 开发环境：使用代理 '/api'
@@ -186,6 +186,7 @@ export interface QuestionItem {
   userId: number;
   createdAt: string;
   updatedAt: string;
+  group_id?: number | null;  // FR-104 材料题组软引用，NULL/缺省=非子题
 }
 
 export interface MistakeItem { id: number; questionId: number; consecutiveCorrect: number; createdAt: string; updatedAt: string; }
@@ -343,6 +344,17 @@ export const questionApi = {
   /** 回退到指定版本 */
   revertVersion: (id: number, seq: number) =>
     client.post<{ message: string }>(`/questions/${id}/versions/${seq}/revert`),
+};
+
+// ─── FR-104 材料题组 API ───────────────────────
+
+export const questionGroupApi = {
+  create: (data: QuestionGroupInput) =>
+    client.post<{ group_id: number; question_ids: number[]; message: string }>('/question-groups', data),
+  list: (subjectId: string) =>
+    client.get<{ groups: QuestionGroupSummary[] }>(`/question-groups?subject_id=${encodeURIComponent(subjectId)}`),
+  detail: (id: number) =>
+    client.get<{ group: QuestionGroupDetail }>(`/question-groups/${id}`),
 };
 
 // ─── 练习/错题 API ─────────────────────────────────────────
