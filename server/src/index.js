@@ -19,6 +19,7 @@ import { pinoHttp } from 'pino-http';
 import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import questionRoutes from './routes/questions.js';
+import questionGroupRoutes from './routes/questionGroups.js';
 import subjectRoutes from './routes/subjects.js';
 import practiceRoutes from './routes/practice.js';
 import syncRoutes from './routes/sync.js';
@@ -132,6 +133,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/question-groups', questionGroupRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/practice', practiceRoutes);
 app.use('/api/sync', syncRoutes);

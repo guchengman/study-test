@@ -42,6 +42,10 @@ async function cleanup(db) {
   await db.execute("DELETE FROM question_tags WHERE org_id IN (SELECT o.id FROM organizations o JOIN org_members m ON m.org_id=o.id JOIN users u ON u.id=m.user_id WHERE u.username IN ('it_teacher','it_student'))");
   await db.execute("DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'IT_%')");
   await db.execute("DELETE FROM exams WHERE title LIKE 'IT_%'");
+  // FR-104 材料组：先删子题（questions.group_id 软引用，无 FK 级联）再删组，最后删科目
+  await db.execute("DELETE FROM questions WHERE subject_id='it_subj_grp'");
+  await db.execute("DELETE FROM question_groups WHERE subject_id='it_subj_grp'");
+  await db.execute("DELETE FROM subjects WHERE id='it_subj_grp'");
   await db.execute("DELETE FROM questions WHERE subject_id='it_subj_01'");
   await db.execute("DELETE FROM subjects WHERE id='it_subj_01'");
   await db.execute("DELETE FROM streak_events WHERE user_id IN (SELECT id FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2'))");
@@ -331,6 +335,58 @@ const main = async () => {
   await api('POST', `/exams/${exam3Id}/grading/${qPg3}`, tToken, { scores: [{ attempt_id: aStu1, earned: 3 }] });
   r = await api('GET', `/exams/attempts/${aStu1}`, tToken);
   check('FR103 幂等改判 score=13(简答10+编程3)', r.status === 200 && r.data.attempt.score === 13, { status: r.status, score: r.data && r.data.attempt && r.data.attempt.score });
+
+  // 19b) FR-104 材料题（一拖 N）核心纵切端到端：建组→列组→组详情→组卷→开考带材料→子题独立计分
+  await db.execute("INSERT INTO subjects (id,name,created_by,share_scope) VALUES ('it_subj_grp','材料题科目',?,'all')", [tId]);
+  r = await api('POST', '/question-groups', tToken, {
+    subject_id: 'it_subj_grp',
+    material: '阅读材料《春风》：“春风又绿江南岸，明月何时照我还。”',
+    questions: [
+      { type: 'single', title: 'G-诗的作者是谁', options: ['王安石', '李白', '杜甫', '白居易'], answer: '王安石', points: 5 },
+      { type: 'fill_in', title: 'G-填动词：春风又__江南岸', answer: '绿', points: 3 },
+      { type: 'short_answer', title: 'G-表达了怎样的情感', answer: '思乡', points: 6 },
+    ],
+  });
+  check('FR104 建组返回group_id+3子题', r.status === 200 && r.data.group_id && r.data.question_ids.length === 3, { status: r.status, body: r.data });
+  const grpId = r.data.group_id, gq1 = r.data.question_ids[0], gq2 = r.data.question_ids[1], gq3 = r.data.question_ids[2];
+
+  r = await api('GET', '/question-groups?subject_id=it_subj_grp', tToken);
+  check('FR104 列组含该组且携3子题', r.status === 200 && r.data.groups.some((g) => g.id === grpId && g.questions.length === 3), { status: r.status, n: r.data && r.data.groups && r.data.groups.length });
+
+  r = await api('GET', `/question-groups/${grpId}`, tToken);
+  check('FR104 组详情子题含答案', r.status === 200 && r.data.group.questions[0].answer === '王安石', r.status);
+
+  // 组卷：把该组 3 道子题整组纳入一张新试
+  r = await api('POST', '/exams', tToken, {
+    subject_id: 'it_subj_grp', title: 'IT_FR104材料题考试', duration_minutes: 30, pass_score: 60,
+    question_set: [{ question_id: gq1, points: 5 }, { question_id: gq2, points: 3 }, { question_id: gq3, points: 6 }],
+  });
+  check('FR104 组卷创建试卷', r.status === 200 && r.data.id, r.status);
+  const grpExamId = r.data.id;
+  r = await api('PUT', `/exams/${grpExamId}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+  check('FR104 试卷发布', r.status === 200, r.status);
+
+  // 学生开考：子题携共享材料（group_material）
+  r = await api('POST', `/exams/${grpExamId}/start`, sToken);
+  check('FR104 开考子题均带材料',
+    r.status === 200 && (r.data.questions || []).length === 3 && r.data.questions.every((q) => q.group_material && q.group_material.indexOf('春风') !== -1 && q.group_id === grpId),
+    { status: r.status, mats: (r.data.questions || []).map((q) => !!q.group_material) });
+  const grpAttemptId = r.data.attemptId;
+
+  // 交卷：单选对(5)+填空对(3)+简答(needs_manual 0) → score=8、correct_count=2（子题独立计分回写总分）
+  r = await api('POST', `/exams/${grpExamId}/submit`, sToken, {
+    attemptId: grpAttemptId,
+    answers: { [gq1]: '王安石', [gq2]: '绿', [gq3]: '我认为表达了思乡之情' },
+  });
+  check('FR104 子题独立计分 score=8 cc=2',
+    r.status === 200 && r.data.score === 8 && r.data.correct_count === 2,
+    { status: r.status, score: r.data && r.data.score, cc: r.data && r.data.correct_count });
+
+  // 非法入参：material 缺失/子题空 → 400
+  r = await api('POST', '/question-groups', tToken, { subject_id: 'it_subj_grp', material: '', questions: [{ type: 'single', title: 'x', answer: 'A' }] });
+  check('FR104 material缺失→400', r.status === 400, r.status);
+  r = await api('POST', '/question-groups', tToken, { subject_id: 'it_subj_grp', material: 'm', questions: [] });
+  check('FR104 子题空→400', r.status === 400, r.status);
 
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
   r = await api('POST', '/questions', tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题', options: ['A', 'B'], answer: 'A', points: 5 });
