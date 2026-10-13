@@ -250,6 +250,88 @@ const main = async () => {
   check('judge 答错(错↔正确) → is_correct=false 得0', dJudge2.is_correct === false && dJudge2.earned === 0, { ic: dJudge2.is_correct, e: dJudge2.earned });
   check('fill_in 同义项(二/四)全对 → is_correct=true 满分10', dFill2.is_correct === true && dFill2.earned === 10, { ic: dFill2.is_correct, e: dFill2.earned });
 
+  // 19) FR-103 人工判分工作流端到端（独立试卷：简答+编程各 10 分，两学生各一份已交卷）
+  const [qSa3r] = await db.execute(
+    "INSERT INTO questions (subject_id,type,title,options,answer,explanation,created_by) VALUES ('it_subj_01','short_answer','FR103简答',NULL,'\"参考答案\"','需人工判分',?)",
+    [tId],
+  );
+  const qSa3 = qSa3r.insertId;
+  const [qPg3r] = await db.execute(
+    "INSERT INTO questions (subject_id,type,title,options,answer,explanation,created_by) VALUES ('it_subj_01','programming','FR103编程',NULL,'\"print(1)\"','需人工判分',?)",
+    [tId],
+  );
+  const qPg3 = qPg3r.insertId;
+
+  r = await api('POST', '/exams', tToken, {
+    subject_id: 'it_subj_01', title: 'IT_FR103人工判分',
+    question_set: [{ question_id: qSa3, points: 10 }, { question_id: qPg3, points: 10 }],
+    duration_minutes: 30, pass_score: 60,
+  });
+  check('FR103 试卷创建', r.status === 200 && r.data.id, r.status);
+  const exam3Id = r.data.id;
+  r = await api('PUT', `/exams/${exam3Id}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+  check('FR103 试卷发布', r.status === 200, r.status);
+
+  // 两学生各 start+submit（都 needs_manual，score=0）
+  r = await api('POST', `/exams/${exam3Id}/start`, sToken);
+  const aStu1 = r.data.attemptId;
+  r = await api('POST', `/exams/${exam3Id}/submit`, sToken, { attemptId: aStu1, answers: { [qSa3]: '学生1简答', [qPg3]: 'print(student1)' } });
+  check('FR103 学生1交卷(全待人工 score=0)', r.status === 200 && r.data.score === 0, { status: r.status, score: r.data && r.data.score });
+  r = await api('POST', `/exams/${exam3Id}/start`, s2Token);
+  const aStu2 = r.data.attemptId;
+  r = await api('POST', `/exams/${exam3Id}/submit`, s2Token, { attemptId: aStu2, answers: { [qSa3]: '学生2简答', [qPg3]: 'print(student2)' } });
+  check('FR103 学生2交卷(全待人工 score=0)', r.status === 200 && r.data.score === 0, { status: r.status, score: r.data && r.data.score });
+
+  // 判分总览：2 题，各 total_responses=2 graded_count=0
+  r = await api('GET', `/exams/${exam3Id}/grading`, tToken);
+  check('FR103 总览含2人工题', r.status === 200 && r.data.questions.length === 2, { status: r.status, n: r.data && r.data.questions && r.data.questions.length });
+  const gSa = r.data.questions.find((q) => q.question_id === qSa3);
+  const gPg = r.data.questions.find((q) => q.question_id === qPg3);
+  check('FR103 总览进度=0/2', gSa.total_responses === 2 && gSa.graded_count === 0 && gPg.graded_count === 0, gSa);
+
+  // 某题作答列表（简答）：2 条未判
+  r = await api('GET', `/exams/${exam3Id}/grading/${qSa3}`, tToken);
+  check('FR103 简答作答=2条且未判', r.status === 200 && r.data.responses.length === 2 && r.data.responses.every((x) => x.graded === false), { status: r.status });
+
+  // 批量回写简答：学生1=10(满分) 学生2=4(部分)
+  r = await api('POST', `/exams/${exam3Id}/grading/${qSa3}`, tToken, { scores: [{ attempt_id: aStu1, earned: 10 }, { attempt_id: aStu2, earned: 4 }] });
+  check('FR103 简答批量回写 updated=2', r.status === 200 && r.data.updated === 2, { status: r.status, updated: r.data && r.data.updated });
+
+  // attempt 明细回读：学生1简答 needs_manual=false earned=10 is_correct=true
+  r = await api('GET', `/exams/attempts/${aStu1}`, tToken);
+  const item1 = r.data.attempt.details.find((d) => d.question_id === qSa3);
+  check('FR103 学生1简答已判=10', !!item1 && item1.needs_manual === false && item1.earned === 10 && item1.is_correct === true, item1);
+
+  // 总览进度：简答 graded_count=2，编程仍 0
+  r = await api('GET', `/exams/${exam3Id}/grading`, tToken);
+  const gSa2 = r.data.questions.find((q) => q.question_id === qSa3);
+  const gPg2 = r.data.questions.find((q) => q.question_id === qPg3);
+  check('FR103 进度更新 简答2/编程0', gSa2.graded_count === 2 && gPg2.graded_count === 0, { sa: gSa2.graded_count, pg: gPg2.graded_count });
+
+  // 非法：非本卷题 POST→400/404；空 scores→400
+  r = await api('POST', `/exams/${exam3Id}/grading/999999`, tToken, { scores: [{ attempt_id: aStu1, earned: 5 }] });
+  check('FR103 非法题目ID→400/404', r.status === 400 || r.status === 404, r.status);
+  r = await api('POST', `/exams/${exam3Id}/grading/${qSa3}`, tToken, { scores: [] });
+  check('FR103 空scores→400', r.status === 400, r.status);
+
+  // 判完翻转：仅给学生1编程满分 → 学生1全判完(score=20)并触发通知；学生2编程仍待人工→不通知
+  r = await api('POST', `/exams/${exam3Id}/grading/${qPg3}`, tToken, { scores: [{ attempt_id: aStu1, earned: 10 }] });
+  check('FR103 编程回写学生1 updated=1', r.status === 200 && r.data.updated === 1, { status: r.status, updated: r.data && r.data.updated });
+  r = await api('GET', `/exams/attempts/${aStu1}`, tToken);
+  check('FR103 学生1全判完 score=20', r.status === 200 && r.data.attempt.score === 20, { status: r.status, score: r.data && r.data.attempt && r.data.attempt.score });
+
+  // 通知落库：学生1有 score_ready(命中 attempt)，学生2无
+  await new Promise((resolve) => setTimeout(resolve, 120)); // 通知为事务外异步发送，留极短窗口
+  const [notif1] = await db.execute("SELECT id FROM notifications WHERE user_id=? AND type='score_ready' AND JSON_EXTRACT(payload,'$.attempt_id')=?", [sId, aStu1]);
+  check('FR103 学生1收到成绩通知', notif1.length >= 1, notif1.length);
+  const [notif2] = await db.execute("SELECT id FROM notifications WHERE user_id=? AND type='score_ready' AND JSON_EXTRACT(payload,'$.attempt_id')=?", [s2Id, aStu2]);
+  check('FR103 学生2未判完不发通知', notif2.length === 0, notif2.length);
+
+  // 幂等改判：学生1编程改判=3 → score=13（简答10+编程3，以完整 details 重算不双计）
+  await api('POST', `/exams/${exam3Id}/grading/${qPg3}`, tToken, { scores: [{ attempt_id: aStu1, earned: 3 }] });
+  r = await api('GET', `/exams/attempts/${aStu1}`, tToken);
+  check('FR103 幂等改判 score=13(简答10+编程3)', r.status === 200 && r.data.attempt.score === 13, { status: r.status, score: r.data && r.data.attempt && r.data.attempt.score });
+
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
   r = await api('POST', '/questions', tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题', options: ['A', 'B'], answer: 'A', points: 5 });
   check('FR-107 建题', r.status === 200 && r.data.id, r.status);
