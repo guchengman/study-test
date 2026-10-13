@@ -36,6 +36,17 @@ describe('api.mappers (R6 双轨类型映射)', () => {
     expect((q as unknown as Record<string, unknown>).createdAt).toBeUndefined();
   });
 
+  it('questionItemToQuestion: audio_url -> audioUrl（FR-105 软引用透传）', () => {
+    const item: QuestionItem = {
+      id: 2, subject_id: 'english', type: 'single', title: '听力',
+      options: ['A', 'B'], answer: 'A', points: 1,
+      userId: 1, createdAt: '', updatedAt: '',
+      audio_url: '/api/uploads/user_1/x.mp3',
+    };
+    const q = questionItemToQuestion(item);
+    expect(q.audioUrl).toBe('/api/uploads/user_1/x.mp3');
+  });
+
   it('subjectItemToSubject: isSystem 反向映射为 isCustom', () => {
     const item: SubjectItem = {
       id: 'math',

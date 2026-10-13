@@ -43,6 +43,7 @@ export function questionItemToQuestion(item: QuestionItem): Question {
     explanation: item.explanation,
     points: item.points,
     input: item.input,
+    audioUrl: item.audio_url ?? null,
   };
 }
 

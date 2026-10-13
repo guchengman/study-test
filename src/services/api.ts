@@ -187,6 +187,7 @@ export interface QuestionItem {
   createdAt: string;
   updatedAt: string;
   group_id?: number | null;  // FR-104 材料题组软引用，NULL/缺省=非子题
+  audio_url?: string | null; // FR-105 音频相对路径，NULL/缺省=非音频题
 }
 
 export interface MistakeItem { id: number; questionId: number; consecutiveCorrect: number; createdAt: string; updatedAt: string; }
@@ -401,6 +402,35 @@ export const uploadApi = {
       throw { message: data.error || `上传失败 (${res.status})`, status: res.status } as { message: string; status: number };
     }
     return res.json();
+  },
+  audio: async (file: File): Promise<{ url: string; filename: string }> => {
+    const form = new FormData();
+    form.append('file', file);
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/upload/audio`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw { message: data.error || `上传失败 (${res.status})`, status: res.status } as { message: string; status: number };
+    }
+    return res.json();
+  },
+};
+
+/** FR-105：带鉴权取媒体（浏览器 <audio src> 带不上 Authorization 头，改 fetch→blob→objectURL；参考 exportApi.downloadBlob） */
+export const mediaApi = {
+  fetchBlob: async (urlPath: string): Promise<Blob> => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}${urlPath}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`媒体加载失败 (${res.status})`);
+    return res.blob();
   },
 };
 

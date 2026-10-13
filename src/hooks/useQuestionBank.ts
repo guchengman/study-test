@@ -248,6 +248,7 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
         subject_id: q.subject, type: q.type, title: q.title,
         code: q.code, options: q.options, answer: q.answer,
         explanation: q.explanation, points: q.points, input: q.input,
+        audio_url: (q as { audioUrl?: string | null }).audioUrl ?? null,
       }));
       await questionApi.batchImport(apiQuestions, targetSubjectId);
       setCustomQuestions(prev => [...prev, ...enriched]);

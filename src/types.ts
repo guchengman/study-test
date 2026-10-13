@@ -149,6 +149,7 @@ export interface Question {
   explanation?: string;
   points: number;
   input?: string; // For questions that mention specific input
+  audioUrl?: string | null; // FR-105 听力题音频相对路径(/api/uploads/...)，NULL/缺省=非音频题
 }
 
 export interface ExamResult {
@@ -217,6 +218,7 @@ export interface ExamQuestionDetail {
   points: number;
   group_id?: number | null;        // FR-104 材料题组软引用
   group_material?: string | null;  // FR-104 共享材料本体（LEFT JOIN question_groups 带出）
+  audio_url?: string | null;       // FR-105 音频软引用（后端原样下发相对路径）
 }
 
 /** 试卷详情 / 编辑中的完整题目（含答案，供 owner 预览与组卷） */
@@ -232,6 +234,7 @@ export interface ExamQuestionFull {
   missing?: boolean;
   group_id?: number | null;        // FR-104
   group_material?: string | null;  // FR-104
+  audio_url?: string | null;       // FR-105 音频软引用（后端原样下发相对路径）
 }
 
 /** FR-104 建组提交体：一段共享材料 + N 道普通子题 */
