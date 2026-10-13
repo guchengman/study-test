@@ -13,17 +13,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(__dirname, '../../.env');
 if (existsSync(envPath)) dotenv.config({ path: envPath });
 
-const BASE = process.env.EXAM_IT_BASE || 'http://localhost:3100/api';
+// 默认 127.0.0.1（规避 Windows/Node17+ 下 localhost→::1 而 server 仅绑 IPv4 的 ECONNREFUSED）
+const BASE = process.env.EXAM_IT_BASE || 'http://127.0.0.1:3100/api';
 
-/** 测试库连接配置：CI 注入 service 容器凭据；本地沿用 server/.env 的 DB_* */
+/**
+ * 测试库连接配置：CI 注入 service 容器凭据；本地沿用 server/.env 的 DB_*。
+ * 破坏性清理护栏：库名不含 test/ci 时拒绝执行，防止误连生产库被 cleanup 物理删除；
+ * 确需在其它库跑时显式设 EXAM_IT_ALLOW_UNSAFE_DB=1。
+ */
 export function resolveDbConfig() {
-  return {
+  const cfg = {
     host: process.env.EXAM_IT_DB_HOST || process.env.DB_HOST || 'localhost',
     port: Number(process.env.EXAM_IT_DB_PORT || process.env.DB_PORT || 3306),
     user: process.env.EXAM_IT_DB_USER || process.env.DB_USER || 'studyapp',
     password: process.env.EXAM_IT_DB_PASSWORD || process.env.DB_PASSWORD || '',
     database: process.env.EXAM_IT_DB_NAME || process.env.DB_NAME || 'study_test',
   };
+  if (!/test|ci/i.test(cfg.database) && !process.env.EXAM_IT_ALLOW_UNSAFE_DB) {
+    throw new Error(`[integrationHarness] 拒绝在非测试库执行破坏性清理: ${cfg.host}/${cfg.database}（确需请设 EXAM_IT_ALLOW_UNSAFE_DB=1）`);
+  }
+  return cfg;
 }
 
 export const API_BASE = BASE;
@@ -58,14 +67,19 @@ export async function api(method, path, token, body) {
  * 未强制校验的环境会忽略种入的码，两种情况皆兼容。
  */
 export async function registerWithCode(db, payload, code = '654321') {
-  await db.execute(
-    "UPDATE email_verifications SET consumed = 1 WHERE email = ? AND purpose = 'register' AND consumed = 0",
-    [payload.email]
-  );
-  await db.execute(
-    "INSERT INTO email_verifications (email, purpose, code_hash, expires_at) VALUES (?, 'register', ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))",
-    [payload.email, crypto.createHash('sha256').update(code).digest('hex')]
-  );
+  // 种码表在极简 CI 库可能不存在；失败仅告警，不带码也能注册的环境不受影响。
+  try {
+    await db.execute(
+      "UPDATE email_verifications SET consumed = 1 WHERE email = ? AND purpose = 'register' AND consumed = 0",
+      [payload.email]
+    );
+    await db.execute(
+      "INSERT INTO email_verifications (email, purpose, code_hash, expires_at) VALUES (?, 'register', ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))",
+      [payload.email, crypto.createHash('sha256').update(code).digest('hex')]
+    );
+  } catch (e) {
+    console.warn('[registerWithCode] 种邮箱验证码失败（忽略，继续尝试注册）:', e.code || e.message);
+  }
   return api('POST', '/auth/register', null, { ...payload, emailCode: code });
 }
 

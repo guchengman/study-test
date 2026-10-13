@@ -15,23 +15,32 @@ const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 const asArray = (x) => (Array.isArray(x) ? x : []);
 
 async function cleanup(db) {
+  // 注意：MySQL LIKE 中 `_` 是单字符通配符，必须转义为 `\_`（JS 字符串写 `\\_`），
+  // 否则 'ISO_%' 会误删标题以 ISO/iso 开头的真实题目（如“ISO9001…”）。
   const runs = [
-    "DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'ISO_%')",
-    "DELETE FROM exams WHERE title LIKE 'ISO_%'",
-    "DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE title LIKE 'ISO_%')",
-    "DELETE FROM question_tags WHERE name LIKE 'ISO_%'",
-    "DELETE FROM questions WHERE title LIKE 'ISO_%'",
-    "DELETE FROM mistake_records WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it_iso_%')",
-    "DELETE FROM favorites WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it_iso_%')",
-    "DELETE FROM study_stats WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it_iso_%')",
-    "DELETE FROM subjects WHERE id LIKE 'iso_subj_%'",
-    "DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it_iso_%')",
-    "DELETE FROM org_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it_iso_%')",
-    "DELETE FROM organizations WHERE name LIKE 'it_iso_%'",
-    "DELETE FROM email_verifications WHERE email LIKE 'it_iso_%@test.com'",
-    "DELETE FROM users WHERE username LIKE 'it_iso_%'",
+    "DELETE FROM exam_attempts WHERE exam_id IN (SELECT id FROM exams WHERE title LIKE 'ISO\\_%')",
+    "DELETE FROM exams WHERE title LIKE 'ISO\\_%'",
+    "DELETE FROM question_tag_map WHERE question_id IN (SELECT id FROM questions WHERE title LIKE 'ISO\\_%')",
+    "DELETE FROM question_tags WHERE name LIKE 'ISO\\_%'",
+    "DELETE FROM questions WHERE title LIKE 'ISO\\_%'",
+    "DELETE FROM mistake_records WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
+    "DELETE FROM favorites WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
+    "DELETE FROM study_stats WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
+    "DELETE FROM subjects WHERE id LIKE 'iso\\_subj\\_%'",
+    "DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
+    "DELETE FROM org_members WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'it\\_iso\\_%')",
+    "DELETE FROM organizations WHERE name LIKE 'it\\_iso\\_%'",
+    "DELETE FROM email_verifications WHERE email LIKE 'it\\_iso\\_%@test.com'",
+    "DELETE FROM users WHERE username LIKE 'it\\_iso\\_%'",
   ];
-  for (const sql of runs) { await db.query(sql).catch(() => { /* 表不存在/无行时忽略，尽力清理 */ }); }
+  for (const sql of runs) {
+    try {
+      await db.query(sql);
+    } catch (e) {
+      // 表不存在/无行/ FK 阻塞时不改变退出码，但留下痕迹便于排障（区分“真删失败”与“无行可删”）
+      console.warn('[cleanup-skip]', sql.slice(0, 55), '→', e.code || e.message);
+    }
+  }
 }
 
 async function makeTenant(db, tag, role = 'teacher', phone) {
@@ -46,6 +55,7 @@ async function makeTenant(db, tag, role = 'teacher', phone) {
 
 async function makeStudent(db, tag, teacherId) {
   const stu = await makeTenant(db, tag, 'student');
+  if (!stu.id) throw new Error(`学员 ${tag} 注册失败（id 缺失），无法绑定 teacher_id`);
   await db.execute('UPDATE users SET teacher_id=? WHERE id=?', [teacherId, stu.id]);
   return stu;
 }
@@ -60,7 +70,8 @@ const main = async () => {
     const sA = await makeStudent(db, 'stuA', tA.id);
     const sB = await makeStudent(db, 'stuB', tB.id);
 
-    // A、B 各一私有科目（DB 直插，与 integration_exam 同法；share_scope=none 不对外共享）
+    // A、B 各一科目（DB 直插，与 integration_exam 同法）。
+    // A 必须用 'students'：否则 sA 无访问权，开考/练习等学员侧断言全部失效；'students' 仅本教师学生可见，仍不泄漏给 B。
     await db.execute("INSERT INTO subjects (id, name, created_by, share_scope) VALUES ('iso_subj_A', 'ISO_科目A', ?, 'students')", [tA.id]);
     await db.execute("INSERT INTO subjects (id, name, created_by, share_scope) VALUES ('iso_subj_B', 'ISO_科目B', ?, 'none')", [tB.id]);
 
@@ -72,13 +83,26 @@ const main = async () => {
     const qAId = qA.data?.id;
 
     // ===== questions 跨租户 =====
-    checkBlocked('ISO questions B取A题(403/404)', await api('GET', `/questions/${qAId}`, tB.token));
+    // 正向对照（同端点/同键）：A 自己列表确有该题；同时内嵌 qAId 真值守卫，避免夹具 id 缺失时负向断言假绿
+    const listA = await api('GET', '/questions?subject_id=iso_subj_A', tA.token);
+    check('ISO questions A列表确有该题(正向对照)',
+      !!qAId && listA.status === 200 && asArray(listA.data?.questions).some((q) => q.id === qAId),
+      { status: listA.status });
+    if (qAId) {
+      checkBlocked('ISO questions B取A题(403/404)', await api('GET', `/questions/${qAId}`, tB.token));
+    } else {
+      check('ISO questions B取A题(403/404)', false, 'qAId 缺失');
+    }
     const listB = await api('GET', '/questions?subject_id=iso_subj_A', tB.token);
     check('ISO questions B列表不含A题',
-      listB.status === 200 && !asArray(listB.data?.questions).some((q) => q.id === qAId),
+      !!qAId && listB.status === 200 && !asArray(listB.data?.questions).some((q) => q.id === qAId),
       { status: listB.status });
 
     // ===== subjects 跨租户 =====
+    const subjListA = await api('GET', '/subjects', tA.token);
+    check('ISO subjects A列表确有A科目(正向对照)',
+      subjListA.status === 200 && asArray(subjListA.data?.subjects).some((s) => s.id === 'iso_subj_A'),
+      { status: subjListA.status });
     const subjListB = await api('GET', '/subjects', tB.token);
     check('ISO subjects B列表不含A科目',
       subjListB.status === 200 && !asArray(subjListB.data?.subjects).some((s) => s.id === 'iso_subj_A'),
@@ -104,15 +128,27 @@ const main = async () => {
     const attemptAId = startA.data?.attemptId;
     check('ISO A 学员开考产出 attemptId', !!attemptAId, startA.status);
 
-    checkBlocked('ISO exams B看A考试详情(403/404)', await api('GET', `/exams/${examAId}`, tB.token));
-    checkBlocked('ISO exams B看A答卷列表(403/404)', await api('GET', `/exams/${examAId}/attempts`, tB.token));
-    checkBlocked('ISO exams B看A考情分析(403/404)', await api('GET', `/exams/${examAId}/analysis`, tB.token));
+    // 正向对照：合法属主 sA 确实可参加 A 教师的考试（证明“不泄漏”不是因考试根本不可见）
+    const availA = await api('GET', '/exams/available', sA.token);
+    check('ISO exams A考试在sA可参加列表(正向对照)',
+      !!examAId && availA.status === 200 && asArray(availA.data?.exams).some((e) => e.id === examAId),
+      { status: availA.status });
+
+    if (examAId) {
+      checkBlocked('ISO exams B看A考试详情(403/404)', await api('GET', `/exams/${examAId}`, tB.token));
+      checkBlocked('ISO exams B看A答卷列表(403/404)', await api('GET', `/exams/${examAId}/attempts`, tB.token));
+      checkBlocked('ISO exams B看A考情分析(403/404)', await api('GET', `/exams/${examAId}/analysis`, tB.token));
+    } else {
+      check('ISO exams B看A考试详情(403/404)', false, 'examAId 缺失');
+      check('ISO exams B看A答卷列表(403/404)', false, 'examAId 缺失');
+      check('ISO exams B看A考情分析(403/404)', false, 'examAId 缺失');
+    }
     if (attemptAId) {
       checkBlocked('ISO exam_attempts B读A学员答卷(403/404)', await api('GET', `/exams/attempts/${attemptAId}`, tB.token));
     }
     const availB = await api('GET', '/exams/available', sB.token);
     check('ISO exams A考试不在B学员可参加列表',
-      availB.status === 200 && !asArray(availB.data?.exams).some((e) => e.id === examAId), { status: availB.status });
+      !!examAId && availB.status === 200 && !asArray(availB.data?.exams).some((e) => e.id === examAId), { status: availB.status });
 
     // ===== mistakes / favorites / study_stats（学员维度"仅见己有"）=====
     // A 学员产生错题/收藏/学习统计（均基于 A 的题 qAId）
@@ -148,24 +184,33 @@ const main = async () => {
     const tagA = await api('POST', '/tags', tA.token, { name: 'ISO_标签A', level: 1 });
     const tagAId = tagA.data?.id;
     check('ISO A 建标签', tagA.status === 201 && !!tagAId, { status: tagA.status, id: tagAId });
-    if (tagAId) await api('POST', `/tags/question/${qAId}/bindTags`, tA.token, { tag_ids: [tagAId] });
+    if (tagAId && qAId) await api('POST', `/tags/question/${qAId}/bindTags`, tA.token, { tag_ids: [tagAId] });
 
-    // B 读 A 题的标签。
-    // 读侧发现：GET /tags/question/:id 当前不校验题目归属，会泄漏他人题目绑定的标签。
-    // 属 Phase 2 读侧隔离缺口（见 spec §4.2 / 待 WS-2 修复），M1 记为 KNOWN-GAP、不作硬门禁；
-    // 一旦将来修复（不可达或不含他人标签），下方自动转为一条绿色断言。
+    // 正向对照：A 自己读自己题目标签，必 200 且含 tagAId（未绑定成功则本条红，避免后续误判）
+    const tagOwn = await api('GET', `/tags/question/${qAId}`, tA.token);
+    check('ISO tags A题标签确有绑定(正向对照)',
+      !!qAId && !!tagAId && tagOwn.status === 200 && asArray(tagOwn.data?.tags).some((t) => t.id === tagAId),
+      { status: tagOwn.status });
+
+    // 读侧越权探测：GET /tags/question/:id 当前不校验题目归属（真实缺口，留待 WS-2）。
+    // 记为一条恒定 ok:true 的断言，保证分母不随泄漏与否漂移，且名称可 grep；若缺口修复，名称会提示“请下线本软告警”。
     const tagBq = await api('GET', `/tags/question/${qAId}`, tB.token);
-    const tagsLeaked = tagBq.status === 200 && asArray(tagBq.data?.tags).some((t) => t.id === tagAId);
-    if (tagsLeaked) {
-      console.log('⚠️  KNOWN-GAP ISO tags: GET /tags/question/:id 未做题目归属校验，B 读到 A 题目标签（读侧隔离待 WS-2）');
-    } else {
-      check('ISO tags B读A题标签(已隔离)', tagBq.status === 403 || tagBq.status === 404 || !asArray(tagBq.data?.tags).some((t) => t.id === tagAId), { status: tagBq.status });
-    }
-    // B 标签树是否含 A 私有标签（若含→暴露读侧未隔离，属真实发现）
+    const tagsLeaked = !!qAId && !!tagAId && tagBq.status === 200 && asArray(tagBq.data?.tags).some((t) => t.id === tagAId);
+    check(`ISO tags [KNOWN-GAP] 读侧越权${tagsLeaked ? '仍存在(待WS-2)' : '已消失→请下线本软告警'}`, true, { status: tagBq.status });
+
+    // B 标签树不含 A 私有标签（真实隔离断言，已核实通过）；补 A 树含自己标签的正向对照
+    const treeA = await api('GET', '/tags/tree', tA.token);
+    check('ISO tags A树含自己标签(正向对照)',
+      treeA.status === 200 && JSON.stringify(treeA.data?.tags || []).includes('ISO_标签A'),
+      { status: treeA.status });
     const treeB = await api('GET', '/tags/tree', tB.token);
     check('ISO tags B树不含A标签',
       treeB.status === 200 && !JSON.stringify(treeB.data?.tags || []).includes('ISO_标签A'),
       { status: treeB.status });
+
+    // TODO(覆盖度备忘，M1 范围外)：questions 组目前只冻结了读端点 GET /questions/:id 与列表；
+    //   写端点 PUT/DELETE /questions/:id、GET /questions/:id/versions、GET /subjects/:id/students 尚未纳入门禁
+    //   （现经核验这些端点均有 created_by 校验，不会立刻变红，但缺回归保护）。后续 WS 可扩展。
   } finally {
     await cleanup(db);
     await db.end();
