@@ -18,9 +18,78 @@ env:
   SERVER_PATH: /home/zengxiao/study-test
 
 jobs:
+  # Phase 2 / M1 跨租户隔离守门：起真实 MySQL 5.7 service 容器 + boot 真后端，
+  # 跑 integration_exam + isolation 两套集成测试；任一不过即 exit≠0，经 deploy 的 needs 阻断部署。
+  # 注意：server 绑 0.0.0.0（仅 IPv4），而 Node20 fetch localhost 会优先 ::1 → ECONNREFUSED，故统一用 127.0.0.1。
+  isolation-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: rootpw
+          MYSQL_DATABASE: study_test
+          MYSQL_USER: studyapp
+          MYSQL_PASSWORD: citestpw
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpw"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_USER: studyapp
+      DB_PASSWORD: citestpw
+      DB_NAME: study_test
+      JWT_SECRET: ci-only-jwt-secret-not-a-real-secret-0123456789
+      JWT_EXPIRES_IN: 7d
+      NODE_ENV: production
+      PORT: '3100'
+      EXAM_IT_BASE: http://127.0.0.1:3100/api
+      EXAM_IT_DB_HOST: 127.0.0.1
+      EXAM_IT_DB_PORT: '3306'
+      EXAM_IT_DB_USER: studyapp
+      EXAM_IT_DB_PASSWORD: citestpw
+      EXAM_IT_DB_NAME: study_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - name: Install deps (scoring + server)
+        run: |
+          npm ci
+          node scripts/build-scoring.mjs
+          cd server && npm ci && cd ..
+      - name: Run migrations
+        run: node server/src/migrate.js
+      - name: Boot server (background)
+        run: |
+          (cd server && exec node src/index.js) > server.log 2>&1 &
+          echo $! > server.pid
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3100/api/health >/dev/null; then echo "healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "server not healthy"; cat server.log; exit 1
+      - name: Run integration + isolation suites
+        run: |
+          node server/tests/integration_exam.mjs
+          node server/tests/isolation.integration.mjs
+      - name: Stop server
+        if: always()
+        run: kill "$(cat server.pid)" 2>/dev/null || true
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: isolation-server-log, path: server.log }
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: isolation-test
 
     steps:
       - name: Checkout code
