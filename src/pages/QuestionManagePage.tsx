@@ -23,11 +23,13 @@ import {
   ChevronLeft,
   Undo2,
   Layers,
+  BookPlus,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { questionApi } from '../services/api';
 import type { QuestionItem, RecycleQuestionItem, QuestionVersion } from '../services/api';
 import { QuestionGroupForm } from '../components/exam/QuestionGroupForm';
+import { QuestionForm } from '../components/exam/QuestionForm';
 
 const TYPE_LABELS: Record<string, string> = {
   single: '单选题',
@@ -63,6 +65,8 @@ export function QuestionManagePage() {
 
   // FR-104 新建材料组模态
   const [showGroupForm, setShowGroupForm] = useState<boolean>(false);
+  // FR-105 新建题目模态
+  const [showQuestionForm, setShowQuestionForm] = useState<boolean>(false);
 
   const subjectName = useCallback(
     (id: string): string => ctx.allSubjects.find((s) => s.id === id)?.name || id,
@@ -196,12 +200,20 @@ export function QuestionManagePage() {
           <BookOpen size={26} className="text-indigo-500" />
           <h1 className="text-2xl font-bold text-slate-800">题目管理</h1>
         </div>
-        <button
-          onClick={() => setShowGroupForm(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
-        >
-          <Layers size={16} /> 新建材料组
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowQuestionForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors"
+          >
+            <BookPlus size={16} /> 新建题目
+          </button>
+          <button
+            onClick={() => setShowGroupForm(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm hover:bg-amber-700 transition-colors"
+          >
+            <Layers size={16} /> 新建材料组
+          </button>
+        </div>
       </div>
 
       {/* Tab 切换 */}
@@ -386,6 +398,21 @@ export function QuestionManagePage() {
             onClose={() => setShowGroupForm(false)}
             onCreated={() => {
               setShowGroupForm(false);
+              void loadQuestions();
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* FR-105 新建题目模态 */}
+      <AnimatePresence>
+        {showQuestionForm && (
+          <QuestionForm
+            open={showQuestionForm}
+            subjects={ctx.allSubjects.map((s) => ({ id: s.id, name: s.name }))}
+            onClose={() => setShowQuestionForm(false)}
+            onCreated={() => {
+              setShowQuestionForm(false);
               void loadQuestions();
             }}
           />
