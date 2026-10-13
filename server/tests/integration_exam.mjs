@@ -18,40 +18,17 @@
  * 说明：使用 studyapp 直连库做种子与清理（可用 EXAM_IT_DB_HOST/PORT 覆盖）；通过真实 HTTP 调用 /api/exams 全链路。
  */
 import mysql from 'mysql2/promise';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { tickDay, checkBroken } from '../src/utils/streakService.js';
+import {
+  resolveDbConfig, results, check, api, registerWithCode, reportExit, API_BASE as BASE,
+} from './helpers/integrationHarness.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_ROOT = path.resolve(__dirname, '../uploads');
-
-const BASE = process.env.EXAM_IT_BASE || 'http://localhost:3100/api';
-const DB = {
-  host: process.env.EXAM_IT_DB_HOST || 'localhost',
-  port: Number(process.env.EXAM_IT_DB_PORT || 3306),
-  user: 'studyapp',
-  password: '<REDACTED_DB_PASSWORD>',
-  database: 'study_test',
-};
-
-const results = [];
-function check(name, cond, extra) {
-  results.push({ name, ok: !!cond });
-  console.log(`${cond ? '✅' : '❌'} ${name}${extra !== undefined ? '  ' + JSON.stringify(extra) : ''}`);
-}
-
-async function api(method, path, token, body) {
-  const res = await fetch(BASE + path, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let data = null;
-  try { data = await res.json(); } catch {}
-  return { status: res.status, data };
-}
+const DB = resolveDbConfig();
 
 const fmt = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
 
@@ -71,21 +48,6 @@ async function cleanup(db) {
   await db.execute("DELETE FROM streaks WHERE user_id IN (SELECT id FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2'))");
   await db.execute("DELETE FROM users WHERE username IN ('it_teacher','it_teacher2','it_student','it_student2')");
   await db.execute("DELETE FROM email_verifications WHERE email IN ('it_teacher@test.com','it_teacher2@test.com','it_student@test.com','it_student2@test.com')");
-}
-
-/**
- * 注册（兼容邮箱验证码强校验）：服务端 NODE_ENV=production 时 register 必须带 6 位验证码，
- * 而集成测试无法收邮件，故直接向 email_verifications 种入 sha256(码) 哈希再带码注册。
- * 若环境未强制校验，种入的码会被忽略，两种情况皆兼容。
- */
-async function registerWithCode(db, payload) {
-  const code = '654321';
-  await db.execute("UPDATE email_verifications SET consumed = 1 WHERE email = ? AND purpose = 'register' AND consumed = 0", [payload.email]);
-  await db.execute(
-    "INSERT INTO email_verifications (email, purpose, code_hash, expires_at) VALUES (?, 'register', ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))",
-    [payload.email, crypto.createHash('sha256').update(code).digest('hex')]
-  );
-  return api('POST', '/auth/register', null, { ...payload, emailCode: code });
 }
 
 const main = async () => {
@@ -736,9 +698,7 @@ const main = async () => {
 
   await cleanup(db); // 收尾清理，保持库整洁
   await db.end();
-  const failed = results.filter((x) => !x.ok);
-  console.log(`\n==== 集成联调结论：${results.length - failed.length}/${results.length} 通过 ====`);
-  process.exit(failed.length ? 1 : 0);
+  reportExit();
 };
 
 main().catch((e) => { console.error('FATAL', e); process.exit(2); });
