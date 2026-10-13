@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
-import type { Question, MistakeRecord } from '../../types';
+import type { Question, MistakeRecord, JudgeRunResult } from '../../types';
+import { judgeApi } from '../../services/api';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { AudioPlayer } from '../AudioPlayer';
 import { EmptyState } from '../ui/EmptyState';
@@ -114,6 +115,23 @@ export function ExamScreen(props: ExamScreenProps) {
   } = props;
 
   const [searchMode, setSearchMode] = React.useState<'text' | 'number'>('text');
+
+  // FR-106 练习同步运行样例（不计分）：本地结果态 + 切题清空
+  const [judgeResult, setJudgeResult] = React.useState<JudgeRunResult | null>(null);
+  const [judging, setJudging] = React.useState<boolean>(false);
+  React.useEffect(() => { setJudgeResult(null); }, [currentQuestion?.id]);
+  const runSample = async () => {
+    if (!currentQuestion) return;
+    setJudging(true); setJudgeResult(null);
+    try {
+      const r = await judgeApi.practice(currentQuestion.id, (userAnswers[currentQuestion.id] as string) || '');
+      setJudgeResult(r);
+    } catch (e) {
+      setJudgeResult({ verdict: 'RE', passed: 0, total: 0, perCase: [{ index: 0, ok: false, err: (e as { message?: string })?.message || '运行失败' }] });
+    } finally {
+      setJudging(false);
+    }
+  };
 
   // 搜索结果提到渲染函数外并 memo：既避免每次渲染重建数组，也让虚拟列表拿到稳定数据源
   const searchResults = React.useMemo<Question[]>(() => {
@@ -490,6 +508,27 @@ export function ExamScreen(props: ExamScreenProps) {
                 <button onClick={checkProgrammingAnswer} className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all">
                   提交并查看解析
                 </button>
+              )}
+              {/* FR-106 运行样例（同步判题、不计分）+ 逐用例结果面板 */}
+              <div className="flex items-center gap-3">
+                <button onClick={runSample} disabled={judging} className="py-3 px-5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-60">
+                  {judging ? '运行中…' : '运行样例'}
+                </button>
+                {judgeResult && (
+                  <span className={`font-bold ${judgeResult.verdict === 'AC' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {judgeResult.verdict} · {judgeResult.passed}/{judgeResult.total}
+                  </span>
+                )}
+              </div>
+              {judgeResult?.perCase && (
+                <div className="space-y-1">
+                  {judgeResult.perCase.map((pc) => (
+                    <div key={pc.index} className={`text-xs px-3 py-2 rounded-lg ${pc.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                      用例 #{pc.index + 1} {pc.ok ? '通过' : `失败${pc.err ? ' · ' + pc.err : ''}`}
+                      {!pc.ok && <pre className="mt-1 whitespace-pre-wrap">{`期望:\n${pc.expected ?? ''}\n实际:\n${pc.actual ?? ''}`}</pre>}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           ) : (

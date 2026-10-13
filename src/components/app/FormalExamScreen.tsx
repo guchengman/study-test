@@ -186,12 +186,19 @@ export function FormalExamScreen(props: FormalExamScreenProps) {
 
         <div className="space-y-3">
           {currentQuestion.type === 'programming' ? (
-            <textarea
-              value={(userAns as string) || ''}
-              onChange={(e) => setAnswer(qid, e.target.value)}
-              placeholder="在此输入你的 Python 代码..."
-              className="w-full h-48 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all resize-none"
-            />
+            <div className="space-y-2">
+              <textarea
+                value={(userAns as string) || ''}
+                onChange={(e) => setAnswer(qid, e.target.value)}
+                placeholder="在此输入你的 Python 代码..."
+                className="w-full h-48 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all resize-none"
+              />
+              {/* FR-106：编程题交卷后异步判题，成绩稍后更新（无法即时看到本题得分） */}
+              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                <AlarmClock size={14} className="flex-shrink-0" />
+                <span>交卷后系统将自动判题（判题中），本题成绩稍后更新，请留意成绩通知。</span>
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {currentQuestion.options?.map((option, i) => {
