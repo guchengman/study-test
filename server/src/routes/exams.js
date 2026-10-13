@@ -22,6 +22,8 @@ import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { checkQuota, recordUsage } from '../utils/quotaService.js';
 import { tickDay } from '../utils/streakService.js';
 import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
+import { applyManualScore } from '../utils/manualGrading.js';
+import { createNotification } from '../utils/notificationService.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -871,6 +873,183 @@ router.post('/:id(\\d+)/sweep', authMiddleware, async (req, res) => {
   } catch (err) {
     log.error('批量自动交卷错误:', err);
     res.status(500).json({ error: '批量自动交卷失败' });
+  }
+});
+
+/**
+ * FR-103：本卷人工题判分总览（仅 needs_manual 类型；仅已交卷 attempt）。
+ * GET /api/exams/:id/grading
+ */
+router.get('/:id(\\d+)/grading', authMiddleware, async (req, res) => {
+  try {
+    const examId = Number(req.params.id);
+    const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
+    if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
+    const exam = examRows[0];
+    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+
+    const qSet = parseJsonSafe(exam.question_set, []);
+    const ids = qSet.map((q) => q.question_id).filter((x) => x != null);
+    if (ids.length === 0) return res.json({ questions: [] });
+    const ph = ids.map(() => '?').join(',');
+    const [qRows] = await pool.execute(
+      `SELECT id, type, title, points FROM questions WHERE id IN (${ph}) AND type IN ('short_answer','programming')`,
+      ids,
+    );
+
+    const [attRows] = await pool.execute(
+      `SELECT id, details FROM exam_attempts WHERE exam_id = ? AND status IN ('submitted','auto_submitted')`,
+      [examId],
+    );
+
+    const questions = qRows.map((q) => {
+      const graded = attRows.filter((a) => {
+        const d = parseJsonSafe(a.details, []).find((x) => Number(x.question_id) === Number(q.id));
+        return d && d.needs_manual === false;
+      }).length;
+      return {
+        question_id: q.id,
+        type: q.type,
+        title: q.title,
+        points: Number(q.points) || 0,
+        total_responses: attRows.length,
+        graded_count: graded,
+      };
+    });
+    res.json({ questions });
+  } catch (err) {
+    log.error('判分总览错误:', err);
+    res.status(500).json({ error: '判分总览失败' });
+  }
+});
+
+/**
+ * FR-103：某人工题的所有已交卷作答（按 submitted_at 升序）。
+ * GET /api/exams/:id/grading/:questionId
+ */
+router.get('/:id(\\d+)/grading/:questionId(\\d+)', authMiddleware, async (req, res) => {
+  try {
+    const examId = Number(req.params.id);
+    const qid = Number(req.params.questionId);
+    const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
+    if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
+    const exam = examRows[0];
+    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+
+    const qSet = parseJsonSafe(exam.question_set, []).map((q) => q.question_id);
+    if (!qSet.includes(qid)) return res.status(400).json({ error: '题目不属于该考试' });
+    const [qRows] = await pool.execute(
+      `SELECT id, type, title, answer, points, explanation FROM questions WHERE id = ? AND type IN ('short_answer','programming')`,
+      [qid],
+    );
+    if (qRows.length === 0) return res.status(400).json({ error: '题目非人工题或不存在' });
+    const q = qRows[0];
+
+    const [attRows] = await pool.execute(
+      `SELECT a.id AS attempt_id, a.user_id, a.submitted_at, a.details, u.username
+       FROM exam_attempts a JOIN users u ON u.id = a.user_id
+       WHERE a.exam_id = ? AND a.status IN ('submitted','auto_submitted')
+       ORDER BY a.submitted_at ASC`,
+      [examId],
+    );
+
+    const responses = attRows.map((a) => {
+      const d = parseJsonSafe(a.details, []).find((x) => Number(x.question_id) === qid) || {};
+      return {
+        attempt_id: a.attempt_id,
+        user_id: a.user_id,
+        username: a.username,
+        submitted_at: a.submitted_at,
+        user_answer: d.user_answer ?? null,
+        earned: Number(d.earned) || 0,
+        graded: d.needs_manual === false,
+      };
+    });
+    res.json({
+      question: {
+        question_id: q.id,
+        type: q.type,
+        title: q.title,
+        points: Number(q.points) || 0,
+        reference_answer: parseJsonSafe(q.answer, q.answer),
+        explanation: q.explanation || '',
+      },
+      responses,
+    });
+  } catch (err) {
+    log.error('题目作答列表错误:', err);
+    res.status(500).json({ error: '获取作答失败' });
+  }
+});
+
+/**
+ * FR-103：批量给某人工题多份答卷回写分数（整批原子；事务 FOR UPDATE）。
+ * POST /api/exams/:id/grading/:questionId  body: { scores:[{attempt_id,earned}] }
+ */
+router.post('/:id(\\d+)/grading/:questionId(\\d+)', authMiddleware, async (req, res) => {
+  let conn = null;
+  try {
+    const examId = Number(req.params.id);
+    const qid = Number(req.params.questionId);
+    const scores = Array.isArray(req.body?.scores) ? req.body.scores : [];
+    if (scores.length === 0) return res.status(400).json({ error: 'scores 不能为空' });
+
+    const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
+    if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
+    const exam = examRows[0];
+    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+
+    const qSet = parseJsonSafe(exam.question_set, []).map((q) => q.question_id);
+    if (!qSet.includes(qid)) return res.status(400).json({ error: '题目不属于该考试' });
+    const [qRows] = await pool.execute(`SELECT id, type FROM questions WHERE id = ? AND type IN ('short_answer','programming')`, [qid]);
+    if (qRows.length === 0) return res.status(400).json({ error: '题目非人工题或不存在' });
+
+    conn = await pool.getConnection();
+    const updated = [];
+    await conn.beginTransaction();
+    for (const s of scores) {
+      const attemptId = Number(s.attempt_id);
+      const [rows] = await conn.execute('SELECT * FROM exam_attempts WHERE id = ? FOR UPDATE', [attemptId]);
+      if (rows.length === 0 || rows[0].exam_id !== examId || !['submitted', 'auto_submitted'].includes(rows[0].status)) {
+        await conn.rollback();
+        return res.status(400).json({ error: `非法 attempt ${attemptId}` });
+      }
+      const details = parseJsonSafe(rows[0].details, []);
+      const item = details.find((d) => Number(d.question_id) === qid);
+      if (!item) {
+        await conn.rollback();
+        return res.status(400).json({ error: `attempt ${attemptId} 不含该题` });
+      }
+      const r = applyManualScore(details, qid, { earned: s.earned, gradedBy: req.user.id });
+      await conn.execute(
+        'UPDATE exam_attempts SET details = ?, score = ?, correct_count = ?, updated_at = NOW() WHERE id = ?',
+        [JSON.stringify(r.details), r.score, r.correctCount, attemptId],
+      );
+      updated.push({ attempt_id: attemptId, score: r.score, user_id: rows[0].user_id, org_id: rows[0].org_id, complete: r.changedToComplete });
+    }
+    await conn.commit();
+
+    // 判完翻转 → 站内通知（非阻断，事务外发送）
+    for (const u of updated) {
+      if (u.complete) {
+        createNotification(pool, {
+          user_id: u.user_id,
+          type: 'score_ready',
+          title: `${exam.title} 成绩已更新`,
+          payload: { exam_id: examId, attempt_id: u.attempt_id },
+          org_id: u.org_id,
+        }).catch((e) => log.warn('[fr103] 通知失败:', e.message));
+      }
+    }
+    res.json({ updated: updated.length, attempts: updated.map((u) => ({ attempt_id: u.attempt_id, score: u.score })) });
+  } catch (err) {
+    try {
+      if (conn) await conn.rollback();
+    } catch {}
+    log.error('人工判分错误:', err);
+    res.status(500).json({ error: '人工判分失败' });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
