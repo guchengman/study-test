@@ -4,7 +4,10 @@
  * Runner 置于接口后：生产用 DockerRunner（每提交起 python:3-slim 容器），测试用确定性 StubRunner。
  * 由环境变量 JUDGE_RUNNER 切换（默认 'docker'；集成/单测设 'stub'）。
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import pool from '../db.js';
 import log from '../utils/logger.js';
 
@@ -52,12 +55,92 @@ export function dockerAvailable() {
   }
 }
 
-// DockerRunner 的真实实现见 Task 2b（同文件追加 createDockerRunner）。此处先给最小可用体。
+// —— DockerRunner：每提交起一个 python:3-slim 容器，一容器顺序跑完全部用例（禁网/只读/非root/资源上限）。
+/** 容器内 harness：逐用例喂 stdin、限时、比对归一 stdout，末行打印 ###RESULT###JSON。 */
+const RUNNER_PY = [
+  'import json, subprocess',
+  'cases = json.load(open("/code/cases.json", encoding="utf-8"))',
+  'meta = json.load(open("/code/run_meta.json", encoding="utf-8"))',
+  'tlimit = max(1, int(meta.get("time_limit_ms", 2000)) / 1000)',
+  'def norm(s):',
+  '    return "\\n".join(l.rstrip() for l in s.replace("\\r\\n", "\\n").split("\\n")).rstrip()',
+  'res = []; passed = 0',
+  'for i, c in enumerate(cases):',
+  '    try:',
+  '        p = subprocess.run(["python", "/code/solution.py"], input=str(c.get("input", "")),',
+  '            capture_output=True, text=True, timeout=tlimit)',
+  '        ok = norm(p.stdout) == norm(str(c.get("expected_output", "")))',
+  '        err = None if p.returncode == 0 else ("RE: rc=%d %s" % (p.returncode, p.stderr.strip()[:200]))',
+  '        actual = p.stdout',
+  '    except subprocess.TimeoutExpired:',
+  '        ok = False; err = "TLE"; actual = ""',
+  '    except Exception as e:',
+  '        ok = False; err = "RE:%s" % e; actual = ""',
+  '    if ok: passed += 1',
+  '    res.append({"index": i, "ok": ok, "expected": c.get("expected_output"), "actual": actual, "err": err})',
+  'total = len(cases)',
+  'verdict = "AC" if total > 0 and passed == total else ("CE" if total == 0 else "WA")',
+  'print("###RESULT###" + json.dumps({"verdict": verdict, "passed": passed, "total": total, "perCase": res}))',
+].join('\n');
+
+/** 解析 runner.py 末行 ###RESULT### JSON；无结果按运行时错误（fail-closed）。 */
+export function parseRunnerOutput(stdout, exitCode) {
+  const line = String(stdout || '').split('\n').find((l) => l.startsWith('###RESULT###'));
+  if (!line) return { verdict: exitCode === 0 ? 'RE' : 'CE', passed: 0, total: 0, perCase: [], log: `no-result exit=${exitCode}` };
+  try {
+    return JSON.parse(line.slice('###RESULT###'.length));
+  } catch {
+    return { verdict: 'RE', passed: 0, total: 0, perCase: [], log: 'bad-result-json' };
+  }
+}
+
+/** spawn docker run + wall-clock kill，返回 {stdout,stderr,code,ms}。 */
+function runDocker(args, hardMs) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    let child;
+    try {
+      child = spawn('docker', args);
+    } catch (e) {
+      resolve({ stdout: '', stderr: String(e.message || e), code: -1, ms: 0 });
+      return;
+    }
+    let stdout = '', stderr = '', done = false;
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    const killer = setTimeout(() => { if (!done) { try { child.kill('SIGKILL'); } catch { /* ignore */ } } }, hardMs);
+    child.on('close', (code) => { done = true; clearTimeout(killer); resolve({ stdout, stderr, code, ms: Date.now() - t0 }); });
+    child.on('error', (e) => { done = true; clearTimeout(killer); resolve({ stdout: '', stderr: String(e.message || e), code: -1, ms: Date.now() - t0 }); });
+  });
+}
+
 function createDockerRunner() {
+  const IMAGE = process.env.JUDGE_PYTHON_IMAGE || 'python:3-slim';
   return {
     name: 'docker',
-    run: async () => {
-      throw new Error('docker runner 未装配（见 Task 2b）');
+    async run({ code, testCases = [], timeLimitMs = 2000, memoryLimitMb = 128 }) {
+      const work = mkdtempSync(join(tmpdir(), 'judge-'));
+      try {
+        writeFileSync(join(work, 'solution.py'), String(code ?? ''), 'utf8');
+        writeFileSync(join(work, 'cases.json'), JSON.stringify(testCases), 'utf8');
+        writeFileSync(join(work, 'run_meta.json'), JSON.stringify({ time_limit_ms: timeLimitMs }), 'utf8');
+        writeFileSync(join(work, 'runner.py'), RUNNER_PY, 'utf8');
+        try { chmodSync(work, 0o755); ['solution.py', 'cases.json', 'run_meta.json', 'runner.py'].forEach((f) => chmodSync(join(work, f), 0o644)); } catch { /* ignore (Windows/dev) */ }
+        const hardMs = timeLimitMs * Math.max(1, testCases.length) + 8000; // 含冷启裕量
+        const args = [
+          'run', '--rm', '--network', 'none', '--memory', `${memoryLimitMb}m`, '--cpus', '0.5',
+          '--pids-limit', '64', '--read-only', '--tmpfs', '/tmp:rw,size=16m', '--user', 'nobody',
+          '-v', `${work}:/code:ro`, IMAGE, 'python', '/code/runner.py',
+        ];
+        const out = await runDocker(args, hardMs);
+        const result = parseRunnerOutput(out.stdout, out.code);
+        if (out.stderr && /docker|command not found|No such file/i.test(out.stderr)) {
+          log.warn('[fr106] docker 执行异常:', out.stderr.slice(0, 200));
+        }
+        return { ...result, time_ms: out.ms, mem_kb: 0, log: out.stderr || result.log || '' };
+      } finally {
+        try { rmSync(work, { recursive: true, force: true }); } catch { /* ignore */ }
+      }
     },
   };
 }
