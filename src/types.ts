@@ -150,6 +150,18 @@ export interface Question {
   points: number;
   input?: string; // For questions that mention specific input
   audioUrl?: string | null; // FR-105 听力题音频相对路径(/api/uploads/...)，NULL/缺省=非音频题
+  judge_config?: JudgeConfig | null; // FR-106 编程题判题配置（仅 type='programming' 有值）
+}
+
+// ===== FR-106 编程题在线判题契约 =====
+export interface JudgeTestCase { input: string; expected_output: string; is_sample?: boolean; }
+export interface JudgeConfig { language?: string; time_limit_ms?: number; memory_limit_mb?: number; starter_code?: string | null; test_cases: JudgeTestCase[]; }
+export interface JudgeRunResult {
+  verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE' | string;
+  passed: number;
+  total: number;
+  time_ms?: number;
+  perCase?: { index: number; ok: boolean; expected?: string; actual?: string; err?: string | null }[];
 }
 
 export interface ExamResult {

@@ -3,7 +3,7 @@
  * JWT Token 自动管理，请求/响应拦截
  */
 
-import { AISettings, QuestionGroupInput, QuestionGroupSummary, QuestionGroupDetail } from '../types';
+import { AISettings, QuestionGroupInput, QuestionGroupSummary, QuestionGroupDetail, JudgeConfig, JudgeRunResult } from '../types';
 
 // 根据环境确定 API 基础 URL
 // 开发环境：使用代理 '/api'
@@ -188,6 +188,7 @@ export interface QuestionItem {
   updatedAt: string;
   group_id?: number | null;  // FR-104 材料题组软引用，NULL/缺省=非子题
   audio_url?: string | null; // FR-105 音频相对路径，NULL/缺省=非音频题
+  judge_config?: JudgeConfig | null; // FR-106 编程题判题配置，仅 type='programming' 有值
 }
 
 export interface MistakeItem { id: number; questionId: number; consecutiveCorrect: number; createdAt: string; updatedAt: string; }
@@ -432,6 +433,14 @@ export const mediaApi = {
     if (!res.ok) throw new Error(`媒体加载失败 (${res.status})`);
     return res.blob();
   },
+};
+
+/** FR-106 编程题在线判题：练习同步跑样例（不计分）+ 答卷判题运行查询。 */
+export const judgeApi = {
+  practice: (questionId: number, code: string): Promise<JudgeRunResult> =>
+    client.post<JudgeRunResult>('/judge/practice', { question_id: questionId, code }),
+  runs: (attemptId: number): Promise<{ runs: { id: number; question_id: number; status: string; verdict: string | null; passed: number | null; total: number | null }[] }> =>
+    client.get(`/judge/runs/${attemptId}`),
 };
 
 export default client;
