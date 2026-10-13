@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type { Question, MistakeRecord } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
+import { AudioPlayer } from '../AudioPlayer';
 import { EmptyState } from '../ui/EmptyState';
 import { PrimaryButton, GhostButton } from '../ui/Button';
 import { VirtualList } from '../ui/VirtualList';
@@ -424,6 +425,13 @@ export function ExamScreen(props: ExamScreenProps) {
             )}
           </div>
         </div>
+
+        {currentQuestion.audioUrl ? (
+          <div className="mb-4 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+            <div className="text-xs font-bold text-indigo-600 uppercase mb-2">听力音频</div>
+            <AudioPlayer src={currentQuestion.audioUrl} />
+          </div>
+        ) : null}
 
         <MarkdownRenderer content={currentQuestion.title} className="text-xl font-bold mb-6 leading-snug" />
 

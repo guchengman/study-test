@@ -11,6 +11,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, AlarmClock, Send, XCircle } from 'lucide-react';
 import type { ExamAvailableItem, ExamQuestionDetail } from '../../types';
 import { MarkdownRenderer } from '../MarkdownRenderer';
+import { AudioPlayer } from '../AudioPlayer';
 import { ConfirmModal } from '../ConfirmModal';
 import { Spinner } from '../ui/Spinner';
 import { EmptyState } from '../ui/EmptyState';
@@ -171,6 +172,13 @@ export function FormalExamScreen(props: FormalExamScreenProps) {
           <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-100">
             <div className="text-xs font-bold text-amber-600 uppercase mb-1">阅读材料</div>
             <MarkdownRenderer content={currentQuestion.group_material} className="text-slate-700 leading-relaxed" />
+          </div>
+        ) : null}
+
+        {currentQuestion.audio_url ? (
+          <div className="mb-4 p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
+            <div className="text-xs font-bold text-indigo-600 uppercase mb-2">听力音频</div>
+            <AudioPlayer src={currentQuestion.audio_url} />
           </div>
         ) : null}
 
