@@ -9,6 +9,7 @@
  *           且（科目无白名单 或 当前用户在 subject_student_access 白名单）
  */
 import pool from '../db.js';
+import { hasCapability } from './authority.js';
 
 /**
  * 判断某科目对指定用户是否可见（可参加）。
@@ -32,21 +33,20 @@ export async function canAccessSubject(userId, subjectId) {
 }
 
 /**
- * 判断指定用户是否可管理某科目（出题 / 组卷）。
- * 可管理 = 科目创建者是自己 OR 用户是 admin/teacher。
- * @param {number} userId 用户 ID
+ * 判断当前请求用户是否可管理某科目（出题 / 组卷）。
+ * 可管理 = 科目创建者是自己 OR 持有 content.manage 能力（M2：原 admin/teacher）。
+ * @param {object} req 已跑过 authWithAuthority 的请求（含 req.user / req.caps）
  * @param {string} subjectId 科目 ID
  * @returns {Promise<boolean>}
  */
-export async function canManageSubject(userId, subjectId) {
+export async function canManageSubject(req, subjectId) {
   const [rows] = await pool.execute(
-    `SELECT 1 FROM subjects s WHERE s.id = ? AND (
-       s.created_by = ?
-       OR EXISTS (SELECT 1 FROM users u WHERE u.id = ? AND u.role IN ('admin','teacher'))
-     )`,
-    [subjectId, userId, userId]
+    `SELECT created_by FROM subjects WHERE id = ?`,
+    [subjectId]
   );
-  return rows.length > 0;
+  if (rows.length === 0) return false;
+  if (rows[0].created_by === req.user.id) return true;
+  return hasCapability(req, 'content.manage');
 }
 
 export default { canAccessSubject, canManageSubject };

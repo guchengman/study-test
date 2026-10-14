@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { resolveAuthority } from '../utils/authority.js';
+import { resolveAuthority, hasCapability } from '../utils/authority.js';
 
 /** 开发环境可用占位密钥；生产环境由 index.js 启动前校验 JWT_SECRET，此处不应落到占位 */
 export function getJwtSecret() {
@@ -39,7 +39,9 @@ export function authMiddleware(req, res, next) {
 }
 
 export function adminMiddleware(req, res, next) {
-  if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
+  // 旧：role in (admin,teacher) → 新：content.manage（platform_admin/org_admin/content_author 持有）
+  // 前置须为 authWithAuthority（否则 req.caps 未注入）。
+  if (!hasCapability(req, 'content.manage')) {
     return res.status(403).json({ error: '权限不足' });
   }
   next();

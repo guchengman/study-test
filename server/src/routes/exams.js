@@ -59,7 +59,7 @@ router.post('/', authWithAuthority, async (req, res) => {
     }
 
     // 校验科目可管理
-    const manageable = await canManageSubject(req.user.id, subject_id);
+    const manageable = await canManageSubject(req, subject_id);
     if (!manageable) {
       return res.status(403).json({ error: '无权在该科目下创建考试' });
     }
