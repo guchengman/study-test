@@ -296,6 +296,23 @@ export const subjectApi = {
 
 // ─── 题目 API ───────────────────────────────────────────────
 
+// ─── 公开分享落地页（无需登录） ───────────────────────────
+export interface PublicShareQuestion { id: number; type: 'single' | 'multiple'; title: string; options: string[]; }
+export interface PublicSharePreview {
+  subject: { name: string; icon: string; welcomeTitle: string; welcomeDesc: string; questionCount: number; byType: Record<string, number> };
+  creator: { displayName: string } | null;
+  experience: { quizToken: string; questions: PublicShareQuestion[] };
+}
+export interface PublicShareGradeResult { qid: number; correct: boolean; }
+export interface PublicShareGrade { total: number; correct: number; scorePercent: number; results: PublicShareGradeResult[]; }
+
+export const publicShareApi = {
+  preview: (code: string, signal?: AbortSignal) =>
+    client.get<PublicSharePreview>(`/public/share/${encodeURIComponent(code)}`, signal),
+  grade: (quizToken: string, answers: Record<string, unknown>) =>
+    client.post<PublicShareGrade>('/public/share/grade', { quizToken, answers }),
+};
+
 export const questionApi = {
   list: (params?: { subject?: string; type?: string; page?: number; limit?: number; }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
