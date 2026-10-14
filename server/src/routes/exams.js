@@ -1,7 +1,7 @@
 /**
  * 正式考试模块路由 /api/exams
  *
- * 鉴权：全部端点需 authMiddleware（在 index.js 已挂载）。
+ * 鉴权：全部端点需 authWithAuthority（在 index.js 已挂载）。
  * owner = req.user 是 platform admin 或 req.user.id === exams.created_by（teacher 需为创建者）。
  *
  * 关键约定（见技术方案第六节）：
@@ -15,7 +15,7 @@
  */
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
@@ -43,7 +43,7 @@ function isOwner(exam, userId, role) {
  * 入参：subject_id, title, question_set:[{question_id,points}], duration_minutes?,
  *       start_time?, end_time?, pass_score?, description?
  */
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   try {
     const {
       subject_id,
@@ -112,7 +112,7 @@ router.post('/', authMiddleware, async (req, res) => {
  * PUT /api/exams/:id — 更新试卷
  * published 仅允许改 start_time/end_time/status；draft/closed 可改全字段（改题集时重算 total_points）。
  */
-router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
+router.put('/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -189,7 +189,7 @@ router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
 });
 
 /** DELETE /api/exams/:id — 删除试卷（attempts 级联删除） */
-router.delete('/:id(\\d+)', authMiddleware, async (req, res) => {
+router.delete('/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -208,7 +208,7 @@ router.delete('/:id(\\d+)', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/exams — 我的试卷列表（含 attempts 数、平均分简报） */
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authWithAuthority, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       `SELECT e.*,
@@ -236,7 +236,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/exams/:id — 试卷详情（解析题集为含答案的完整 questions，供编辑/预览） */
-router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -311,7 +311,7 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
 // ============ 学员参试 ============
 
 /** GET /api/exams/available — 可参加列表（published + 窗口内 + 科目可访问），每项带 attempt_state */
-router.get('/available', authMiddleware, async (req, res) => {
+router.get('/available', authWithAuthority, async (req, res) => {
   try {
     // 有界收卷：仅本用户过期 attempt（代价有界，刷新本人彽标）
     await sweepExpiredAttempts(null, req.user.id, null, { batchSize: 5, maxRows: 10 });
@@ -369,7 +369,7 @@ router.get('/available', authMiddleware, async (req, res) => {
  * 校验窗口/权限；复用本用户本场「未提交且未超时」attempt（reused:true）或新建 in_progress attempt；
  * 返回剥离 answer/explanation 的试卷。
  */
-router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
+router.post('/:id(\\d+)/start', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     // 有界收卷：仅本用户在本场过期 attempt（不影响即将复用的进行中 attempt）
@@ -598,7 +598,7 @@ async function writeJudgeScoreToAttempt(attemptId, qid, res, orgId) {
  * POST /api/exams/:id/submit — 提交评分
  * 入口先 sweep 本场（排除当前 attempt）；用服务端 answers 逐题评分；返回含 correct_answer+explanation 的 details。
  */
-router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
+router.post('/:id(\\d+)/submit', authWithAuthority, async (req, res) => {
   let conn = null; // 提升到函数作用域，供 catch/finally 引用（避免块级作用域导致 conn 不可见）
   try {
     const examId = Number(req.params.id);
@@ -692,7 +692,7 @@ router.post('/:id(\\d+)/submit', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/exams/attempts/:attemptId — 查看某次答卷（透出 correct_answer+explanation，含编程题待定项） */
-router.get('/attempts/:attemptId', authMiddleware, async (req, res) => {
+router.get('/attempts/:attemptId', authWithAuthority, async (req, res) => {
   try {
     const attemptId = Number(req.params.attemptId);
     const [attemptRows] = await pool.execute('SELECT * FROM exam_attempts WHERE id = ?', [attemptId]);
@@ -769,7 +769,7 @@ router.get('/attempts/:attemptId', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/exams/my-history — 我的历史成绩（全部 attempt + 每场考试 bestScores + is_best 标记） */
-router.get('/my-history', authMiddleware, async (req, res) => {
+router.get('/my-history', authWithAuthority, async (req, res) => {
   try {
     // 有界收卷：仅本用户过期 attempt（代价有界）
     await sweepExpiredAttempts(null, req.user.id, null, { batchSize: 10, maxRows: 20 });
@@ -823,7 +823,7 @@ router.get('/my-history', authMiddleware, async (req, res) => {
 /**
  * GET /api/exams/:id/analysis — 考试分析（实时聚合，口径=每学生最高分 attempt）
  */
-router.get('/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)/analysis', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -914,7 +914,7 @@ router.get('/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/exams/:id/attempts — 本卷全部答卷列表（下钻，同一学生可有多条） */
-router.get('/:id(\\d+)/attempts', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)/attempts', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -950,7 +950,7 @@ router.get('/:id(\\d+)/attempts', authMiddleware, async (req, res) => {
 });
 
 /** POST /api/exams/:id/sweep — 批量强制自动交卷（owner/外部 cron 触发） */
-router.post('/:id(\\d+)/sweep', authMiddleware, async (req, res) => {
+router.post('/:id(\\d+)/sweep', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -973,7 +973,7 @@ router.post('/:id(\\d+)/sweep', authMiddleware, async (req, res) => {
  * FR-103：本卷人工题判分总览（仅 needs_manual 类型；仅已交卷 attempt）。
  * GET /api/exams/:id/grading
  */
-router.get('/:id(\\d+)/grading', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)/grading', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
@@ -1020,7 +1020,7 @@ router.get('/:id(\\d+)/grading', authMiddleware, async (req, res) => {
  * FR-103：某人工题的所有已交卷作答（按 submitted_at 升序）。
  * GET /api/exams/:id/grading/:questionId
  */
-router.get('/:id(\\d+)/grading/:questionId(\\d+)', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)/grading/:questionId(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const qid = Number(req.params.questionId);
@@ -1079,7 +1079,7 @@ router.get('/:id(\\d+)/grading/:questionId(\\d+)', authMiddleware, async (req, r
  * FR-103：批量给某人工题多份答卷回写分数（整批原子；事务 FOR UPDATE）。
  * POST /api/exams/:id/grading/:questionId  body: { scores:[{attempt_id,earned}] }
  */
-router.post('/:id(\\d+)/grading/:questionId(\\d+)', authMiddleware, async (req, res) => {
+router.post('/:id(\\d+)/grading/:questionId(\\d+)', authWithAuthority, async (req, res) => {
   let conn = null;
   try {
     const examId = Number(req.params.id);

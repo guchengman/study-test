@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { snapshotCurrentVersion, isReferencedByExam } from '../utils/questionLifecycle.js';
@@ -13,7 +13,7 @@ const router = Router();
 router.use(apiLimiter);
 
 // 获取题目列表 — 支持共享题目可见性
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authWithAuthority, async (req, res) => {
   try {
     const { subject_id, type, page = 1, limit = 50 } = req.query;
     const userId = req.user.id;
@@ -100,7 +100,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // 获取单个题目 — 支持共享题目（限数字 id，避免吞噬 /recycle 等字面量路由）
-router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const userId = req.user.id;
     const [rows] = await pool.execute(
@@ -136,7 +136,7 @@ router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
 const VALID_QUESTION_TYPES = ['single', 'multiple', 'programming', 'judge', 'fill_in', 'short_answer'];
 
 // 创建题目 — 自动绑定当前用户
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   try {
     const { subject_id, type, title, code, options, answer, explanation, points = 1, audio_url, judge_config } = req.body;
     if (!subject_id || !type || !title || !answer) {
@@ -202,7 +202,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // 批量创建题目
-router.post('/batch', authMiddleware, async (req, res) => {
+router.post('/batch', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { questions, subject_id } = req.body;
@@ -290,7 +290,7 @@ router.post('/batch', authMiddleware, async (req, res) => {
 });
 
 // 更新题目 — 只能更新自己的
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authWithAuthority, async (req, res) => {
   try {
     const { subject_id, type, title, code, options, answer, explanation, points, audio_url, judge_config } = req.body;
     if (type && !VALID_QUESTION_TYPES.includes(type)) {
@@ -336,7 +336,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // 删除题目（FR-107 软删）— 只能删自己的，管理员可删任意；改为置 deleted_at 进回收站，不再物理删
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authWithAuthority, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [result] = await pool.execute(
@@ -354,7 +354,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // 回收站列表 — 当前用户名下已软删题目（管理员看全部软删）
-router.get('/recycle', authMiddleware, async (req, res) => {
+router.get('/recycle', authWithAuthority, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
@@ -378,7 +378,7 @@ router.get('/recycle', authMiddleware, async (req, res) => {
 });
 
 // 从回收站恢复题目
-router.post('/:id/restore', authMiddleware, async (req, res) => {
+router.post('/:id/restore', authWithAuthority, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [result] = await pool.execute(
@@ -396,7 +396,7 @@ router.post('/:id/restore', authMiddleware, async (req, res) => {
 });
 
 // 彻底删除（物理删）— 考试引用过的题目禁止
-router.delete('/:id/permanent', authMiddleware, async (req, res) => {
+router.delete('/:id/permanent', authWithAuthority, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [rows] = await pool.execute(
@@ -419,7 +419,7 @@ router.delete('/:id/permanent', authMiddleware, async (req, res) => {
 });
 
 // 版本历史列表（元信息 + payload，seq 降序）
-router.get('/:id/versions', authMiddleware, async (req, res) => {
+router.get('/:id/versions', authWithAuthority, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [own] = await pool.execute(
@@ -441,7 +441,7 @@ router.get('/:id/versions', authMiddleware, async (req, res) => {
 });
 
 // 回退到指定版本：先把当前内容快照为新版本，再用目标版本 payload 覆盖当前行
-router.post('/:id/versions/:seq/revert', authMiddleware, async (req, res) => {
+router.post('/:id/versions/:seq/revert', authWithAuthority, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin' ? 1 : 0;
     const [own] = await pool.execute(
@@ -481,7 +481,7 @@ router.post('/:id/versions/:seq/revert', authMiddleware, async (req, res) => {
 });
 
 // 生成分享码
-router.post('/:id/share', authMiddleware, async (req, res) => {
+router.post('/:id/share', authWithAuthority, async (req, res) => {
   try {
     const shareCode = uuidv4().split('-')[0];
     const [result] = await pool.execute(
@@ -499,7 +499,7 @@ router.post('/:id/share', authMiddleware, async (req, res) => {
 });
 
 // 通过分享码获取题目
-router.get('/shared/:code', authMiddleware, async (req, res) => {
+router.get('/shared/:code', authWithAuthority, async (req, res) => {
   try {
     const [rows] = await pool.execute('SELECT * FROM questions WHERE share_code = ? AND deleted_at IS NULL', [req.params.code]);
     if (rows.length === 0) {

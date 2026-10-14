@@ -2,7 +2,7 @@
 // FR-106 编程题在线判题：练习同步运行样例（不计分）+ 答卷判题运行查询（属主/管理员）。
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { getRunner, acquireSlot, releaseSlot } from '../services/judgeService.js';
 import log from '../utils/logger.js';
 
@@ -16,7 +16,7 @@ function asArray(v) {
 }
 
 /** POST /api/judge/practice  { question_id, code } — 同步跑样例用例（is_sample，无则全部），不计分。 */
-router.post('/practice', authMiddleware, async (req, res) => {
+router.post('/practice', authWithAuthority, async (req, res) => {
   try {
     const qid = Number(req.body?.question_id);
     const code = String(req.body?.code ?? '');
@@ -51,7 +51,7 @@ router.post('/practice', authMiddleware, async (req, res) => {
 });
 
 /** GET /api/judge/runs/:attemptId — 某答卷的判题运行（仅属主/管理员）。 */
-router.get('/runs/:attemptId(\\d+)', authMiddleware, async (req, res) => {
+router.get('/runs/:attemptId(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const [a] = await pool.execute('SELECT user_id FROM exam_attempts WHERE id = ?', [Number(req.params.attemptId)]);
     if (a.length === 0) return res.status(404).json({ error: '答卷不存在' });

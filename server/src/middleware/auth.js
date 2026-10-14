@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { resolveAuthority } from '../utils/authority.js';
 
 /** 开发环境可用占位密钥；生产环境由 index.js 启动前校验 JWT_SECRET，此处不应落到占位 */
 export function getJwtSecret() {
@@ -42,4 +43,12 @@ export function adminMiddleware(req, res, next) {
     return res.status(403).json({ error: '权限不足' });
   }
   next();
+}
+
+/**
+ * authMiddleware + M2 权威解析。需要 req.caps 的路由用它替换裸 authMiddleware。
+ * authMiddleware 鉴权失败时直接结束响应、不调用内部 next，故 resolveAuthority 只在已鉴权时运行。
+ */
+export function authWithAuthority(req, res, next) {
+  authMiddleware(req, res, () => resolveAuthority(req, res, next));
 }

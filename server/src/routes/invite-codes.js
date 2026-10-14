@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -23,7 +23,7 @@ async function generateUniqueCode(conn) {
 }
 
 // 获取自己的邀请码列表
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authWithAuthority, async (req, res) => {
   try {
     const { type } = req.query; // 'registration' | 'subject' | undefined(全部)
     let sql, params;
@@ -63,7 +63,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // 生成邀请码
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   try {
     const { type, code: customCode, description = '', subjectId, scope = 'all', max_uses = 100 } = req.body;
 
@@ -151,7 +151,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // 删除邀请码
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authWithAuthority, async (req, res) => {
   try {
     // 管理员可删除任何邀请码，普通用户只能删除自己的
     const condition = req.user.role === 'admin'

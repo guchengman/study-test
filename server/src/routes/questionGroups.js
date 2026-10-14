@@ -11,7 +11,7 @@
  */
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { validateGroupPayload } from '../utils/questionGroups.js';
 import log from '../utils/logger.js';
@@ -19,7 +19,7 @@ import log from '../utils/logger.js';
 const router = Router();
 
 // POST / — 建组（事务：插 group → 逐子题插 questions 并写 group_id）
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   const { ok, errors } = validateGroupPayload(req.body);
   if (!ok) return res.status(400).json({ error: errors.join('; ') });
 
@@ -66,7 +66,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // GET /?subject_id= — 列某科目的组（id, material, 子题摘要）
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authWithAuthority, async (req, res) => {
   try {
     const { subject_id } = req.query;
     if (!subject_id) return res.status(400).json({ error: 'subject_id 必填' });
@@ -96,7 +96,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // GET /:id(\d+) — 组详情（owner/管理员视角，子题含答案）
-router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
+router.get('/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const [g] = await pool.execute('SELECT * FROM question_groups WHERE id = ?', [req.params.id]);
     if (g.length === 0) return res.status(404).json({ error: '材料组不存在' });

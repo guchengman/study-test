@@ -2,13 +2,13 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import log from '../utils/logger.js';
 
 const router = Router();
 
 // 获取待审核学生列表（老师）
-router.get('/pending', authMiddleware, async (req, res) => {
+router.get('/pending', authWithAuthority, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });
@@ -25,7 +25,7 @@ router.get('/pending', authMiddleware, async (req, res) => {
 });
 
 // 审核通过
-router.put('/approve/:id', authMiddleware, async (req, res) => {
+router.put('/approve/:id', authWithAuthority, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });
@@ -45,7 +45,7 @@ router.put('/approve/:id', authMiddleware, async (req, res) => {
 });
 
 // 审核拒绝 → 变为独立用户
-router.put('/reject/:id', authMiddleware, async (req, res) => {
+router.put('/reject/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
@@ -74,7 +74,7 @@ router.put('/reject/:id', authMiddleware, async (req, res) => {
 });
 
 // 获取我的学生列表（老师）
-router.get('/my', authMiddleware, async (req, res) => {
+router.get('/my', authWithAuthority, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });
@@ -91,7 +91,7 @@ router.get('/my', authMiddleware, async (req, res) => {
 });
 
 // 移除学生 → 变为独立用户
-router.put('/remove/:id', authMiddleware, async (req, res) => {
+router.put('/remove/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
@@ -120,7 +120,7 @@ router.put('/remove/:id', authMiddleware, async (req, res) => {
 });
 
 // 重置学生密码（老师）
-router.put('/reset-password/:id', authMiddleware, async (req, res) => {
+router.put('/reset-password/:id', authWithAuthority, async (req, res) => {
   try {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
       return res.status(403).json({ error: '权限不足' });

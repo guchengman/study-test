@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
@@ -11,7 +11,7 @@ const router = Router();
 router.use(apiLimiter);
 
 // 获取科目列表 — 支持共享可见性
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authWithAuthority, async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
@@ -134,7 +134,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // 创建科目 — 自动绑定当前用户
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   try {
     const { id, name, icon, welcome_title, welcome_desc, is_system = false, share_scope = 'none' } = req.body;
     if (!id || !name) {
@@ -183,7 +183,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // 更新科目 — 只能更新自己创建的（管理员也可以）
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { name, icon, welcome_title, welcome_desc, share_scope, student_ids } = req.body;
@@ -262,7 +262,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // 获取科目的授权学生列表
-router.get('/:id/students', authMiddleware, async (req, res) => {
+router.get('/:id/students', authWithAuthority, async (req, res) => {
   try {
     const [existing] = await pool.execute(
       'SELECT id, created_by, share_scope FROM subjects WHERE id = ?',
@@ -293,7 +293,7 @@ router.get('/:id/students', authMiddleware, async (req, res) => {
 });
 
 // 删除科目 — 只能删除自己创建的（管理员也可以）
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const [existing] = await pool.execute(
@@ -338,7 +338,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // 初始化课程（清空题库）
-router.post('/:id/initialize', authMiddleware, async (req, res) => {
+router.post('/:id/initialize', authWithAuthority, async (req, res) => {
   try {
     const subjectId = req.params.id;
     const userId = req.user.id;
@@ -378,7 +378,7 @@ router.post('/:id/initialize', authMiddleware, async (req, res) => {
 });
 
 // 加入共享科目（输入科目邀请码）
-router.post('/join', authMiddleware, async (req, res) => {
+router.post('/join', authWithAuthority, async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) {
@@ -450,7 +450,7 @@ router.post('/join', authMiddleware, async (req, res) => {
 });
 
 // 退订共享科目
-router.post('/:id/leave', authMiddleware, async (req, res) => {
+router.post('/:id/leave', authWithAuthority, async (req, res) => {
   try {
     const [result] = await pool.execute(
       'DELETE FROM subject_subscriptions WHERE user_id = ? AND subject_id = ?',
@@ -467,7 +467,7 @@ router.post('/:id/leave', authMiddleware, async (req, res) => {
 });
 
 // 获取已订阅的共享科目列表（学生用，返回所有状态）
-router.get('/subscribed', authMiddleware, async (req, res) => {
+router.get('/subscribed', authWithAuthority, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       `SELECT s.*, ss.subscribed_at, ss.status as subscription_status, u.username as creator_name
@@ -486,7 +486,7 @@ router.get('/subscribed', authMiddleware, async (req, res) => {
 });
 
 // 获取待审核的科目订阅列表（科目创建者/老师使用）
-router.get('/pending-subscriptions', authMiddleware, async (req, res) => {
+router.get('/pending-subscriptions', authWithAuthority, async (req, res) => {
   try {
     const userId = req.user.id;
     // 查询当前用户创建的科目中，状态为 pending 的订阅
@@ -509,7 +509,7 @@ router.get('/pending-subscriptions', authMiddleware, async (req, res) => {
 });
 
 // 审核通过科目订阅
-router.put('/subscriptions/:id/approve', authMiddleware, async (req, res) => {
+router.put('/subscriptions/:id/approve', authWithAuthority, async (req, res) => {
   try {
     const subscriptionId = req.params.id;
     const userId = req.user.id;
@@ -543,7 +543,7 @@ router.put('/subscriptions/:id/approve', authMiddleware, async (req, res) => {
 });
 
 // 拒绝科目订阅
-router.put('/subscriptions/:id/reject', authMiddleware, async (req, res) => {
+router.put('/subscriptions/:id/reject', authWithAuthority, async (req, res) => {
   try {
     const subscriptionId = req.params.id;
     const userId = req.user.id;

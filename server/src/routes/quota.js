@@ -8,7 +8,7 @@
  */
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authWithAuthority, adminMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { getOrgPlan, listQuotaUsage, registerByoKey } from '../utils/quotaService.js';
@@ -20,7 +20,7 @@ router.use(apiLimiter);
 const BYO_PROVIDERS = ['gemini', 'paddle_ocr'];
 
 // GET /usage — 本人配额快照
-router.get('/usage', authMiddleware, async (req, res) => {
+router.get('/usage', authWithAuthority, async (req, res) => {
   try {
     const orgId = await resolvePersonalOrgId(pool, req.user.id);
     const plan = orgId != null ? await getOrgPlan(pool, orgId) : 'FREE';
@@ -33,7 +33,7 @@ router.get('/usage', authMiddleware, async (req, res) => {
 });
 
 // GET /admin/overview — 平台租户配额概览（当前周期 quota_usage + 计划 + 存储熔断标记）
-router.get('/admin/overview', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/admin/overview', authWithAuthority, adminMiddleware, async (req, res) => {
   try {
     const [rows] = await pool.execute(
       `SELECT o.id AS org_id, o.name AS org_name, UPPER(o.plan) AS plan,
@@ -55,7 +55,7 @@ router.get('/admin/overview', authMiddleware, adminMiddleware, async (req, res) 
 });
 
 // POST /byo-register — 登记自带 Key（哈希指纹）
-router.post('/byo-register', authMiddleware, async (req, res) => {
+router.post('/byo-register', authWithAuthority, async (req, res) => {
   try {
     const { provider, key_preview } = req.body || {};
     if (!provider || !BYO_PROVIDERS.includes(String(provider))) {

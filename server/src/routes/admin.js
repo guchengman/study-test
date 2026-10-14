@@ -7,7 +7,7 @@
  */
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authWithAuthority, adminMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { listAllUsage, runStorageScan } from '../utils/storageUsageService.js';
 import { uploadsRoot } from './upload.js';
@@ -15,7 +15,7 @@ import log from '../utils/logger.js';
 
 const router = Router();
 router.use(apiLimiter);
-router.use(authMiddleware);
+router.use(authWithAuthority);
 router.use(adminMiddleware);
 
 // GET /storage-usage — 全部租户用量

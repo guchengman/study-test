@@ -13,7 +13,7 @@ import { Router } from 'express';
 import path from 'path';
 import { existsSync } from 'fs';
 import pool from '../db.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authWithAuthority } from '../middleware/auth.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { createExportJob, getJobStatus, listJobs, processJob, EXPORTS_DIR } from '../utils/exportService.js';
 import log from '../utils/logger.js';
@@ -27,7 +27,7 @@ function isOwner(exam, userId, role) {
 
 // ─── POST /api/exports ─────────────────────────────────────
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authWithAuthority, async (req, res) => {
   try {
     const { scope, exam_id } = req.body;
 
@@ -70,7 +70,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
 // ─── GET /api/exports/jobs ─────────────────────────────────
 
-router.get('/jobs', authMiddleware, async (req, res) => {
+router.get('/jobs', authWithAuthority, async (req, res) => {
   try {
     const jobs = await listJobs(pool, req.user.id);
     res.json({ jobs });
@@ -82,7 +82,7 @@ router.get('/jobs', authMiddleware, async (req, res) => {
 
 // ─── GET /api/exports/jobs/:id ─────────────────────────────
 
-router.get('/jobs/:id(\\d+)', authMiddleware, async (req, res) => {
+router.get('/jobs/:id(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const jobId = Number(req.params.id);
     const job = await getJobStatus(pool, jobId);
@@ -99,7 +99,7 @@ router.get('/jobs/:id(\\d+)', authMiddleware, async (req, res) => {
 
 // ─── GET /api/exports/jobs/:id/download ────────────────────
 
-router.get('/jobs/:id(\\d+)/download', authMiddleware, async (req, res) => {
+router.get('/jobs/:id(\\d+)/download', authWithAuthority, async (req, res) => {
   try {
     const jobId = Number(req.params.id);
     const job = await getJobStatus(pool, jobId);

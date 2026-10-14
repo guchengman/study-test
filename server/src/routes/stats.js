@@ -10,7 +10,7 @@
  */
 import { Router } from 'express';
 import pool from '../db.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authWithAuthority, adminMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import {
   getTrend, getMastery, getExamAnalysisDeep, getClassCompare, aggregateForDate, dateStrInTZ,
@@ -28,7 +28,7 @@ function isOwner(exam, userId, role) {
 }
 
 // GET /me/trend
-router.get('/me/trend', authMiddleware, async (req, res) => {
+router.get('/me/trend', authWithAuthority, async (req, res) => {
   try {
     const metric = VALID_METRICS.includes(req.query.metric) ? req.query.metric : 'practiced';
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 365);
@@ -41,7 +41,7 @@ router.get('/me/trend', authMiddleware, async (req, res) => {
 });
 
 // GET /me/mastery
-router.get('/me/mastery', authMiddleware, async (req, res) => {
+router.get('/me/mastery', authWithAuthority, async (req, res) => {
   try {
     const mastery = await getMastery(pool, req.user.id);
     res.json({ mastery });
@@ -52,7 +52,7 @@ router.get('/me/mastery', authMiddleware, async (req, res) => {
 });
 
 // GET /exam/:id/analysis
-router.get('/exam/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
+router.get('/exam/:id(\\d+)/analysis', authWithAuthority, async (req, res) => {
   try {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT created_by FROM exams WHERE id = ?', [examId]);
@@ -70,7 +70,7 @@ router.get('/exam/:id(\\d+)/analysis', authMiddleware, async (req, res) => {
 });
 
 // GET /class/compare
-router.get('/class/compare', authMiddleware, async (req, res) => {
+router.get('/class/compare', authWithAuthority, async (req, res) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
       return res.status(403).json({ error: '无权查看班级对比' });
@@ -88,7 +88,7 @@ router.get('/class/compare', authMiddleware, async (req, res) => {
 });
 
 // POST /admin/aggregate — 手动聚合（默认昨日，可 ?date=YYYY-MM-DD）
-router.post('/admin/aggregate', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/admin/aggregate', authWithAuthority, adminMiddleware, async (req, res) => {
   try {
     const date = req.query.date || (() => {
       const d = new Date(Date.now() - 24 * 3600 * 1000);
