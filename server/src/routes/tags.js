@@ -15,9 +15,10 @@ import pool from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { canViewQuestion } from '../utils/questionAccess.js';
 import {
   listTags, createTag, renameTag, deleteTag,
-  bindTags, unbindTag, getTagsForQuestion,
+  bindTags, unbindTag, getTagsForQuestion, tagBelongsToOrg,
 } from '../utils/tagService.js';
 import log from '../utils/logger.js';
 
@@ -70,7 +71,13 @@ router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: '标签名称不能为空' });
     }
-    const ok = await renameTag(pool, Number(req.params.id), name.trim());
+    const tagId = Number(req.params.id);
+    // org 作用域守卫：仅本人 PERSONAL 租户的标签可改名（跨租户/不存在 → 统一 404，防枚举）
+    const orgId = await resolvePersonalOrgId(pool, req.user.id);
+    if (!(await tagBelongsToOrg(pool, tagId, orgId))) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+    const ok = await renameTag(pool, tagId, name.trim());
     if (!ok) return res.status(404).json({ error: '标签不存在' });
     res.json({ ok: true });
   } catch (err) {
@@ -82,7 +89,13 @@ router.put('/:id(\\d+)', authMiddleware, async (req, res) => {
 // DELETE /:id — 删除标签
 router.delete('/:id(\\d+)', authMiddleware, async (req, res) => {
   try {
-    const ok = await deleteTag(pool, Number(req.params.id));
+    const tagId = Number(req.params.id);
+    // org 作用域守卫：仅本人 PERSONAL 租户的标签可删除
+    const orgId = await resolvePersonalOrgId(pool, req.user.id);
+    if (!(await tagBelongsToOrg(pool, tagId, orgId))) {
+      return res.status(404).json({ error: '标签不存在' });
+    }
+    const ok = await deleteTag(pool, tagId);
     if (!ok) return res.status(404).json({ error: '标签不存在' });
     res.json({ ok: true });
   } catch (err) {
@@ -140,6 +153,10 @@ router.delete('/question/:qid(\\d+)/unbindTag/:tagId(\\d+)', authMiddleware, asy
 router.get('/question/:qid(\\d+)', authMiddleware, async (req, res) => {
   try {
     const qid = Number(req.params.qid);
+    // 读侧越权修复：仅当调用者可见该题（属主/订阅/共享，同 questions/:id）才返回其标签
+    if (!(await canViewQuestion(pool, qid, req.user.id))) {
+      return res.status(404).json({ error: '题目不存在或无权限' });
+    }
     const tags = await getTagsForQuestion(pool, qid);
     res.json({ tags });
   } catch (err) {

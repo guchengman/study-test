@@ -162,3 +162,19 @@ export async function getQuestionsByTag(db = pool, tagId) {
   );
   return rows.map((r) => r.question_id);
 }
+
+/**
+ * 标签是否属于指定 PERSONAL 租户（改名/删除的 org 作用域守卫）。
+ * 跨租户与不存在同返回 false，不区分以防枚举。
+ * @param {object} db
+ * @param {number} tagId
+ * @param {number|null} orgId - null（无租户）时 `org_id = NULL` 不匹配任何行 → false
+ * @returns {Promise<boolean>}
+ */
+export async function tagBelongsToOrg(db = pool, tagId, orgId) {
+  const [rows] = await db.execute(
+    'SELECT 1 AS ok FROM question_tags WHERE id = ? AND org_id = ? LIMIT 1',
+    [tagId, orgId]
+  );
+  return rows.length > 0;
+}

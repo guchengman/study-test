@@ -20,6 +20,7 @@ import {
   unbindTag,
   getTagsForQuestion,
   getQuestionsByTag,
+  tagBelongsToOrg,
 } from '../../src/utils/tagService.js';
 
 /** 按 SQL 子串路由的假 db（沿用 exportService.test 范式：plain async + 自定义 calls 数组） */
@@ -217,6 +218,29 @@ describe('tagService', () => {
       const db = makeFakeDb({ mapRows: [] });
       const ids = await getQuestionsByTag(db, 99);
       expect(ids).toEqual([]);
+    });
+  });
+
+  describe('tagBelongsToOrg', () => {
+    it('org 匹配命中 → true，且 SQL 含 org_id 作用域', async () => {
+      const db = makeFakeDb({ tagRows: [{ ok: 1 }] });
+      const ok = await tagBelongsToOrg(db, 7, 5);
+      expect(ok).toBe(true);
+      expect(db._calls[0].sql).toMatch(/FROM question_tags WHERE id = \? AND org_id = \?/);
+      expect(db._calls[0].params).toEqual([7, 5]);
+    });
+
+    it('跨租户不匹配 → false', async () => {
+      const db = makeFakeDb({ tagRows: [] });
+      const ok = await tagBelongsToOrg(db, 7, 999);
+      expect(ok).toBe(false);
+    });
+
+    it('orgId 为 null（无租户）→ false（安全默认）', async () => {
+      const db = makeFakeDb({ tagRows: [] });
+      const ok = await tagBelongsToOrg(db, 7, null);
+      expect(ok).toBe(false);
+      expect(db._calls[0].params).toEqual([7, null]);
     });
   });
 });
