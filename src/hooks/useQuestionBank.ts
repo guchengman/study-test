@@ -18,6 +18,8 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
   const [dataLoaded, setDataLoaded] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [examQuestionCount, setExamQuestionCount] = useState<string>("20");
+  // 题库缓存刷新信号：其他页面新建/编辑/删除题目后派发 questions:changed，递增本计数以重拉当前科目题目
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   const subjectsLoadedRef = useRef(false);
   const currentSubjectIdRef = useRef(currentSubjectId);
@@ -93,7 +95,14 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
     return () => controller.abort();
   }, [refreshSubjects]);
 
-  // 加载题目/错题/收藏 — 切换科目时重新加载
+  // 监听全局「题目变更」事件（建/改/删后），触发按当前科目重新加载
+  useEffect(() => {
+    const onChanged = () => setReloadNonce((n) => n + 1);
+    window.addEventListener('questions:changed', onChanged);
+    return () => window.removeEventListener('questions:changed', onChanged);
+  }, []);
+
+  // 加载题目/错题/收藏 — 切换科目或题库变更时重新加载
   useEffect(() => {
     if (!currentUser) {
       setDataLoaded(true);
@@ -138,7 +147,7 @@ export function useQuestionBank(currentUser: string | null, authUser: AuthUser |
     })();
 
     return () => controller.abort();
-  }, [currentUser, currentSubjectId]);
+  }, [currentUser, currentSubjectId, reloadNonce]);
 
   useEffect(() => {
     if (currentSubjectId) localStorage.setItem('study_test_current_subject', currentSubjectId);

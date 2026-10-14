@@ -78,7 +78,7 @@ export function QuestionForm({ open, subjects, editing = null, onClose, onCreate
     setError(null);
     if (!subjectId) { setError('请选择所属科目'); return; }
     if (!title.trim()) { setError('题干不能为空'); return; }
-    if (!answer.trim()) { setError('答案不能为空'); return; }
+    if (!isProgramming && !answer.trim()) { setError('答案不能为空'); return; }
     const opts = needsOptions ? optionsText.split('\n').map((s) => s.trim()).filter(Boolean) : undefined;
     if (needsOptions && (!opts || opts.length < 2)) { setError('单选/多选题选项至少 2 项（每行一个）'); return; }
     if (isProgramming && !cases.some((c) => c.expected_output.trim())) { setError('编程题至少填一个样例用例的期望输出'); return; }
@@ -88,7 +88,7 @@ export function QuestionForm({ open, subjects, editing = null, onClose, onCreate
       const payload: Partial<QuestionItem> = {
         subject_id: subjectId, type, title: title.trim(),
         options: opts,
-        answer: type === 'multiple' ? answer.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : answer.trim(),
+        answer: isProgramming ? [] : (type === 'multiple' ? answer.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : answer.trim()),
         explanation: explanation.trim() || undefined, points: Number(points) > 0 ? Number(points) : 1,
         audio_url: audioUrl,
         judge_config: isProgramming
@@ -101,6 +101,8 @@ export function QuestionForm({ open, subjects, editing = null, onClose, onCreate
       } else {
         await questionApi.create(payload);
       }
+      // 通知题库缓存刷新（首页/练习无需切科目即可见新题）
+      window.dispatchEvent(new CustomEvent('questions:changed'));
       reset();
       onCreated();
     } catch (e) {
@@ -175,11 +177,13 @@ export function QuestionForm({ open, subjects, editing = null, onClose, onCreate
             </label>
           )}
 
-          <label className="block text-sm">
-            <span className="font-bold text-slate-600">{needsOptions ? '正确答案（须与某选项一致；多选用逗号分隔）' : '参考答案'}</span>
-            <input value={answer} onChange={(e) => setAnswer(e.target.value)}
-              className="mt-1 w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 focus:border-indigo-600 outline-none" />
-          </label>
+          {!isProgramming && (
+            <label className="block text-sm">
+              <span className="font-bold text-slate-600">{needsOptions ? '正确答案（须与某选项一致；多选用逗号分隔）' : '参考答案'}</span>
+              <input value={answer} onChange={(e) => setAnswer(e.target.value)}
+                className="mt-1 w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 focus:border-indigo-600 outline-none" />
+            </label>
+          )}
 
           <label className="block text-sm">
             <span className="font-bold text-slate-600">解析（可选）</span>

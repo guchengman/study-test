@@ -133,6 +133,7 @@ export function QuestionManagePage() {
     try {
       await questionApi.delete(q.id);
       await loadQuestions();
+      window.dispatchEvent(new CustomEvent('questions:changed'));
     } catch (e: any) {
       setError(e?.message || '删除失败');
     } finally {
@@ -147,6 +148,7 @@ export function QuestionManagePage() {
     try {
       await questionApi.restore(q.id);
       await loadRecycle();
+      window.dispatchEvent(new CustomEvent('questions:changed'));
     } catch (e: any) {
       setError(e?.message || '恢复失败');
     } finally {
