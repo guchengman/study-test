@@ -42,6 +42,7 @@ import adminRoutes from './routes/admin.js';
 import quotaRoutes from './routes/quota.js';
 import statsRoutes from './routes/stats.js';
 import streakRoutes from './routes/streak.js';
+import publicShareRoutes from './routes/publicShare.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -158,6 +159,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/quota', quotaRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/streak', streakRoutes);
+
+// 公开分享落地页端点（无需鉴权，须置于 SPA 兜底 app.get('*') 之前）
+app.use('/api/public', publicShareRoutes);
 
 // 百度高精度 OCR 接口（必须在 express.json() 之后）
 // 鉴权 + 限流：15 分钟内每 IP 最多 30 次
