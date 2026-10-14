@@ -321,6 +321,8 @@ export const questionApi = {
     return { questions: all, total };
   },
   create: (data: Partial<QuestionItem>) => client.post<{ message: string; id: number }>('/questions', data),
+  /** 题目详情（含全量 judge_config.test_cases，编辑时回读用） */
+  get: (id: number, signal?: AbortSignal) => client.get<{ question: QuestionItem }>(`/questions/${id}`, signal),
   batchImport: (questions: Partial<QuestionItem>[], subjectId?: string) =>
     client.post<{ message: string; ids: number[]; count: number }>('/questions/batch', { questions, subject_id: subjectId }),
   update: (id: number, data: Partial<QuestionItem>) => client.put<{ message: string }>(`/questions/${id}`, data),

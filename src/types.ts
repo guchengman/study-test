@@ -236,6 +236,7 @@ export interface ExamQuestionDetail {
   group_id?: number | null;        // FR-104 材料题组软引用
   group_material?: string | null;  // FR-104 共享材料本体（LEFT JOIN question_groups 带出）
   audio_url?: string | null;       // FR-105 音频软引用（后端原样下发相对路径）
+  judge_config?: { language?: string; starter_code?: string | null } | null; // FR-106 编程题语言/初始代码（不含 test_cases）
 }
 
 /** 试卷详情 / 编辑中的完整题目（含答案，供 owner 预览与组卷） */

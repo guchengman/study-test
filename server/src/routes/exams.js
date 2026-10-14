@@ -468,6 +468,18 @@ router.post('/:id(\\d+)/start', authMiddleware, async (req, res) => {
           };
         })
         .filter(Boolean);
+      // FR-106：编程题带出语言与初始代码（供答题界面按语言显示提示、回填 starter_code）；不下发 test_cases
+      const startProgIds = questions.filter((q) => q.type === 'programming').map((q) => q.id);
+      if (startProgIds.length > 0) {
+        const [jcRows] = await pool.query(
+          `SELECT question_id, language, starter_code FROM question_judge_configs WHERE question_id IN (${startProgIds.map(() => '?').join(',')})`,
+          startProgIds,
+        );
+        const jcMap = new Map(jcRows.map((r) => [r.question_id, r]));
+        questions = questions.map((q) => (q.type === 'programming'
+          ? { ...q, judge_config: jcMap.get(q.id) ? { language: jcMap.get(q.id).language, starter_code: jcMap.get(q.id).starter_code } : null }
+          : q));
+      }
     }
 
     // ── FR-202 乱序处理 ──

@@ -21,6 +21,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import type { Question, MistakeRecord, JudgeRunResult } from '../../types';
+import { PROGRAMMING_LANGUAGES } from '../../types';
 import { judgeApi } from '../../services/api';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { AudioPlayer } from '../AudioPlayer';
@@ -120,6 +121,19 @@ export function ExamScreen(props: ExamScreenProps) {
   const [judgeResult, setJudgeResult] = React.useState<JudgeRunResult | null>(null);
   const [judging, setJudging] = React.useState<boolean>(false);
   React.useEffect(() => { setJudgeResult(null); }, [currentQuestion?.id]);
+  // FR-106：编程题首次进入时回填初始代码（starter_code）；用 ref 保证同一题只回填一次，不覆盖用户后续输入
+  const prefilledRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    const q = currentQuestion;
+    if (!q || q.type !== 'programming') return;
+    const sc = q.judge_config?.starter_code;
+    if (!sc || prefilledRef.current === q.id) return;
+    prefilledRef.current = q.id;
+    handleAnswerChange(q.id, sc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion?.id]);
+  const progLangLabel =
+    PROGRAMMING_LANGUAGES.find((l) => l.value === currentQuestion?.judge_config?.language)?.label || 'Python';
   const runSample = async () => {
     if (!currentQuestion) return;
     setJudging(true); setJudgeResult(null);
@@ -501,7 +515,7 @@ export function ExamScreen(props: ExamScreenProps) {
                 disabled={showFeedback && (isMistakeMode || isFullMode || isRandomMode)}
                 value={(userAnswers[currentQuestion.id] as string) || ''}
                 onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                placeholder="在此输入你的 Python 代码..."
+                placeholder={`在此输入你的 ${progLangLabel} 代码...`}
                 className="w-full h-48 p-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-4 focus:ring-blue-50 outline-none font-mono text-sm transition-all resize-none"
               />
               {!showFeedback && isRandomMode && (

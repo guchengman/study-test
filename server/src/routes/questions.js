@@ -75,6 +75,22 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const [rows] = await pool.execute(sql, params);
     rows.forEach(r => { r.is_owner = (r.created_by === userId); });
+    // FR-106：列表附带编程题判题语言与初始代码（供前端展示语言标签、练习界面回填 starter_code）；
+    // 仅取 language/starter_code，test_cases 留空以免列表负载膨胀（编辑表单走详情接口取全量）。
+    const progIds = rows.filter(r => r.type === 'programming').map(r => r.id);
+    if (progIds.length > 0) {
+      const [jcRows] = await pool.query(
+        `SELECT question_id, language, starter_code FROM question_judge_configs WHERE question_id IN (${progIds.map(() => '?').join(',')})`,
+        progIds,
+      );
+      const jcMap = new Map(jcRows.map(r => [r.question_id, r]));
+      rows.forEach(r => {
+        if (r.type === 'programming') {
+          const jc = jcMap.get(r.id);
+          r.judge_config = jc ? { language: jc.language, starter_code: jc.starter_code, test_cases: [] } : null;
+        }
+      });
+    }
 
     res.json({ questions: rows, total, page: pageNum, limit: limitNum });
   } catch (err) {

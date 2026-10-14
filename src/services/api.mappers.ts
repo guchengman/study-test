@@ -44,6 +44,7 @@ export function questionItemToQuestion(item: QuestionItem): Question {
     points: item.points,
     input: item.input,
     audioUrl: item.audio_url ?? null,
+    judge_config: item.judge_config ?? null, // FR-106 编程题语言/初始代码透传（非编程题为 null）
   };
 }
 

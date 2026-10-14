@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Upload, AlertTriangle, BookPlus } from 'lucide-react';
-import { questionApi, uploadApi } from '../../services/api';
+import { questionApi, uploadApi, type QuestionItem } from '../../services/api';
 import { PROGRAMMING_LANGUAGES } from '../../types';
 import { AudioPlayer } from '../AudioPlayer';
 
@@ -21,24 +21,31 @@ const TYPES = [
 export interface QuestionFormProps {
   open: boolean;
   subjects: { id: string; name: string }[];
+  /** 传入则为编辑模式：预填现有内容（含 judge_config），提交走 questionApi.update */
+  editing?: QuestionItem | null;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFormProps) {
-  const [subjectId, setSubjectId] = useState<string>(subjects[0]?.id || '');
-  const [type, setType] = useState<string>('single');
-  const [title, setTitle] = useState<string>('');
-  const [optionsText, setOptionsText] = useState<string>('');
-  const [answer, setAnswer] = useState<string>('');
-  const [explanation, setExplanation] = useState<string>('');
-  const [points, setPoints] = useState<number>(1);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+export function QuestionForm({ open, subjects, editing = null, onClose, onCreated }: QuestionFormProps) {
+  const isEdit = !!editing?.id;
+  const initCases = (editing?.judge_config?.test_cases || []).map((c) => ({
+    input: c.input || '', expected_output: c.expected_output || '', is_sample: c.is_sample !== false,
+  }));
+  const [subjectId, setSubjectId] = useState<string>(editing?.subject_id || subjects[0]?.id || '');
+  const [type, setType] = useState<string>(editing?.type || 'single');
+  const [title, setTitle] = useState<string>(editing?.title || '');
+  const [optionsText, setOptionsText] = useState<string>((editing?.options || []).join('\n'));
+  const [answer, setAnswer] = useState<string>(
+    Array.isArray(editing?.answer) ? (editing!.answer as string[]).join(',') : (editing?.answer ?? ''));
+  const [explanation, setExplanation] = useState<string>(editing?.explanation || '');
+  const [points, setPoints] = useState<number>(editing?.points || 1);
+  const [audioUrl, setAudioUrl] = useState<string | null>(editing?.audio_url ?? null);
   const [uploading, setUploading] = useState<boolean>(false);
-  const [starter, setStarter] = useState<string>('');
-  const [lang, setLang] = useState<string>('python');
+  const [starter, setStarter] = useState<string>(editing?.judge_config?.starter_code || '');
+  const [lang, setLang] = useState<string>(editing?.judge_config?.language || 'python');
   const [cases, setCases] = useState<{ input: string; expected_output: string; is_sample: boolean }[]>(
-    [{ input: '', expected_output: '', is_sample: true }]);
+    initCases.length ? initCases : [{ input: '', expected_output: '', is_sample: true }]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -78,7 +85,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
 
     setSubmitting(true);
     try {
-      await questionApi.create({
+      const payload: Partial<QuestionItem> = {
         subject_id: subjectId, type, title: title.trim(),
         options: opts,
         answer: type === 'multiple' ? answer.split(/[,，]/).map((s) => s.trim()).filter(Boolean) : answer.trim(),
@@ -87,12 +94,17 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
         judge_config: isProgramming
           ? { language: lang, time_limit_ms: 2000, memory_limit_mb: 128, starter_code: starter || null,
               test_cases: cases.filter((c) => c.expected_output.trim()).map((c) => ({ input: c.input, expected_output: c.expected_output, is_sample: c.is_sample !== false })) }
-          : undefined,
-      });
+          : (isEdit ? null : undefined),
+      };
+      if (isEdit && editing?.id) {
+        await questionApi.update(editing.id, payload);
+      } else {
+        await questionApi.create(payload);
+      }
       reset();
       onCreated();
     } catch (e) {
-      setError((e as { message?: string })?.message || '创建题目失败');
+      setError((e as { message?: string })?.message || (isEdit ? '保存题目失败' : '创建题目失败'));
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +124,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <BookPlus size={20} className="text-indigo-600" />
-            <h3 className="text-lg font-bold text-slate-800">新建题目</h3>
+            <h3 className="text-lg font-bold text-slate-800">{isEdit ? '编辑题目' : '新建题目'}</h3>
           </div>
           <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
             <X size={18} />
@@ -231,7 +243,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
           <button type="button" onClick={handleClose} className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200">取消</button>
           <button type="button" onClick={handleSubmit} disabled={submitting || subjects.length === 0}
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-60">
-            {submitting ? '创建中...' : '创建题目'}
+            {submitting ? (isEdit ? '保存中...' : '创建中...') : (isEdit ? '保存修改' : '创建题目')}
           </button>
         </div>
       </motion.div>

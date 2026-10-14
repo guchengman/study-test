@@ -47,6 +47,21 @@ describe('api.mappers (R6 双轨类型映射)', () => {
     expect(q.audioUrl).toBe('/api/uploads/user_1/x.mp3');
   });
 
+  it('questionItemToQuestion: judge_config 透传（FR-106 语言/初始代码），缺省为 null', () => {
+    const withCfg: QuestionItem = {
+      id: 3, subject_id: 'cs', type: 'programming', title: '输出42',
+      answer: '42', points: 10, userId: 1, createdAt: '', updatedAt: '',
+      judge_config: { language: 'javascript', starter_code: 'console.log(42)', test_cases: [] },
+    };
+    expect(questionItemToQuestion(withCfg).judge_config?.language).toBe('javascript');
+    expect(questionItemToQuestion(withCfg).judge_config?.starter_code).toBe('console.log(42)');
+    const plain: QuestionItem = {
+      id: 4, subject_id: 'math', type: 'single', title: '1+1', options: ['A', 'B'],
+      answer: 'A', points: 1, userId: 1, createdAt: '', updatedAt: '',
+    };
+    expect(questionItemToQuestion(plain).judge_config).toBeNull();
+  });
+
   it('subjectItemToSubject: isSystem 反向映射为 isCustom', () => {
     const item: SubjectItem = {
       id: 'math',

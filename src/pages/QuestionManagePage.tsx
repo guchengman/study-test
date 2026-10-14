@@ -24,10 +24,12 @@ import {
   Undo2,
   Layers,
   BookPlus,
+  Pencil,
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { questionApi } from '../services/api';
 import type { QuestionItem, RecycleQuestionItem, QuestionVersion } from '../services/api';
+import { PROGRAMMING_LANGUAGES } from '../types';
 import { QuestionGroupForm } from '../components/exam/QuestionGroupForm';
 import { QuestionForm } from '../components/exam/QuestionForm';
 
@@ -43,6 +45,11 @@ const TYPE_LABELS: Record<string, string> = {
 
 function typeLabel(t: string): string {
   return TYPE_LABELS[t] || t;
+}
+
+/** FR-106：编程题语言值 → 展示标签（与 QuestionForm 下拉一致） */
+function langLabel(v?: string | null): string {
+  return PROGRAMMING_LANGUAGES.find((l) => l.value === v)?.label || v || '';
 }
 
 type Tab = 'questions' | 'recycle';
@@ -67,6 +74,8 @@ export function QuestionManagePage() {
   const [showGroupForm, setShowGroupForm] = useState<boolean>(false);
   // FR-105 新建题目模态
   const [showQuestionForm, setShowQuestionForm] = useState<boolean>(false);
+  // FR-106 编辑题目（null=新建）；打开前从详情接口拉取含全量 judge_config 的数据
+  const [editingQuestion, setEditingQuestion] = useState<QuestionItem | null>(null);
 
   const subjectName = useCallback(
     (id: string): string => ctx.allSubjects.find((s) => s.id === id)?.name || id,
@@ -103,6 +112,18 @@ export function QuestionManagePage() {
     if (tab === 'questions') void loadQuestions();
     else void loadRecycle();
   }, [tab, loadQuestions, loadRecycle]);
+
+  // FR-106 编辑：先拉详情（列表仅含 language/starter_code，test_cases 需详情接口取全量）再开模态
+  const openEdit = async (q: QuestionItem) => {
+    setError(null);
+    try {
+      const res = await questionApi.get(q.id);
+      setEditingQuestion(res.question);
+      setShowQuestionForm(true);
+    } catch (e: any) {
+      setError(e?.message || '加载题目详情失败');
+    }
+  };
 
   // 软删除（移入回收站）
   const handleSoftDelete = async (q: QuestionItem) => {
@@ -202,7 +223,7 @@ export function QuestionManagePage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowQuestionForm(true)}
+            onClick={() => { setEditingQuestion(null); setShowQuestionForm(true); }}
             className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors"
           >
             <BookPlus size={16} /> 新建题目
@@ -264,8 +285,17 @@ export function QuestionManagePage() {
                   </div>
                   <div className="text-sm text-slate-500 mb-4">
                     {subjectName(q.subject_id)} · {q.points} 分
+                    {q.type === 'programming' && q.judge_config?.language ? ` · ${langLabel(q.judge_config.language)}` : ''}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => openEdit(q)}
+                      disabled={!owner}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg font-bold hover:bg-indigo-100 transition-colors text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={owner ? '编辑题目' : '仅题目所有者可编辑'}
+                    >
+                      <Pencil size={14} /> 编辑
+                    </button>
                     <button
                       onClick={() => openVersions(q)}
                       disabled={!owner}
@@ -410,9 +440,11 @@ export function QuestionManagePage() {
           <QuestionForm
             open={showQuestionForm}
             subjects={ctx.allSubjects.map((s) => ({ id: s.id, name: s.name }))}
-            onClose={() => setShowQuestionForm(false)}
+            editing={editingQuestion}
+            onClose={() => { setShowQuestionForm(false); setEditingQuestion(null); }}
             onCreated={() => {
               setShowQuestionForm(false);
+              setEditingQuestion(null);
               void loadQuestions();
             }}
           />
