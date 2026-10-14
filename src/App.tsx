@@ -20,6 +20,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then((m) => ({ default: m.StudentDashboard })));
 const ExamAnalysisDashboard = lazy(() => import('./pages/ExamAnalysisDashboard').then((m) => ({ default: m.ExamAnalysisDashboard })));
 const ManualGradingPage = lazy(() => import('./pages/ManualGradingPage').then((m) => ({ default: m.ManualGradingPage })));
+const PublicSharePage = lazy(() => import('./pages/PublicSharePage').then((m) => ({ default: m.PublicSharePage })));
 
 const PageFallback = () => (
   <div className="flex min-h-[60vh] items-center justify-center text-gray-400">加载中…</div>
@@ -42,6 +43,8 @@ export default function App() {
           <Route path="dashboard/study" element={<Suspense fallback={<PageFallback />}><StudentDashboard /></Suspense>} />
           <Route path="dashboard/exam-analysis" element={<Suspense fallback={<PageFallback />}><ExamAnalysisDashboard /></Suspense>} />
         </Route>
+        {/* 公开分享落地页：与 AppLayout 平级，不进鉴权外壳（未登录可访问） */}
+        <Route path="s/:code" element={<Suspense fallback={<PageFallback />}><PublicSharePage /></Suspense>} />
       </Routes>
     </AppProvider>
   );
