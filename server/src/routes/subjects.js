@@ -4,6 +4,7 @@ import { authWithAuthority } from '../middleware/auth.js';
 import { hasCapability } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { maybeShadowCheckByOrg } from '../utils/orgIsolationShadow.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -43,6 +44,7 @@ router.get('/', authWithAuthority, async (req, res) => {
         r.is_owner = (r.created_by === userId);
         r.is_shared = (r.share_scope && r.share_scope !== 'none') ? 1 : 0;
       });
+      await maybeShadowCheckByOrg(req, rows, 'subjects');
       return res.json({ subjects: rows });
     }
 
@@ -104,6 +106,7 @@ router.get('/', authWithAuthority, async (req, res) => {
         r.is_owner = (r.created_by === userId);
         r.is_shared = (r.share_scope && r.share_scope !== 'none') ? 1 : 0;
       });
+      await maybeShadowCheckByOrg(req, result, 'subjects');
       return res.json({ subjects: result });
     }
 
@@ -130,6 +133,7 @@ router.get('/', authWithAuthority, async (req, res) => {
       r.is_shared = (r.share_scope && r.share_scope !== 'none') ? 1 : 0;
     });
 
+    await maybeShadowCheckByOrg(req, rows, 'subjects');
     res.json({ subjects: rows });
   } catch (err) {
     log.error('获取科目列表错误:', err);
