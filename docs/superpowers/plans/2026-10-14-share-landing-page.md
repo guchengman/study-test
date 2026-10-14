@@ -15,7 +15,7 @@
 - 题面字段是 **`title`**（不是 stem）；`options`/`answer` 为 JSON 列，`type ∈ single|multiple|programming`；题目软删列 **`deleted_at`**。
 - 服务端判分**单一事实源** = `server/src/utils/examScoring.generated.js`，导出 `isAnswerCorrect(question, userAnswer)`（`question` 需 `{type, answer, options}`）。**严禁重写判分**。
 - mysql2 会自动解析 JSON 列 → 读回可能是数组/对象，也可能是字符串（历史脏数据）；用容错 `asJson` 归一，勿裸 `JSON.parse`。
-- 可见性：科目 `share_scope='all'` 才可公开；`invite_codes`（`type='subject'`）列 `code/subject_id/expires_at/used_count`。
+- 可见性：科目 `share_scope='all'` 才可公开；本服务只读 `invite_codes` 的 `subject_id, expires_at`（条件 `code=?` 且 `type='subject'`）。
 - `JWT_SECRET` 生产强制存在（`index.js` 启动即校验）。`app.use('/api/xxx')` 各自决定鉴权，**无全局 auth 中间件** → `/api/public` 不加 auth 即公开。
 - 限流工厂：`import { createLimiter } from './middleware/rateLimit.js'`（`createLimiter({windowMs,max,message})`）。
 - 路由挂载点：`server/src/index.js` 第 160 行 `app.use('/api/streak', streakRoutes);` 之后、静态/SPA 兜底（192 行）之前。
@@ -23,6 +23,11 @@
 - 前端 api：`src/services/api.ts` 的 `client`（`API_BASE='/api'`），404/400 会抛 `{message,status}`；`subjectApi.join(code)` 已存在。
 - 前端路由：`src/App.tsx` 用 `<Routes>`，业务页都在 `<Route element={<AppLayout/>}>` 内；公开页须加**平级** Route，不进 AppLayout。
 - 迁移/脚本 `*.cjs` 全局被 gitignore；本计划**不新增迁移**（零新表）。
+
+> **实盘校正（2026-10-14 生产冒烟验证补充）** — 以下为线上 `study_test` 库实测事实，写涉及这两张表的 SQL/脚本时以实盘 `SHOW CREATE TABLE` 为准，勿照搬本文早前的列名假设：
+> - `invite_codes`：关联创建者列是 **`creator_id`（int NOT NULL）**，**不是** `created_by`；`subject_id` 为 **varchar(50)**（存科目字符串 id，如 `custom_xxx`）；`expires_at` 为 **datetime NOT NULL** —— 插入时不能给 `NULL`（本文单元用例里的 `expires_at: null` 仅覆盖“未过期分支”的 mock，不代表线上可为空）。
+> - `subjects`：**有** `created_by`（本服务用它查 `users.username` 得 `creator.displayName`，冒烟已验证可用）；**没有** `deleted_at` 列（科目层无软删除，软删过滤只用于 `questions.deleted_at`）。
+> - 结论：**已上线的 `publicShareService.js` SQL 与线上 schema 一致**（`GET /api/public/share/<有效码>` 冒烟返回 200 且响应不含 answer/explanation 即为证）；上述差异不影响已交付代码，仅用于避免未来 INSERT/迁移写错列。
 
 ## 文件结构（创建/修改）
 
