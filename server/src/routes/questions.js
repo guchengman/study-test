@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { snapshotCurrentVersion, isReferencedByExam } from '../utils/questionLifecycle.js';
@@ -20,7 +21,7 @@ router.get('/', authWithAuthority, async (req, res) => {
 
     // Determine teacher_id for student users to see shared subject questions
     let teacherId = null;
-    if (req.user.role === 'student') {
+    if (hasCapability(req, 'actor.examinee')) {
       const [userRows] = await pool.execute('SELECT teacher_id FROM users WHERE id = ?', [userId]);
       teacherId = userRows.length > 0 ? userRows[0].teacher_id : null;
     }
@@ -154,7 +155,7 @@ router.post('/', authWithAuthority, async (req, res) => {
     
     let [subjectCheck] = await pool.execute(
       'SELECT id, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
-      [subject_id, req.user.id, req.user.role === 'admin' ? 1 : 0]
+      [subject_id, req.user.id, hasCapability(req, 'platform.super') ? 1 : 0]
     );
     
     // 如果科目不存在，尝试自动创建它
@@ -218,7 +219,7 @@ router.post('/batch', authWithAuthority, async (req, res) => {
     
     let [subjectCheck] = await conn.execute(
       'SELECT id, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
-      [effectiveSubjectId, req.user.id, req.user.role === 'admin' ? 1 : 0]
+      [effectiveSubjectId, req.user.id, hasCapability(req, 'platform.super') ? 1 : 0]
     );
 
     // 如果科目不存在，尝试自动创建它
@@ -338,7 +339,7 @@ router.put('/:id', authWithAuthority, async (req, res) => {
 // 删除题目（FR-107 软删）— 只能删自己的，管理员可删任意；改为置 deleted_at 进回收站，不再物理删
 router.delete('/:id', authWithAuthority, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const [result] = await pool.execute(
       'UPDATE questions SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]
@@ -357,7 +358,7 @@ router.delete('/:id', authWithAuthority, async (req, res) => {
 router.get('/recycle', authWithAuthority, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const where = isAdmin ? 'deleted_at IS NOT NULL' : 'deleted_at IS NOT NULL AND created_by = ?';
     const params = isAdmin ? [] : [req.user.id];
 
@@ -380,7 +381,7 @@ router.get('/recycle', authWithAuthority, async (req, res) => {
 // 从回收站恢复题目
 router.post('/:id/restore', authWithAuthority, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const [result] = await pool.execute(
       'UPDATE questions SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]
@@ -398,7 +399,7 @@ router.post('/:id/restore', authWithAuthority, async (req, res) => {
 // 彻底删除（物理删）— 考试引用过的题目禁止
 router.delete('/:id/permanent', authWithAuthority, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const [rows] = await pool.execute(
       'SELECT id, created_by FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]
@@ -421,7 +422,7 @@ router.delete('/:id/permanent', authWithAuthority, async (req, res) => {
 // 版本历史列表（元信息 + payload，seq 降序）
 router.get('/:id/versions', authWithAuthority, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const [own] = await pool.execute(
       'SELECT id FROM questions WHERE id = ? AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]
@@ -443,7 +444,7 @@ router.get('/:id/versions', authWithAuthority, async (req, res) => {
 // 回退到指定版本：先把当前内容快照为新版本，再用目标版本 payload 覆盖当前行
 router.post('/:id/versions/:seq/revert', authWithAuthority, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin' ? 1 : 0;
+    const isAdmin = hasCapability(req, 'platform.super') ? 1 : 0;
     const [own] = await pool.execute(
       'SELECT id FROM questions WHERE id = ? AND deleted_at IS NULL AND (created_by = ? OR ? = 1)',
       [req.params.id, req.user.id, isAdmin]

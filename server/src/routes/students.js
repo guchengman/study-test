@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -10,7 +11,7 @@ const router = Router();
 // 获取待审核学生列表（老师）
 router.get('/pending', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const [rows] = await pool.execute(
@@ -27,7 +28,7 @@ router.get('/pending', authWithAuthority, async (req, res) => {
 // 审核通过
 router.put('/approve/:id', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const [result] = await pool.execute(
@@ -48,7 +49,7 @@ router.put('/approve/:id', authWithAuthority, async (req, res) => {
 router.put('/reject/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     await conn.beginTransaction();
@@ -76,7 +77,7 @@ router.put('/reject/:id', authWithAuthority, async (req, res) => {
 // 获取我的学生列表（老师）
 router.get('/my', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const [rows] = await pool.execute(
@@ -94,7 +95,7 @@ router.get('/my', authWithAuthority, async (req, res) => {
 router.put('/remove/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     await conn.beginTransaction();
@@ -122,7 +123,7 @@ router.put('/remove/:id', authWithAuthority, async (req, res) => {
 // 重置学生密码（老师）
 router.put('/reset-password/:id', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     // 验证是该老师的学生

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import log from '../utils/logger.js';
 
 const router = Router();
@@ -28,7 +29,7 @@ router.get('/', authWithAuthority, async (req, res) => {
     const { type } = req.query; // 'registration' | 'subject' | undefined(全部)
     let sql, params;
     // 管理员能看到所有邀请码
-    if (req.user.role === 'admin') {
+    if (hasCapability(req, 'platform.super')) {
       sql = 'SELECT * FROM invite_codes WHERE 1=1';
       params = [];
     } else {
@@ -85,7 +86,7 @@ router.post('/', authWithAuthority, async (req, res) => {
       if (subjects.length === 0) {
         return res.status(404).json({ error: '科目不存在' });
       }
-      if (subjects[0].created_by !== req.user.id && req.user.role !== 'admin') {
+      if (subjects[0].created_by !== req.user.id && !hasCapability(req, 'platform.super')) {
         return res.status(403).json({ error: '无权限为此科目生成邀请码' });
       }
       if (subjects[0].share_scope === 'none') {
@@ -100,7 +101,7 @@ router.post('/', authWithAuthority, async (req, res) => {
     }
 
     // 只有老师能生成注册码
-    if (type === 'registration' && req.user.role !== 'teacher' && req.user.role !== 'admin') {
+    if (type === 'registration' && !hasCapability(req, 'invite.manage')) {
       return res.status(403).json({ error: '只有老师可以生成注册邀请码' });
     }
 
@@ -154,10 +155,10 @@ router.post('/', authWithAuthority, async (req, res) => {
 router.delete('/:id', authWithAuthority, async (req, res) => {
   try {
     // 管理员可删除任何邀请码，普通用户只能删除自己的
-    const condition = req.user.role === 'admin'
+    const condition = hasCapability(req, 'platform.super')
       ? 'WHERE id = ?'
       : 'WHERE id = ? AND creator_id = ?';
-    const params = req.user.role === 'admin'
+    const params = hasCapability(req, 'platform.super')
       ? [req.params.id]
       : [req.params.id, req.user.id];
 

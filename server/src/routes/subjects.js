@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import log from '../utils/logger.js';
@@ -14,12 +15,15 @@ router.use(apiLimiter);
 router.get('/', authWithAuthority, async (req, res) => {
   try {
     const userId = req.user.id;
+    // M2 边界：userRole 仅用于 student/independent 账户类型数据分支（下方 46/359），
+    // 非 org 角色权威判定；org_members.role 将 student 与 independent 均归为 examinee，
+    // 无法区分二者，故此处保留 users.role，M3 真实多租户时随成员模型一并重评。
     const userRole = req.user.role;
 
     // 管理员：自己创建的 + 已订阅的（与其他用户逻辑一致，避免看到其他用户的科目）
     // 使用 DISTINCT 避免同一科目既创建又订阅时重复显示
     // 排除系统模板科目（is_system=1），只通过订阅显示
-    if (userRole === 'admin') {
+    if (hasCapability(req, 'platform.super')) {
       const [rows] = await pool.execute(
         `SELECT DISTINCT s.*, u.username as creator_name,
                 (SELECT COUNT(*) FROM questions WHERE subject_id = s.id AND deleted_at IS NULL) as question_count,
@@ -191,7 +195,7 @@ router.put('/:id', authWithAuthority, async (req, res) => {
     // 权限校验 — 允许科目拥有者或管理员修改
     const [existing] = await conn.execute(
       'SELECT id, share_scope as current_scope, created_by FROM subjects WHERE id = ? AND (created_by = ? OR ?)',
-      [req.params.id, req.user.id, req.user.role === 'admin' ? 1 : 0]
+      [req.params.id, req.user.id, hasCapability(req, 'platform.super') ? 1 : 0]
     );
     if (existing.length === 0) {
       return res.status(404).json({ error: '科目不存在或无权限' });
@@ -271,7 +275,7 @@ router.get('/:id/students', authWithAuthority, async (req, res) => {
     if (existing.length === 0) {
       return res.status(404).json({ error: '科目不存在' });
     }
-    if (existing[0].created_by !== req.user.id && req.user.role !== 'admin') {
+    if (existing[0].created_by !== req.user.id && !hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '无权限' });
     }
 
@@ -303,7 +307,7 @@ router.delete('/:id', authWithAuthority, async (req, res) => {
     if (existing.length === 0) {
       return res.status(404).json({ error: '科目不存在' });
     }
-    if (existing[0].created_by !== req.user.id && req.user.role !== 'admin') {
+    if (existing[0].created_by !== req.user.id && !hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '无权限删除此科目' });
     }
 
@@ -353,7 +357,7 @@ router.post('/:id/initialize', authWithAuthority, async (req, res) => {
     }
 
     const subject = existing[0];
-    if (subject.created_by !== userId && userRole !== 'admin') {
+    if (subject.created_by !== userId && !hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '无权限初始化此科目' });
     }
     if (userRole === 'student' && subject.share_scope !== 'none') {

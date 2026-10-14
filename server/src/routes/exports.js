@@ -14,7 +14,7 @@ import path from 'path';
 import { existsSync } from 'fs';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
-import { canManageExam } from '../utils/authority.js';
+import { canManageExam, hasCapability } from '../utils/authority.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { createExportJob, getJobStatus, listJobs, processJob, EXPORTS_DIR } from '../utils/exportService.js';
 import log from '../utils/logger.js';
@@ -85,7 +85,7 @@ router.get('/jobs/:id(\\d+)', authWithAuthority, async (req, res) => {
     const jobId = Number(req.params.id);
     const job = await getJobStatus(pool, jobId);
     if (!job) return res.status(404).json({ error: '任务不存在' });
-    if (job.requested_by !== req.user.id && req.user.role !== 'admin') {
+    if (job.requested_by !== req.user.id && !hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '无权查看该任务' });
     }
     res.json(job);
@@ -102,7 +102,7 @@ router.get('/jobs/:id(\\d+)/download', authWithAuthority, async (req, res) => {
     const jobId = Number(req.params.id);
     const job = await getJobStatus(pool, jobId);
     if (!job) return res.status(404).json({ error: '任务不存在' });
-    if (job.requested_by !== req.user.id && req.user.role !== 'admin') {
+    if (job.requested_by !== req.user.id && !hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '无权下载该文件' });
     }
     if (job.status !== 'done') {

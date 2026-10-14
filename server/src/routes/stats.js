@@ -11,7 +11,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority, adminMiddleware } from '../middleware/auth.js';
-import { canManageExam } from '../utils/authority.js';
+import { canManageExam, hasCapability } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import {
   getTrend, getMastery, getExamAnalysisDeep, getClassCompare, aggregateForDate, dateStrInTZ,
@@ -70,11 +70,11 @@ router.get('/exam/:id(\\d+)/analysis', authWithAuthority, async (req, res) => {
 // GET /class/compare
 router.get('/class/compare', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
+    if (!hasCapability(req, 'content.manage')) {
       return res.status(403).json({ error: '无权查看班级对比' });
     }
     let teacherId = req.user.id;
-    if (req.user.role === 'admin' && req.query.teacher_id) {
+    if (hasCapability(req, 'platform.super') && req.query.teacher_id) {
       teacherId = Number(req.query.teacher_id);
     }
     const students = await getClassCompare(pool, teacherId);

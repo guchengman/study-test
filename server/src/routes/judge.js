@@ -3,6 +3,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import { getRunner, acquireSlot, releaseSlot } from '../services/judgeService.js';
 import log from '../utils/logger.js';
 
@@ -55,7 +56,7 @@ router.get('/runs/:attemptId(\\d+)', authWithAuthority, async (req, res) => {
   try {
     const [a] = await pool.execute('SELECT user_id FROM exam_attempts WHERE id = ?', [Number(req.params.attemptId)]);
     if (a.length === 0) return res.status(404).json({ error: '答卷不存在' });
-    if (a[0].user_id !== req.user.id && req.user.role !== 'admin') return res.status(403).json({ error: '无权查看' });
+    if (a[0].user_id !== req.user.id && !hasCapability(req, 'platform.super')) return res.status(403).json({ error: '无权查看' });
     const [runs] = await pool.execute('SELECT id, question_id, status, verdict, passed, total, time_ms FROM judge_runs WHERE attempt_id = ? ORDER BY id', [Number(req.params.attemptId)]);
     res.json({ runs });
   } catch (err) { log.error('判题运行查询错误:', err); res.status(500).json({ error: '查询失败' }); }

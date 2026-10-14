@@ -12,6 +12,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { validateGroupPayload } from '../utils/questionGroups.js';
 import log from '../utils/logger.js';
@@ -71,7 +72,7 @@ router.get('/', authWithAuthority, async (req, res) => {
     const { subject_id } = req.query;
     if (!subject_id) return res.status(400).json({ error: 'subject_id 必填' });
     // 属主隔离：非管理员仅见自己创建的组（与 GET /:id 的 created_by 守卫一致，杜绝按 subject_id 横向越权读取）
-    const mineOnly = req.user.role !== 'admin';
+    const mineOnly = !hasCapability(req, 'platform.super');
     const listSql =
       'SELECT id, subject_id, material, created_by, created_at FROM question_groups WHERE subject_id = ?' +
       (mineOnly ? ' AND created_by = ?' : '') +
@@ -101,7 +102,7 @@ router.get('/:id(\\d+)', authWithAuthority, async (req, res) => {
     const [g] = await pool.execute('SELECT * FROM question_groups WHERE id = ?', [req.params.id]);
     if (g.length === 0) return res.status(404).json({ error: '材料组不存在' });
     const group = g[0];
-    if (req.user.role !== 'admin' && group.created_by !== req.user.id) {
+    if (!hasCapability(req, 'platform.super') && group.created_by !== req.user.id) {
       return res.status(403).json({ error: '无权查看该材料组' });
     }
     const [qs] = await pool.execute(

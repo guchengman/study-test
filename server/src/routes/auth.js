@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
-import { generateToken, authMiddleware } from '../middleware/auth.js';
+import { generateToken, authMiddleware, authWithAuthority } from '../middleware/auth.js';
+import { hasCapability } from '../utils/authority.js';
 import {
   createVerificationCode,
   consumeVerificationCode,
@@ -495,18 +496,17 @@ router.put('/password', authMiddleware, async (req, res) => {
 });
 
 // 角色转换
-router.post('/convert-role', authMiddleware, async (req, res) => {
+router.post('/convert-role', authWithAuthority, async (req, res) => {
   try {
     const { targetRole, phone, inviteCode, teacherPhone } = req.body;
     const userId = req.user.id;
-    const currentRole = req.user.role;
 
     if (!['teacher', 'student', 'independent'].includes(targetRole)) {
       return res.status(400).json({ error: '无效的目标角色' });
     }
 
     // 不允许admin转换
-    if (currentRole === 'admin') {
+    if (hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '管理员不能转换角色' });
     }
 
@@ -680,9 +680,9 @@ router.post('/bind-teacher', authMiddleware, async (req, res) => {
 });
 
 // 获取用户列表（管理员）
-router.get('/list', authMiddleware, async (req, res) => {
+router.get('/list', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const [rows] = await pool.execute(
@@ -701,10 +701,10 @@ router.get('/list', authMiddleware, async (req, res) => {
 });
 
 // 获取老师的学生列表（管理员可用）
-router.get('/teacher-students/:teacherId', authMiddleware, async (req, res) => {
+router.get('/teacher-students/:teacherId', authWithAuthority, async (req, res) => {
   try {
     // 管理员可查任何老师，老师只能查自己
-    if (req.user.role !== 'admin' && req.user.role !== 'teacher') {
+    if (!hasCapability(req, 'student.manage')) {
       return res.status(403).json({ error: '权限不足' });
     }
     // 'me' 或 0 表示查自己的学生
@@ -712,7 +712,7 @@ router.get('/teacher-students/:teacherId', authMiddleware, async (req, res) => {
       ? req.user.id
       : parseInt(req.params.teacherId);
     // 老师只能查自己的
-    if (req.user.role === 'teacher' && teacherId !== req.user.id) {
+    if (!hasCapability(req, 'platform.super') && teacherId !== req.user.id) {
       return res.status(403).json({ error: '只能查看自己的学生' });
     }
     const [rows] = await pool.execute(
@@ -729,9 +729,9 @@ router.get('/teacher-students/:teacherId', authMiddleware, async (req, res) => {
 });
 
 // 重置用户密码（管理员）
-router.put('/reset-password', authMiddleware, async (req, res) => {
+router.put('/reset-password', authWithAuthority, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const { userId } = req.body;
@@ -749,10 +749,10 @@ router.put('/reset-password', authMiddleware, async (req, res) => {
 });
 
 // 删除用户（管理员）
-router.delete('/user/:id', authMiddleware, async (req, res) => {
+router.delete('/user/:id', authWithAuthority, async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    if (req.user.role !== 'admin') {
+    if (!hasCapability(req, 'platform.super')) {
       return res.status(403).json({ error: '权限不足' });
     }
     const userId = req.params.id;
@@ -905,11 +905,11 @@ router.put('/help-read', authMiddleware, async (req, res) => {
 
 // ─── 用户自行注销账号 ────────────────────────────────────
 
-router.delete('/account', authMiddleware, async (req, res) => {
+router.delete('/account', authWithAuthority, async (req, res) => {
   const userId = req.user.id;
 
   // 管理员不允许注销
-  if (req.user.role === 'admin') {
+  if (hasCapability(req, 'platform.super')) {
     return res.status(403).json({ error: '管理员账号不可注销' });
   }
 
@@ -918,7 +918,7 @@ router.delete('/account', authMiddleware, async (req, res) => {
     await conn.beginTransaction();
 
     // 如果用户是老师，先将学生转为独立用户
-    if (req.user.role === 'teacher') {
+    if (hasCapability(req, 'student.manage')) {
       const [students] = await conn.execute('SELECT id FROM users WHERE teacher_id = ?', [userId]);
       if (students.length > 0) {
         await conn.execute(
