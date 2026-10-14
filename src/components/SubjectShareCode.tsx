@@ -57,6 +57,15 @@ export function SubjectShareCode({ subjectId, subjectName, scope = 'all', pendin
     }
   };
 
+  const copyLink = () => {
+    if (shareCode) {
+      navigator.clipboard.writeText(`${window.location.origin}/s/${shareCode}`).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
+
   if (loading && !shareCode) {
     return <p className="text-xs text-slate-400">加载中...</p>;
   }
@@ -97,9 +106,18 @@ export function SubjectShareCode({ subjectId, subjectName, scope = 'all', pendin
           </span>
         )}
       </div>
-      <button onClick={copyCode} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors" title="复制">
+      <button onClick={copyCode} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors" title="复制邀请码">
         {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} className="text-slate-400" />}
       </button>
+      {!isExpired && (
+        <button
+          onClick={copyLink}
+          className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-1"
+          title="复制公开分享链接（指向 /s/:code）"
+        >
+          <Copy size={12} /><span>复制分享链接</span>
+        </button>
+      )}
       {isExpired && (
         <button onClick={generateCode} disabled={loading} className="text-xs text-blue-600 hover:underline">
           重新生成
