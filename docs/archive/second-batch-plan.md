@@ -15,7 +15,7 @@
 
 | 审核项 | 状态 | 当前证据 |
 |---|---|---|
-| **A1** 硬编码 PaddleOCR 密钥 | ✅ 已修 | `ImportModal.tsx:124` 现为 `localStorage.getItem('paddle_ocr_api_key') \|\| import.meta.env.VITE_PADDLEOCR_API_KEY \|\| ''`，硬编码 `'97f310b23...'` 默认值已删除 |
+| **A1** 硬编码 PaddleOCR 密钥 | ✅ 已修 | `ImportModal.tsx:124` 现为 `localStorage.getItem('paddle_ocr_api_key') \|\| import.meta.env.VITE_PADDLEOCR_API_KEY \|\| ''`，硬编码密钥默认值已删除 |
 | **B2** mammoth/pdfjs 静态引入 | ✅ 已修 | `fileService.ts:10 loadPdfjs()`、`fileService.ts:19 loadMammoth()` 改为函数内 `await import()`；文件由 1189→**1208 行**（新增 2 个动态加载 helper） |
 | **B4** core-js/regenerator 全量 polyfill | ✅ 已修（导入侧） | `src/main.tsx` 已**无** `import 'core-js/stable'` / `import 'regenerator-runtime/runtime'` |
 | **B3** chunkSizeWarningLimit 抬高 | ✅ 已修 | `vite.config.ts:76` 现为 `chunkSizeWarningLimit: 500` |

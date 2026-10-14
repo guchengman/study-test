@@ -108,7 +108,7 @@ export function checkBlocked(name, res) {
 - [ ] **Step 2: 改 integration_exam.mjs 用桁架（只搬不改）**
 
 删除 `integration_exam.mjs` 中以下本地定义并改为 import：
-- 顶部 `const BASE = process.env.EXAM_IT_BASE || ...`、`const DB = {...}`（含硬编码 `password: '<REDACTED_DB_PASSWORD>'`）、`function check(...)`、`async function api(...)`、`async function registerWithCode(...)`、`const results = []`。
+- 顶部 `const BASE = process.env.EXAM_IT_BASE || ...`、`const DB = {...}`（含硬编码 `password: '<REDACTED_DB_PASSWORD_已轮换>'`）、`function check(...)`、`async function api(...)`、`async function registerWithCode(...)`、`const results = []`。
 - 保留本地独有的：`fmt`、`cleanup`、`UPLOADS_ROOT`、`import { tickDay, checkBroken }`。
 
 替换后的头部 import 段：

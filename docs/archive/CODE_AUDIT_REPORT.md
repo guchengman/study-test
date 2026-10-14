@@ -24,7 +24,7 @@
   ```ts
   const [paddleOcrApiKey, setPaddleOcrApiKey] = useState(() =>
     localStorage.getItem('paddle_ocr_api_key') ||
-    '<REDACTED_PADDLEOCR_KEY>');
+    '<REDACTED_PADDLEOCR_KEY_已轮换>');
   ```
 - 描述：PaddleOCR 密钥以明文硬编码为 `useState` 默认值，并在第 1685 行 `localStorage.setItem('paddle_ocr_api_key', paddleOcrApiKey)` 持久化。密钥进入前端包即公开。
 - 影响：密钥泄露、厂商配额被盗刷、直接经济损失。
