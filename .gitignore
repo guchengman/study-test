@@ -86,6 +86,7 @@ server/exports/
 !scripts/db/set-reset-flag.cjs
 !server/scripts/verify-data.cjs
 !server/scripts/check-users.cjs
+!server/scripts/reconcile-role-authority.cjs
 
 # 离线 OCR 本地资源（由 npm run setup:tesseract 生成，体积较大，不入库）
 public/tesseract/
