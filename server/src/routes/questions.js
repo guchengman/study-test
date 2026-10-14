@@ -5,6 +5,7 @@ import { authWithAuthority } from '../middleware/auth.js';
 import { hasCapability } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { maybeShadowCheckByOrg } from '../utils/orgIsolationShadow.js';
 import { snapshotCurrentVersion, isReferencedByExam } from '../utils/questionLifecycle.js';
 import log from '../utils/logger.js';
 
@@ -93,6 +94,7 @@ router.get('/', authWithAuthority, async (req, res) => {
       });
     }
 
+    await maybeShadowCheckByOrg(req, rows, 'questions');
     res.json({ questions: rows, total, page: pageNum, limit: limitNum });
   } catch (err) {
     log.error('获取题目列表错误:', err);

@@ -20,6 +20,7 @@ import { canManageExam } from '../utils/authority.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
+import { maybeShadowCheckByOrg } from '../utils/orgIsolationShadow.js';
 import { checkQuota, recordUsage } from '../utils/quotaService.js';
 import { tickDay } from '../utils/streakService.js';
 import { generateSeed, shuffleQuestions, buildOptionOrder, applyOptionOrder } from '../utils/seededShuffle.js';
@@ -226,6 +227,7 @@ router.get('/', authWithAuthority, async (req, res) => {
       avg_score: Number(r.avg_score) || 0,
     }));
 
+    await maybeShadowCheckByOrg(req, exams, 'exams');
     res.json({ exams });
   } catch (err) {
     log.error('获取我的考试列表错误:', err);
