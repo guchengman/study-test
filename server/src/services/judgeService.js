@@ -83,7 +83,50 @@ const RUNNER_PY = [
   'print("###RESULT###" + json.dumps({"verdict": verdict, "passed": passed, "total": total, "perCase": res}))',
 ].join('\n');
 
-/** 解析 runner.py 末行 ###RESULT### JSON；无结果按运行时错误（fail-closed）。 */
+/** JS harness（node 镜像内）：逐用例 spawn node solution.js、限时、归一 stdout 比对。 */
+const RUNNER_JS = [
+  'const fs=require("fs"), cp=require("child_process");',
+  'const cases=JSON.parse(fs.readFileSync("/code/cases.json","utf8"));',
+  'const meta=JSON.parse(fs.readFileSync("/code/run_meta.json","utf8"));',
+  'const tlimit=Math.max(1, parseInt(meta.time_limit_ms||2000,10));',
+  'function norm(s){return String(s||"").replace(/\\r\\n/g,"\\n").split("\\n").map(l=>l.replace(/[ \\t]+$/g,"")).join("\\n").replace(/\\n+$/g,"");}',
+  'let res=[],passed=0;',
+  'for(let i=0;i<cases.length;i++){',
+  '  const c=cases[i];let ok=false,err=null,actual="";',
+  '  try{',
+  '    const p=cp.spawnSync("node",["/code/solution.js"],{input:String(c.input||""),encoding:"utf8",timeout:tlimit});',
+  '    actual=p.stdout||"";',
+  '    if(p.error){err="TLE";}\n else if(p.status!==0){err="RE: rc="+p.status+" "+String(p.stderr||"").trim().slice(0,200);}',
+  '    else{ok=norm(actual)===norm(String(c.expected_output||""));}',
+  '  }catch(e){err="RE:"+e.message;}',
+  '  if(ok)passed++;',
+  '  res.push({index:i,ok,expected:c.expected_output,actual,err});',
+  '}',
+  'const total=cases.length;',
+  'const verdict=(total>0&&passed===total)?"AC":(total===0?"CE":"WA");',
+  'console.log("###RESULT###"+JSON.stringify({verdict,passed,total,perCase:res}));',
+].join('\n');
+
+/** 语言 → 容器描述（镜像 / 提交文件名 / harness / 容器命令）；未知回落 python。 */
+export function getLanguageDescriptor(lang) {
+  const k = String(lang || '').toLowerCase();
+  if (k === 'javascript') {
+    return {
+      key: 'javascript',
+      image: process.env.JUDGE_NODE_IMAGE || 'node:20-slim',
+      solutionFile: 'solution.js', harnessFile: 'runner.js', harnessSrc: RUNNER_JS,
+      containerCmd: ['node', '/code/runner.js'],
+    };
+  }
+  return {
+    key: 'python',
+    image: process.env.JUDGE_PYTHON_IMAGE || 'python:3-slim',
+    solutionFile: 'solution.py', harnessFile: 'runner.py', harnessSrc: RUNNER_PY,
+    containerCmd: ['python', '/code/runner.py'],
+  };
+}
+
+/** 解析 runner 末行 ###RESULT### JSON；无结果按运行时错误（fail-closed）。 */
 export function parseRunnerOutput(stdout, exitCode) {
   const line = String(stdout || '').split('\n').find((l) => l.startsWith('###RESULT###'));
   if (!line) return { verdict: exitCode === 0 ? 'RE' : 'CE', passed: 0, total: 0, perCase: [], log: `no-result exit=${exitCode}` };
@@ -115,26 +158,26 @@ function runDocker(args, hardMs) {
 }
 
 function createDockerRunner() {
-  const IMAGE = process.env.JUDGE_PYTHON_IMAGE || 'python:3-slim';
   return {
     name: 'docker',
-    async run({ code, testCases = [], timeLimitMs = 2000, memoryLimitMb = 128 }) {
+    async run({ code, testCases = [], language = 'python', timeLimitMs = 2000, memoryLimitMb = 128 }) {
+      const d = getLanguageDescriptor(language);
       const work = mkdtempSync(join(tmpdir(), 'judge-'));
       try {
-        writeFileSync(join(work, 'solution.py'), String(code ?? ''), 'utf8');
+        writeFileSync(join(work, d.solutionFile), String(code ?? ''), 'utf8');
         writeFileSync(join(work, 'cases.json'), JSON.stringify(testCases), 'utf8');
         writeFileSync(join(work, 'run_meta.json'), JSON.stringify({ time_limit_ms: timeLimitMs }), 'utf8');
-        writeFileSync(join(work, 'runner.py'), RUNNER_PY, 'utf8');
-        try { chmodSync(work, 0o755); ['solution.py', 'cases.json', 'run_meta.json', 'runner.py'].forEach((f) => chmodSync(join(work, f), 0o644)); } catch { /* ignore (Windows/dev) */ }
+        writeFileSync(join(work, d.harnessFile), d.harnessSrc, 'utf8');
+        try { chmodSync(work, 0o755); [d.solutionFile, 'cases.json', 'run_meta.json', d.harnessFile].forEach((f) => chmodSync(join(work, f), 0o644)); } catch { /* ignore (Windows/dev) */ }
         const hardMs = timeLimitMs * Math.max(1, testCases.length) + 8000; // 含冷启裕量
         const args = [
           'run', '--rm', '--network', 'none', '--memory', `${memoryLimitMb}m`, '--cpus', '0.5',
           '--pids-limit', '64', '--read-only', '--tmpfs', '/tmp:rw,size=16m', '--user', 'nobody',
-          '-v', `${work}:/code:ro`, IMAGE, 'python', '/code/runner.py',
+          '-v', `${work}:/code:ro`, d.image, ...d.containerCmd,
         ];
         const out = await runDocker(args, hardMs);
         const result = parseRunnerOutput(out.stdout, out.code);
-        if (out.stderr && /docker|command not found|No such file/i.test(out.stderr)) {
+        if (out.stderr && /docker|command not found|No such file|Unable to find image/i.test(out.stderr)) {
           log.warn('[fr106] docker 执行异常:', out.stderr.slice(0, 200));
         }
         return { ...result, time_ms: out.ms, mem_kb: 0, log: out.stderr || result.log || '' };
@@ -173,4 +216,4 @@ export function releaseSlot() {
 }
 
 export { JUDGE_CONCURRENCY, pool, log };
-export default { getRunner, acquireSlot, releaseSlot, normalizeOutput, createStubRunner, dockerAvailable };
+export default { getRunner, acquireSlot, releaseSlot, normalizeOutput, createStubRunner, dockerAvailable, getLanguageDescriptor };

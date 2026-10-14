@@ -156,6 +156,11 @@ export interface Question {
 // ===== FR-106 编程题在线判题契约 =====
 export interface JudgeTestCase { input: string; expected_output: string; is_sample?: boolean; }
 export interface JudgeConfig { language?: string; time_limit_ms?: number; memory_limit_mb?: number; starter_code?: string | null; test_cases: JudgeTestCase[]; }
+// FR-106 支持的编程题判题语言（与后端 getLanguageDescriptor 对齐；未知回落 python）
+export const PROGRAMMING_LANGUAGES: { value: string; label: string }[] = [
+  { value: 'python', label: 'Python' },
+  { value: 'javascript', label: 'JavaScript (Node)' },
+];
 export interface JudgeRunResult {
   verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE' | string;
   passed: number;

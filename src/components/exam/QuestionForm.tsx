@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Upload, AlertTriangle, BookPlus } from 'lucide-react';
 import { questionApi, uploadApi } from '../../services/api';
+import { PROGRAMMING_LANGUAGES } from '../../types';
 import { AudioPlayer } from '../AudioPlayer';
 
 const TYPES = [
@@ -35,6 +36,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [starter, setStarter] = useState<string>('');
+  const [lang, setLang] = useState<string>('python');
   const [cases, setCases] = useState<{ input: string; expected_output: string; is_sample: boolean }[]>(
     [{ input: '', expected_output: '', is_sample: true }]);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
     setSubjectId(subjects[0]?.id || '');
     setType('single'); setTitle(''); setOptionsText(''); setAnswer('');
     setExplanation(''); setPoints(1); setAudioUrl(null); setError(null);
-    setStarter(''); setCases([{ input: '', expected_output: '', is_sample: true }]);
+    setStarter(''); setCases([{ input: '', expected_output: '', is_sample: true }]); setLang('python');
   };
   const handleClose = () => { reset(); onClose(); };
 
@@ -83,7 +85,7 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
         explanation: explanation.trim() || undefined, points: Number(points) > 0 ? Number(points) : 1,
         audio_url: audioUrl,
         judge_config: isProgramming
-          ? { language: 'python', time_limit_ms: 2000, memory_limit_mb: 128, starter_code: starter || null,
+          ? { language: lang, time_limit_ms: 2000, memory_limit_mb: 128, starter_code: starter || null,
               test_cases: cases.filter((c) => c.expected_output.trim()).map((c) => ({ input: c.input, expected_output: c.expected_output, is_sample: c.is_sample !== false })) }
           : undefined,
       });
@@ -196,7 +198,11 @@ export function QuestionForm({ open, subjects, onClose, onCreated }: QuestionFor
             <div className="p-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-600">编程题判题配置</span>
-                <span className="text-xs text-slate-400">语言固定 Python · 2s / 128MB</span>
+                <select value={lang} onChange={(e) => setLang(e.target.value)}
+                  className="text-xs px-2 py-1 rounded-lg border border-slate-200 bg-white text-slate-600 outline-none">
+                  {PROGRAMMING_LANGUAGES.map((l) => (<option key={l.value} value={l.value}>{l.label}</option>))}
+                </select>
+                <span className="text-xs text-slate-400">2s / 128MB</span>
               </div>
               <label className="block text-sm">
                 <span className="font-bold text-slate-600">初始代码（可选）</span>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeOutput, createStubRunner } from '../../src/services/judgeService.js';
+import { normalizeOutput, createStubRunner, getLanguageDescriptor } from '../../src/services/judgeService.js';
 
 describe('fr106 judgeService', () => {
   it('normalizeOutput 去尾随空白与末尾空行、CRLF→LF', () => {
@@ -21,5 +21,24 @@ describe('fr106 judgeService', () => {
     const bad = await stub.run({ code: 'x=1', language: 'python', testCases: cases, timeLimitMs: 2000, memoryLimitMb: 128 });
     expect(bad.verdict).toBe('WA');
     expect(bad.passed).toBe(0);
+  });
+
+  it('getLanguageDescriptor：javascript 走 node，python/未知走 python 默认', () => {
+    const js = getLanguageDescriptor('javascript');
+    expect(js.key).toBe('javascript');
+    expect(js.image).toMatch(/node/);
+    expect(js.solutionFile).toBe('solution.js');
+    expect(js.containerCmd[0]).toBe('node');
+    const py = getLanguageDescriptor('python');
+    expect(py.image).toMatch(/python/);
+    expect(py.solutionFile).toBe('solution.py');
+    expect(getLanguageDescriptor('ruby').key).toBe('python');
+    expect(getLanguageDescriptor(undefined).key).toBe('python');
+  });
+
+  it('StubRunner 与语言无关：javascript 仍能判 AC', async () => {
+    const stub = createStubRunner();
+    const r = await stub.run({ code: 'console.log(42)', language: 'javascript', testCases: [{ input: '', expected_output: '42' }], timeLimitMs: 2000, memoryLimitMb: 128 });
+    expect(r.verdict).toBe('AC');
   });
 });

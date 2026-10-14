@@ -494,6 +494,44 @@ const main = async () => {
     check('FR106 judge_runs done', rr.status === 200 && (rr.data?.runs || []).some((x) => x.status === 'done' && x.verdict === 'AC'), rr.data);
   }
 
+  // 19g) FR-106 JavaScript(node) 语言端到端：建题带 javascript 判题配置 → 详情回读 → 练习样例 → 交卷异步判分回写 AC
+  {
+    const jcJs = { language: 'javascript', time_limit_ms: 2000, memory_limit_mb: 128, starter_code: 'console.log()',
+      test_cases: [{ input: '21', expected_output: '42', is_sample: true }] };
+    const rc = await api('POST', '/questions', tToken, {
+      subject_id: 'it_subj_01', type: 'programming', title: 'IT_FR106_JS编程题', answer: '// ref', judge_config: jcJs,
+    });
+    check('FR106-JS 建 javascript 编程题(200,id)', rc.status === 200 && rc.data?.id, rc.status);
+    const qJs = rc.data?.id;
+    const rd = await api('GET', `/questions/${qJs}`, tToken);
+    check('FR106-JS 详情回读 language=javascript', rd.status === 200 && rd.data?.question?.judge_config?.language === 'javascript', { got: rd.data?.question?.judge_config?.language });
+
+    // 练习同步样例（stub 与语言无关：代码含期望首行子串即 AC）
+    const rp = await api('POST', '/judge/practice', tToken, { question_id: qJs, code: 'console.log(42)' });
+    check('FR106-JS 练习样例 AC', rp.status === 200 && rp.data?.verdict === 'AC' && rp.data.passed === rp.data.total && rp.data.total >= 1, { status: rp.status, d: rp.data });
+
+    // 考试异步判题：交卷 → judge_runs done(AC) → details 回写 earned=10 needs_manual=false judge_status=AC
+    const rex = await api('POST', '/exams', tToken, { subject_id: 'it_subj_01', title: 'IT_FR106_JS考',
+      question_set: [{ question_id: qJs, points: 10 }], duration_minutes: 30, pass_score: 6 });
+    const exJs = rex.data?.id;
+    await api('PUT', `/exams/${exJs}`, tToken, { status: 'published', start_time: fmt(new Date(now.getTime() - 60000)), end_time: fmt(new Date(now.getTime() + 86400000)) });
+    const rst = await api('POST', `/exams/${exJs}/start`, sToken);
+    const jaid = rst.data?.attemptId;
+    const rsub = await api('POST', `/exams/${exJs}/submit`, sToken, { attemptId: jaid, answers: { [qJs]: 'console.log(42)' } });
+    check('FR106-JS 交卷成功', rsub.status === 200, rsub.status);
+    let jfinal = null;
+    for (let i = 0; i < 30; i++) {
+      const ra = await api('GET', `/exams/attempts/${jaid}`, sToken);
+      const body = ra.data?.attempt || ra.data;
+      const d = (body?.details || []).find((x) => Number(x.question_id) === Number(qJs));
+      if (d && d.needs_manual === false) { jfinal = { score: body?.score, d }; break; }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    check('FR106-JS 判题回写 earned=10 judge_status=AC', !!jfinal && jfinal.d.earned === 10 && jfinal.d.judge_status === 'AC', jfinal);
+    const rjrun = await api('GET', `/judge/runs/${jaid}`, sToken);
+    check('FR106-JS judge_runs done(AC)', rjrun.status === 200 && (rjrun.data?.runs || []).some((x) => x.status === 'done' && x.verdict === 'AC'), rjrun.data);
+  }
+
   // 18) FR-107 回收站与版本历史端到端（独立题目，不影响上述判分断言）
   r = await api('POST', '/questions', tToken, { subject_id: 'it_subj_01', type: 'single', title: 'IT_生命周期题', options: ['A', 'B'], answer: 'A', points: 5 });
   check('FR-107 建题', r.status === 200 && r.data.id, r.status);
