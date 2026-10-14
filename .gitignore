@@ -21,6 +21,10 @@ android/
 .env.local
 !.env.example
 
+# 部署脚本本地配置（含服务器IP/用户/路径，勿入库；模板 deploy.env.example 可提交）
+deploy.env
+!deploy.env.example
+
 # 日志
 *.log
 npm-debug.log*

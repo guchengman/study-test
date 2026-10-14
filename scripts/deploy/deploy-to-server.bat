@@ -5,9 +5,17 @@ echo    部署到阿里云服务器
 echo ========================================
 echo.
 
-set SERVER_HOST=<REDACTED_IP>
-set SERVER_USER=zengxiao
-set SERVER_PATH=/home/zengxiao/study-test
+REM ===== 读取本地部署配置（scripts\deploy\deploy.env，已 gitignore，不入库）=====
+set "ENV_FILE=%~dp0deploy.env"
+if not exist "%ENV_FILE%" (
+  echo [错误] 找不到部署配置文件 %ENV_FILE%
+  echo        请复制同目录 deploy.env.example 为 deploy.env 并填写真实值。
+  exit /b 1
+)
+for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENV_FILE%") do set "%%A=%%B"
+if "%SERVER_HOST%"=="" (echo [错误] deploy.env 缺少 SERVER_HOST & exit /b 1)
+if "%SERVER_USER%"=="" (echo [错误] deploy.env 缺少 SERVER_USER & exit /b 1)
+if "%SERVER_PATH%"=="" (echo [错误] deploy.env 缺少 SERVER_PATH & exit /b 1)
 
 echo [1/5] 备份当前文件...
 ssh %SERVER_USER%@%SERVER_HOST% "mkdir -p %SERVER_PATH%/backup && cp -r %SERVER_PATH%/dist %SERVER_PATH%/backup/dist_bak_%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2% 2>/dev/null || true"
