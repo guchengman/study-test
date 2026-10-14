@@ -16,6 +16,11 @@
 - **可复用件**：`middleware/rateLimit.js` 已在用（可挂到公开端点）；`authApi.register({inviteCode})` 与 `POST /subjects/join` 均已存在（CTA 引导注册/加入无需新建）；nginx `location / { try_files $uri $uri/ /index.html; }` 已就位（`/s/:code` 无需改 nginx）。
 - **`invite_codes` 列**：`code(UNIQUE)`, `type ENUM('registration','subject')`, `subject_id`, `expires_at`, `used_count`, `max_uses`, `creator_id`。
 
+> **实盘校正（2026-10-14 生产冒烟验证补充）** — 与实现计划同口径，写涉及这两张表的 SQL/脚本时以实盘 `SHOW CREATE TABLE` 为准：
+> - `invite_codes`：关联创建者列是 **`creator_id`（int NOT NULL）**（本行已正确）；`subject_id` 为 **varchar(50)**（存科目字符串 id，如 `custom_xxx`）；`expires_at` 为 **datetime NOT NULL** —— 插入时不能给 `NULL`。
+> - `subjects`：**有** `created_by`（服务用它查 `users.username` 得 `creator.displayName`，冒烟已验证）；**没有** `deleted_at` 列（科目层无软删除，软删过滤只用于 `questions.deleted_at`）。
+> - 题面字段实为 **`title`**（下方示例早期写作 `stem`，已改）；结论：**已上线代码与设计文档一致**，`GET /api/public/share/<有效码>` 冒烟返回 200 且响应不含 answer/explanation。
+
 ## 已定关键决策（澄清结论）
 
 1. 分享粒度 = **科目/题库**（非试卷、非单题）。
@@ -46,7 +51,7 @@
                "questionCount": 123, "byType": { "single": 80, "multiple": 43 } },
   "creator": { "displayName": "..." },
   "experience": { "quizToken": "<jwt>", "questions": [
-      { "id": 101, "type": "single", "stem": "...", "options": ["A文本","B文本","C文本","D文本"] }
+      { "id": 101, "type": "single", "title": "...", "options": ["A文本","B文本","C文本","D文本"] }
   ] }
 }
 ```
