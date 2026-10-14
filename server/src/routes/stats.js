@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority, adminMiddleware } from '../middleware/auth.js';
+import { canManageExam } from '../utils/authority.js';
 import { apiLimiter } from '../middleware/rateLimit.js';
 import {
   getTrend, getMastery, getExamAnalysisDeep, getClassCompare, aggregateForDate, dateStrInTZ,
@@ -22,10 +23,7 @@ router.use(apiLimiter);
 
 const VALID_METRICS = ['practiced', 'correct', 'time_spent', 'exam_score'];
 
-/** owner 判定：platform admin 或试卷创建者本人（teacher 需为创建者，避免跨租户越权）。 */
-function isOwner(exam, userId, role) {
-  return role === 'admin' || exam.created_by === userId;
-}
+// owner 判定已收敛到 utils/authority.js canManageExam（exam.manage_super = 仅 platform admin 旁路）。
 
 // GET /me/trend
 router.get('/me/trend', authWithAuthority, async (req, res) => {
@@ -57,7 +55,7 @@ router.get('/exam/:id(\\d+)/analysis', authWithAuthority, async (req, res) => {
     const examId = Number(req.params.id);
     const [examRows] = await pool.execute('SELECT created_by FROM exams WHERE id = ?', [examId]);
     if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
-    if (!isOwner(examRows[0], req.user.id, req.user.role)) {
+    if (!canManageExam(examRows[0], req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权查看该考试分析' });
     }
     const analysis = await getExamAnalysisDeep(pool, examId);

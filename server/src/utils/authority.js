@@ -130,3 +130,15 @@ export function requireCapability(...caps) {
     next();
   };
 }
+
+/**
+ * 统一「能否管理某考试/成绩」。属主恒可；非属主需 bypassCap 能力。
+ * 取代 exams/exports/stats 三处同名的本地 isOwner（保留其语义差异）。
+ * @param exam 含 created_by 的行
+ * @param req  已注入 req.caps / req.user
+ * @param bypassCap 'exam.manage_super'(exams/stats, 仅 admin) 或 'exam.manage_any'(exports, admin||teacher)
+ */
+export function canManageExam(exam, req, bypassCap) {
+  if (exam.created_by === req.user.id) return true;
+  return hasCapability(req, bypassCap);
+}

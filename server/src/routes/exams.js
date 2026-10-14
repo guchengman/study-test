@@ -16,6 +16,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { canManageExam } from '../utils/authority.js';
 import { canAccessSubject, canManageSubject } from '../utils/access.js';
 import { sweepExpiredAttempts, sweepSingleAttempt, gradeAttempt, parseJsonSafe } from '../utils/examSweep.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
@@ -31,10 +32,7 @@ const router = Router();
 
 // ============ 通用辅助 ============
 
-/** owner 判定：platform admin 或试卷创建者本人（teacher 需为创建者，避免跨租户越权）。 */
-function isOwner(exam, userId, role) {
-  return role === 'admin' || exam.created_by === userId;
-}
+// owner 判定已收敛到 utils/authority.js canManageExam（exam.manage_super = 仅 platform admin 旁路）。
 
 // ============ owner 组卷管理 ============
 
@@ -120,7 +118,7 @@ router.put('/:id(\\d+)', authWithAuthority, async (req, res) => {
       return res.status(404).json({ error: '考试不存在' });
     }
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) {
+    if (!canManageExam(exam, req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权修改该考试' });
     }
 
@@ -196,7 +194,7 @@ router.delete('/:id(\\d+)', authWithAuthority, async (req, res) => {
     if (examRows.length === 0) {
       return res.status(404).json({ error: '考试不存在' });
     }
-    if (!isOwner(examRows[0], req.user.id, req.user.role)) {
+    if (!canManageExam(examRows[0], req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权删除该考试' });
     }
     await pool.execute('DELETE FROM exams WHERE id = ?', [examId]);
@@ -244,7 +242,7 @@ router.get('/:id(\\d+)', authWithAuthority, async (req, res) => {
       return res.status(404).json({ error: '考试不存在' });
     }
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) {
+    if (!canManageExam(exam, req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权查看该考试' });
     }
 
@@ -710,7 +708,7 @@ router.get('/attempts/:attemptId', authWithAuthority, async (req, res) => {
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [a.exam_id]);
     const exam = examRows[0];
     // 权限：本人 或 owner
-    if (a.user_id !== req.user.id && !isOwner(exam, req.user.id, req.user.role)) {
+    if (a.user_id !== req.user.id && !canManageExam(exam, req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权查看该答卷' });
     }
 
@@ -831,7 +829,7 @@ router.get('/:id(\\d+)/analysis', authWithAuthority, async (req, res) => {
       return res.status(404).json({ error: '考试不存在' });
     }
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) {
+    if (!canManageExam(exam, req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权查看该考试分析' });
     }
 
@@ -921,7 +919,7 @@ router.get('/:id(\\d+)/attempts', authWithAuthority, async (req, res) => {
     if (examRows.length === 0) {
       return res.status(404).json({ error: '考试不存在' });
     }
-    if (!isOwner(examRows[0], req.user.id, req.user.role)) {
+    if (!canManageExam(examRows[0], req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权查看该考试答卷' });
     }
 
@@ -957,7 +955,7 @@ router.post('/:id(\\d+)/sweep', authWithAuthority, async (req, res) => {
     if (examRows.length === 0) {
       return res.status(404).json({ error: '考试不存在' });
     }
-    if (!isOwner(examRows[0], req.user.id, req.user.role)) {
+    if (!canManageExam(examRows[0], req, 'exam.manage_super')) {
       return res.status(403).json({ error: '无权对该考试执行自动交卷' });
     }
     // owner 手动即时收卷本场：经分页模块、单次上限 500（超大场次剩余由后台调度器继续排空）
@@ -979,7 +977,7 @@ router.get('/:id(\\d+)/grading', authWithAuthority, async (req, res) => {
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
     if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+    if (!canManageExam(exam, req, 'exam.manage_super')) return res.status(403).json({ error: '无权判分该考试' });
 
     const qSet = parseJsonSafe(exam.question_set, []);
     const ids = qSet.map((q) => q.question_id).filter((x) => x != null);
@@ -1027,7 +1025,7 @@ router.get('/:id(\\d+)/grading/:questionId(\\d+)', authWithAuthority, async (req
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
     if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+    if (!canManageExam(exam, req, 'exam.manage_super')) return res.status(403).json({ error: '无权判分该考试' });
 
     const qSet = parseJsonSafe(exam.question_set, []).map((q) => q.question_id);
     if (!qSet.includes(qid)) return res.status(400).json({ error: '题目不属于该考试' });
@@ -1090,7 +1088,7 @@ router.post('/:id(\\d+)/grading/:questionId(\\d+)', authWithAuthority, async (re
     const [examRows] = await pool.execute('SELECT * FROM exams WHERE id = ?', [examId]);
     if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
     const exam = examRows[0];
-    if (!isOwner(exam, req.user.id, req.user.role)) return res.status(403).json({ error: '无权判分该考试' });
+    if (!canManageExam(exam, req, 'exam.manage_super')) return res.status(403).json({ error: '无权判分该考试' });
 
     const qSet = parseJsonSafe(exam.question_set, []).map((q) => q.question_id);
     if (!qSet.includes(qid)) return res.status(400).json({ error: '题目不属于该考试' });

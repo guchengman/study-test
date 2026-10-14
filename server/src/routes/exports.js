@@ -14,16 +14,14 @@ import path from 'path';
 import { existsSync } from 'fs';
 import pool from '../db.js';
 import { authWithAuthority } from '../middleware/auth.js';
+import { canManageExam } from '../utils/authority.js';
 import { resolvePersonalOrgId } from '../utils/personalOrg.js';
 import { createExportJob, getJobStatus, listJobs, processJob, EXPORTS_DIR } from '../utils/exportService.js';
 import log from '../utils/logger.js';
 
 const router = Router();
 
-/** owner 判定（与 exams.js 同口径） */
-function isOwner(exam, userId, role) {
-  return role === 'admin' || role === 'teacher' || exam.created_by === userId;
-}
+// owner 判定已收敛到 utils/authority.js canManageExam（exam.manage_any = admin||teacher 旁路）。
 
 // ─── POST /api/exports ─────────────────────────────────────
 
@@ -42,7 +40,7 @@ router.post('/', authWithAuthority, async (req, res) => {
       // 鉴权：owner 才能导出本场
       const [examRows] = await pool.execute('SELECT created_by FROM exams WHERE id = ?', [examId]);
       if (examRows.length === 0) return res.status(404).json({ error: '考试不存在' });
-      if (!isOwner(examRows[0], req.user.id, req.user.role)) {
+      if (!canManageExam(examRows[0], req, 'exam.manage_any')) {
         return res.status(403).json({ error: '无权导出该考试成绩' });
       }
     }

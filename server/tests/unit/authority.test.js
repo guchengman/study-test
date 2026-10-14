@@ -13,6 +13,7 @@ import {
   computeCaps,
   hasCapability,
   requireCapability,
+  canManageExam,
 } from '../../src/utils/authority.js';
 
 describe('capability matrix', () => {
@@ -98,5 +99,21 @@ describe('hasCapability / requireCapability', () => {
     mw(mkReq([]), res, () => { nextCalled = true; });
     expect(status).toBe(403);
     expect(body).toEqual({ error: '权限不足' });
+  });
+});
+
+describe('canManageExam（收敛三处 isOwner）', () => {
+  const mkReq = (caps) => ({ caps: new Set(caps), user: { id: 7 } });
+  it('属主恒可管理（无旁路能力也行）', () => {
+    expect(canManageExam({ created_by: 7 }, mkReq([]), 'exam.manage_super')).toBe(true);
+  });
+  it('非属主需对应旁路能力', () => {
+    expect(canManageExam({ created_by: 8 }, mkReq(['exam.manage_super']), 'exam.manage_super')).toBe(true);
+    expect(canManageExam({ created_by: 8 }, mkReq([]), 'exam.manage_super')).toBe(false);
+  });
+  it('exports.js 用 exam.manage_any 旁路（admin||teacher）', () => {
+    expect(canManageExam({ created_by: 8 }, mkReq(['exam.manage_any']), 'exam.manage_any')).toBe(true);
+    // 只有 super 旁路时，传 any 作为所需 cap 不命中
+    expect(canManageExam({ created_by: 8 }, mkReq(['exam.manage_super']), 'exam.manage_any')).toBe(false);
   });
 });
