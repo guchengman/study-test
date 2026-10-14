@@ -13,9 +13,9 @@ on:
         type: boolean
 
 env:
-  SERVER_HOST: <REDACTED_IP>
+  SERVER_HOST: ${{ secrets.SERVER_HOST }}
   SERVER_USER: root
-  SERVER_PATH: /home/zengxiao/study-test
+  SERVER_PATH: ${{ secrets.SERVER_PATH }}
 
 jobs:
   # Phase 2 / M1 跨租户隔离守门：起真实 MySQL 5.7 service 容器 + boot 真后端，

@@ -11,10 +11,16 @@ const mysql = require('mysql2/promise');
 const { Client } = require('ssh2');
 const fs = require('fs');
 
+const missing = ['SSH_HOST', 'SSH_KEY_PATH'].filter((k) => !process.env[k]);
+if (missing.length) {
+  console.error(`[verify-data] 缺少环境变量：${missing.join(', ')}（本脚本不硬编码敏感信息，请先设置后再运行）`);
+  process.exit(1);
+}
+
 const sshConfig = {
-  host: process.env.SSH_HOST || '<REDACTED_IP>',
+  host: process.env.SSH_HOST,
   port: process.env.SSH_PORT ? Number(process.env.SSH_PORT) : 22,
-  privateKey: fs.readFileSync(process.env.SSH_KEY_PATH || 'C:\\Users\\zengxiao\\.ssh\\deploy_key.pem'),
+  privateKey: fs.readFileSync(process.env.SSH_KEY_PATH),
   username: process.env.SSH_USER || 'root',
 };
 
