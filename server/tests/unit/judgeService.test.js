@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeOutput, createStubRunner, getLanguageDescriptor } from '../../src/services/judgeService.js';
+import { normalizeOutput, createStubRunner, getLanguageDescriptor, parseRunnerOutput } from '../../src/services/judgeService.js';
 
 describe('fr106 judgeService', () => {
   it('normalizeOutput 去尾随空白与末尾空行、CRLF→LF', () => {
@@ -34,6 +34,34 @@ describe('fr106 judgeService', () => {
     expect(py.solutionFile).toBe('solution.py');
     expect(getLanguageDescriptor('ruby').key).toBe('python');
     expect(getLanguageDescriptor(undefined).key).toBe('python');
+  });
+
+  it('getLanguageDescriptor：c 走 gcc、go 走 golang（编译型，需预写用例文件）', () => {
+    const c = getLanguageDescriptor('c');
+    expect(c.key).toBe('c');
+    expect(c.image).toMatch(/gcc/);
+    expect(c.solutionFile).toBe('solution.c');
+    expect(c.containerCmd[0]).toBe('bash');
+    expect(c.prepCaseFiles).toBe(true);
+    const go = getLanguageDescriptor('go');
+    expect(go.key).toBe('go');
+    expect(go.image).toMatch(/golang/);
+    expect(go.solutionFile).toBe('solution.go');
+    expect(go.prepCaseFiles).toBe(true);
+    expect(getLanguageDescriptor('golang').key).toBe('go');
+    // 解释型不预写用例文件（仍走 cases.json）
+    expect(getLanguageDescriptor('python').prepCaseFiles).toBeFalsy();
+  });
+
+  it('parseRunnerOutput：解释型 JSON、编译型 SUMMARY/COMPILE_ERROR、无结果 fail-closed', () => {
+    expect(parseRunnerOutput('###RESULT###{"verdict":"AC","passed":1,"total":1,"perCase":[]}', 0).verdict).toBe('AC');
+    const s = parseRunnerOutput('CASE 0 PASS\nCASE 1 FAIL\nSUMMARY WA 1 2\n', 0);
+    expect(s.verdict).toBe('WA');
+    expect(s.passed).toBe(1);
+    expect(s.total).toBe(2);
+    expect(s.perCase).toEqual([{ index: 0, ok: true }, { index: 1, ok: false }]);
+    expect(parseRunnerOutput('COMPILE_ERROR\n', 0).verdict).toBe('CE');
+    expect(parseRunnerOutput('garbage', 1).verdict).toBe('CE');
   });
 
   it('StubRunner 与语言无关：javascript 仍能判 AC', async () => {

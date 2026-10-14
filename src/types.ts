@@ -160,6 +160,8 @@ export interface JudgeConfig { language?: string; time_limit_ms?: number; memory
 export const PROGRAMMING_LANGUAGES: { value: string; label: string }[] = [
   { value: 'python', label: 'Python' },
   { value: 'javascript', label: 'JavaScript (Node)' },
+  { value: 'c', label: 'C (gcc)' },
+  { value: 'go', label: 'Go' },
 ];
 export interface JudgeRunResult {
   verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE' | string;

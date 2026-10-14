@@ -5,7 +5,7 @@
  * 由环境变量 JUDGE_RUNNER 切换（默认 'docker'；集成/单测设 'stub'）。
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, chmodSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, chmodSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pool from '../db.js';
@@ -107,9 +107,64 @@ const RUNNER_JS = [
   'console.log("###RESULT###"+JSON.stringify({verdict,passed,total,perCase:res}));',
 ].join('\n');
 
+/** 编译型 harness 通用体：归一比对 + 逐用例跑 /tmp/sol + 文本协议（CASE/SUMMARY）输出。 */
+const COMPILED_LOOP = [
+  'normfile(){ tr -d \'\\r\' | sed -e \'s/[ \\t]*$//\' | awk \'BEGIN{b=0}{if($0==""){b++;next}for(k=0;k<b;k++)print "";b=0;print}\'; }',
+  'passed=0',
+  'for i in $(seq 0 $((N-1))); do',
+  '  timeout "$T" /tmp/sol < "/code/case_$i.stdin" > /tmp/o 2>/dev/null',
+  '  rc=$?',
+  '  ok=0',
+  '  if [ "$rc" -ne 124 ] && diff -q <(normfile < /tmp/o) <(normfile < "/code/case_$i.expected") >/dev/null 2>&1; then ok=1; fi',
+  '  if [ "$ok" = 1 ]; then passed=$((passed+1)); echo "CASE $i PASS"; else echo "CASE $i FAIL"; fi',
+  'done',
+  'if [ "$N" -eq 0 ]; then v=CE; elif [ "$passed" -eq "$N" ]; then v=AC; else v=WA; fi',
+  'echo "SUMMARY $v $passed $N"',
+].join('\n');
+
+/** C harness（gcc 镜像）：先编译 solution.c，再逐用例跑。 */
+const RUNNER_C = [
+  '#!/usr/bin/env bash',
+  'cd /tmp',
+  'N=$(cat /code/n_cases)',
+  'T=$(cat /code/time_ms)',
+  'if ! gcc /code/solution.c -o /tmp/sol 2>/tmp/ce.err; then echo COMPILE_ERROR; exit 0; fi',
+  COMPILED_LOOP,
+].join('\n');
+
+/** Go harness（golang 镜像）：go build 单文件到可写缓存，再逐用例跑。 */
+const RUNNER_GO = [
+  '#!/usr/bin/env bash',
+  'cd /tmp',
+  'N=$(cat /code/n_cases)',
+  'T=$(cat /code/time_ms)',
+  'export GOCACHE=/tmp/gocache GOPATH=/tmp/gopath GOFLAGS=-mod=mod',
+  'cp /code/solution.go /tmp/sol_main.go',
+  'if ! go build -o /tmp/sol /tmp/sol_main.go 2>/tmp/ce.err; then echo COMPILE_ERROR; exit 0; fi',
+  COMPILED_LOOP,
+].join('\n');
+
 /** 语言 → 容器描述（镜像 / 提交文件名 / harness / 容器命令）；未知回落 python。 */
 export function getLanguageDescriptor(lang) {
   const k = String(lang || '').toLowerCase();
+  if (k === 'c') {
+    return {
+      key: 'c',
+      image: process.env.JUDGE_C_IMAGE || 'gcc:13',
+      solutionFile: 'solution.c', harnessFile: 'runner.sh', harnessSrc: RUNNER_C,
+      containerCmd: ['bash', '/code/runner.sh'],
+      prepCaseFiles: true, tmpfsSize: '64m', extraGraceMs: 15000, pidsLimit: 128, minMemoryMb: 256,
+    };
+  }
+  if (k === 'go' || k === 'golang') {
+    return {
+      key: 'go',
+      image: process.env.JUDGE_GO_IMAGE || 'golang:1.22',
+      solutionFile: 'solution.go', harnessFile: 'runner.sh', harnessSrc: RUNNER_GO,
+      containerCmd: ['bash', '/code/runner.sh'],
+      prepCaseFiles: true, tmpfsSize: '256m', extraGraceMs: 40000, pidsLimit: 512, minMemoryMb: 1024,
+    };
+  }
   if (k === 'javascript') {
     return {
       key: 'javascript',
@@ -126,15 +181,31 @@ export function getLanguageDescriptor(lang) {
   };
 }
 
-/** 解析 runner 末行 ###RESULT### JSON；无结果按运行时错误（fail-closed）。 */
+/** 解析 runner 输出：优先 ###RESULT### JSON（解释型）；否则文本协议（编译型）；都无则 fail-closed。 */
 export function parseRunnerOutput(stdout, exitCode) {
-  const line = String(stdout || '').split('\n').find((l) => l.startsWith('###RESULT###'));
-  if (!line) return { verdict: exitCode === 0 ? 'RE' : 'CE', passed: 0, total: 0, perCase: [], log: `no-result exit=${exitCode}` };
-  try {
-    return JSON.parse(line.slice('###RESULT###'.length));
-  } catch {
-    return { verdict: 'RE', passed: 0, total: 0, perCase: [], log: 'bad-result-json' };
+  const text = String(stdout || '');
+  const line = text.split('\n').find((l) => l.startsWith('###RESULT###'));
+  if (line) {
+    try {
+      return JSON.parse(line.slice('###RESULT###'.length));
+    } catch {
+      return { verdict: 'RE', passed: 0, total: 0, perCase: [], log: 'bad-result-json' };
+    }
   }
+  // 编译型 harness：逐行 CASE n PASS/FAIL + SUMMARY <verdict> <passed> <total>；编译失败仅输出 COMPILE_ERROR。
+  const summary = text.split('\n').find((l) => /^SUMMARY /.test(l));
+  if (summary) {
+    const [, v, p, t] = summary.trim().split(/\s+/);
+    const perCase = text.split('\n').filter((l) => /^CASE \d+ /.test(l)).map((l) => {
+      const parts = l.trim().split(/\s+/);
+      return { index: Number(parts[1]), ok: parts[2] === 'PASS' };
+    });
+    return { verdict: v, passed: Number(p) || 0, total: Number(t) || 0, perCase, log: 'compiled' };
+  }
+  if (/COMPILE_ERROR/.test(text)) {
+    return { verdict: 'CE', passed: 0, total: 0, perCase: [], log: 'compile-error' };
+  }
+  return { verdict: exitCode === 0 ? 'RE' : 'CE', passed: 0, total: 0, perCase: [], log: `no-result exit=${exitCode}` };
 }
 
 /** spawn docker run + wall-clock kill，返回 {stdout,stderr,code,ms}。 */
@@ -168,11 +239,20 @@ function createDockerRunner() {
         writeFileSync(join(work, 'cases.json'), JSON.stringify(testCases), 'utf8');
         writeFileSync(join(work, 'run_meta.json'), JSON.stringify({ time_limit_ms: timeLimitMs }), 'utf8');
         writeFileSync(join(work, d.harnessFile), d.harnessSrc, 'utf8');
-        try { chmodSync(work, 0o755); [d.solutionFile, 'cases.json', 'run_meta.json', d.harnessFile].forEach((f) => chmodSync(join(work, f), 0o644)); } catch { /* ignore (Windows/dev) */ }
-        const hardMs = timeLimitMs * Math.max(1, testCases.length) + 8000; // 含冷启裕量
+        // 编译型 harness 用 shell 逐用例跑，不便解析 JSON，改预写每用例 stdin/expected 与元数据文件
+        if (d.prepCaseFiles) {
+          writeFileSync(join(work, 'n_cases'), String(testCases.length), 'utf8');
+          writeFileSync(join(work, 'time_ms'), String(Math.max(1, Math.round(timeLimitMs / 1000))), 'utf8');
+          testCases.forEach((c, i) => {
+            writeFileSync(join(work, `case_${i}.stdin`), String(c.input ?? ''), 'utf8');
+            writeFileSync(join(work, `case_${i}.expected`), String(c.expected_output ?? ''), 'utf8');
+          });
+        }
+        try { chmodSync(work, 0o755); readdirSync(work).forEach((f) => { try { chmodSync(join(work, f), 0o644); } catch { /* ignore */ } }); } catch { /* ignore (Windows/dev) */ }
+        const hardMs = timeLimitMs * Math.max(1, testCases.length) + 8000 + (d.extraGraceMs || 0); // 含冷启/编译裕量
         const args = [
-          'run', '--rm', '--network', 'none', '--memory', `${memoryLimitMb}m`, '--cpus', '0.5',
-          '--pids-limit', '64', '--read-only', '--tmpfs', '/tmp:rw,size=16m', '--user', 'nobody',
+          'run', '--rm', '--network', 'none', '--memory', `${Math.max(memoryLimitMb, d.minMemoryMb || 0)}m`, '--cpus', '0.5',
+          '--pids-limit', String(d.pidsLimit || 64), '--read-only', '--tmpfs', `/tmp:rw,exec,size=${d.tmpfsSize || '16m'}`, '--user', 'nobody',
           '-v', `${work}:/code:ro`, d.image, ...d.containerCmd,
         ];
         const out = await runDocker(args, hardMs);
