@@ -5,17 +5,16 @@
 //   1) 各 org 表 org_id 的 NULL 分布（应仅剩历史孤儿科目，人工确认）；
 //   2) 师生分组完整性：有学生的老师是否都已归入 class 组织。
 // 任一缺口 > 0 视为待确认，退出码非 0，ORG_ISOLATION_MODE 不得翻 enforce。
+// org 表清单从 information_schema 动态发现（凡有 org_id 列的表），
+// 本地/生产自适应，新增带 org_id 的表无需改脚本。
 // 用法：cd server && node scripts/reconcile-org-isolation.cjs
 // ============================================================
 const path = require('path');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-const ORG_TABLES = [
-  'questions', 'subjects', 'exams', 'exam_attempts', 'mistake_records',
-  'favorites', 'study_stats', 'question_groups', 'question_judge_configs',
-  'question_tags', 'export_jobs', 'judge_runs',
-];
+// 组织定义表本身：其 org_id 是外键链路，恒非空，不参与 NULL 审计
+const ORG_SCHEMA_SKIP = new Set(['org_members', 'departments', 'resource_acl']);
 
 (async () => {
   const conn = await mysql.createConnection({
@@ -24,10 +23,19 @@ const ORG_TABLES = [
   });
   let issues = 0;
 
-  for (const t of ORG_TABLES) {
+  // 动态发现当前库中所有带 org_id 列的表，排除组织定义表
+  const [tblRows] = await conn.query(
+    `SELECT TABLE_NAME AS t FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'org_id'
+     ORDER BY TABLE_NAME`
+  );
+  const orgTables = tblRows.map((r) => r.t).filter((t) => !ORG_SCHEMA_SKIP.has(t));
+  console.log(`[scope] 发现 ${orgTables.length} 张带 org_id 的业务表：${orgTables.join(', ')}`);
+
+  for (const t of orgTables) {
     try {
       const [[r]] = await conn.query(
-        `SELECT COUNT(*) total, SUM(org_id IS NULL) nulls FROM \`${t}\``
+        `SELECT COUNT(*) total, COALESCE(SUM(org_id IS NULL), 0) nulls FROM \`${t}\``
       );
       const flag = r.nulls > 0 ? ' (待确认)' : '';
       console.log(`[org_id] ${t}: total=${r.total} null=${r.nulls}${flag}`);
