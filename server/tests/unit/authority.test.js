@@ -10,6 +10,9 @@ import { describe, it, expect } from 'vitest';
 import {
   capsForLegacyRole,
   capsForOrgRole,
+  computeCaps,
+  hasCapability,
+  requireCapability,
 } from '../../src/utils/authority.js';
 
 describe('capability matrix', () => {
@@ -48,5 +51,52 @@ describe('capability matrix', () => {
     for (const [legacy, org] of pairs) {
       expect([...capsForLegacyRole(legacy)].sort()).toEqual([...capsForOrgRole(org)].sort());
     }
+  });
+});
+
+describe('computeCaps 双读决策', () => {
+  it('legacy 源：用 users.role 决定 caps', () => {
+    process.env.ROLE_AUTHORITY_SOURCE = 'legacy';
+    const caps = computeCaps({ legacyRole: 'teacher', orgRole: 'examinee' });
+    expect(caps.has('content.manage')).toBe(true);
+  });
+  it('org 源：用 org_members.role 决定 caps', () => {
+    process.env.ROLE_AUTHORITY_SOURCE = 'org';
+    const caps = computeCaps({ legacyRole: 'teacher', orgRole: 'examinee' });
+    expect(caps.has('content.manage')).toBe(false);
+    expect(caps.has('actor.examinee')).toBe(true);
+  });
+  it('shadow 源：决策用 legacy，但检测到漂移时回调 onDrift', () => {
+    process.env.ROLE_AUTHORITY_SOURCE = 'shadow';
+    let drifted = null;
+    const caps = computeCaps({ legacyRole: 'admin', orgRole: 'examinee', onDrift: (d) => (drifted = d) });
+    expect(caps.has('platform.super')).toBe(true); // 仍按 legacy 决策
+    expect(drifted).toEqual({ legacyRole: 'admin', orgRole: 'examinee' }); // 漂移被记录
+  });
+  it('shadow 源：legacy 与 org 等价时不报漂移', () => {
+    process.env.ROLE_AUTHORITY_SOURCE = 'shadow';
+    let called = false;
+    computeCaps({ legacyRole: 'teacher', orgRole: 'content_author', onDrift: () => (called = true) });
+    expect(called).toBe(false);
+  });
+});
+
+describe('hasCapability / requireCapability', () => {
+  const mkReq = (caps) => ({ caps: new Set(caps) });
+  it('hasCapability 读取 req.caps', () => {
+    expect(hasCapability(mkReq(['content.manage']), 'content.manage')).toBe(true);
+    expect(hasCapability(mkReq([]), 'content.manage')).toBe(false);
+    expect(hasCapability({}, 'content.manage')).toBe(false);
+  });
+  it('requireCapability 命中放行、未命中 403', () => {
+    const mw = requireCapability('content.manage');
+    let nextCalled = false, status = null, body = null;
+    const res = { status: (s) => { status = s; return res; }, json: (b) => { body = b; return res; } };
+    mw(mkReq(['content.manage']), res, () => { nextCalled = true; });
+    expect(nextCalled).toBe(true);
+    nextCalled = false;
+    mw(mkReq([]), res, () => { nextCalled = true; });
+    expect(status).toBe(403);
+    expect(body).toEqual({ error: '权限不足' });
   });
 });
