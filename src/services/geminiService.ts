@@ -663,14 +663,18 @@ export async function parseQuestionsWithAI(text: string, modelName: string = "ge
     return callOpenAICompatible("https://api.baichuan-ai.com/v1", settings.baichuanKey, modelName, text);
   }
 
+  // 腾讯混元：官方 OpenAI 兼容接口，base_url 以 /v1 结尾
+  // 参考 https://cloud.tencent.com/document/product/1729/116755
   if (modelName.startsWith('hunyuan')) {
     if (!settings.hunyuanKey) throw new Error("请先在设置中配置腾讯混元 API Key");
-    throw new Error("腾讯混元暂未实现，请通过OpenRouter使用或选择其他模型");
+    return callOpenAICompatible("https://api.hunyuan.cloud.tencent.com/v1", settings.hunyuanKey, modelName, text);
   }
 
+  // 百度千帆 V2：官方 OpenAI 兼容接口，base_url 以 /v2 结尾
+  // 参考 https://cloud.baidu.com/doc/qianfan/s/rmh4stn9m
   if (modelName.startsWith('ernie')) {
     if (!settings.ernieKey) throw new Error("请先在设置中配置百度文心一言 API Key");
-    throw new Error("文心一言暂未实现，请通过OpenRouter使用或选择其他模型");
+    return callOpenAICompatible("https://qianfan.baidubce.com/v2", settings.ernieKey, modelName, text);
   }
 
   // OpenRouter Support with dynamic model selection
@@ -849,14 +853,15 @@ export async function generateQuestionsFromPrompt(prompt: string, modelName: str
     return callOpenAICompatible("https://api.baichuan-ai.com/v1", settings.baichuanKey, modelName, prompt, true);
   }
 
+  // 腾讯混元 / 百度千帆 V2：与解析路径同一套 OpenAI 兼容接口
   if (modelName.startsWith('hunyuan')) {
     if (!settings.hunyuanKey) throw new Error("请先在设置中配置腾讯混元 API Key");
-    throw new Error("腾讯混元暂未实现，请通过OpenRouter使用或选择其他模型");
+    return callOpenAICompatible("https://api.hunyuan.cloud.tencent.com/v1", settings.hunyuanKey, modelName, prompt, true);
   }
 
   if (modelName.startsWith('ernie')) {
     if (!settings.ernieKey) throw new Error("请先在设置中配置百度文心一言 API Key");
-    throw new Error("文心一言暂未实现，请通过OpenRouter使用或选择其他模型");
+    return callOpenAICompatible("https://qianfan.baidubce.com/v2", settings.ernieKey, modelName, prompt, true);
   }
 
   // OpenRouter Support

@@ -36,6 +36,18 @@ const MODELS = [
     req: '适合专业领域题目,需配置 API Key。',
   },
   {
+    id: 'hunyuan-turbos-latest',
+    name: '腾讯混元 Turbos',
+    desc: '腾讯混元旗舰模型,中文题目解析稳定。',
+    req: '需配置腾讯混元 OpenAI 兼容 API Key。',
+  },
+  {
+    id: 'ernie-4.0-turbo-128k',
+    name: '文心一言 4.0 Turbo',
+    desc: '百度千帆 ERNIE 4.0,128K 长上下文,适合百题批量导入。',
+    req: '需配置千帆 V2 API Key(bce-v3/... 格式 bearer token)。',
+  },
+  {
     id: 'openrouter',
     name: 'OpenRouter 通用接口',
     desc: '通过 OpenRouter 访问任意模型,支持数百种AI模型。',

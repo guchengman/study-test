@@ -329,7 +329,7 @@ const content: Record<SectionId, { title: string; items: { q: string; a: React.R
           <div className="space-y-2">
             <p className="text-sm text-slate-600">系统支持多种 AI 模型，可在右上角齿轮图标「API 设置」中配置：</p>
             <div className="flex flex-wrap gap-1.5">
-              {['DeepSeek V4 Flash', '通义千问 Max', '智谱 GLM-4', '月之暗面 8K', '百川 53B', 'Gemini 3 Flash', 'Gemini 3 Pro', 'OpenRouter 通用', '自定义接口'].map((m) => (
+              {['DeepSeek V4 Flash', '通义千问 Max', '智谱 GLM-4', '月之暗面 8K', '百川 53B', '腾讯混元 Turbos', '文心一言 4.0 Turbo', 'Gemini 3 Flash', 'Gemini 3 Pro', 'OpenRouter 通用', '自定义接口'].map((m) => (
                 <span key={m} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">{m}</span>
               ))}
             </div>

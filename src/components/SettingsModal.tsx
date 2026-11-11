@@ -98,8 +98,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, a
     zhipu: { url: 'https://open.bigmodel.cn/console/apigray/key', text: '获取智谱 API Key' },
     moonshot: { url: 'https://platform.moonshot.cn/console/api-keys', text: '获取 Moonshot API Key' },
     baichuan: { url: 'https://platform.baichuan-ai.com/home/my-key', text: '获取百川 API Key' },
-    hunyuan: { url: 'https://cloud.tencent.com/document/product/1729/97766', text: '获取腾讯混元 API Key' },
-    ernie: { url: 'https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/interface', text: '获取文心 API Key' },
+    hunyuan: { url: 'https://cloud.tencent.com/document/product/1729/116755', text: '获取腾讯混元 OpenAI 兼容 API Key' },
+    ernie: { url: 'https://cloud.baidu.com/doc/qianfan/s/rmh4stn9m', text: '获取千帆 V2 API Key(bce-v3/...)' },
     openrouter: { url: 'https://openrouter.ai/keys', text: '获取 OpenRouter API Key' },
     custom: { url: 'https://openrouter.ai/keys', text: '获取 API Key' },
   };
