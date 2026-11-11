@@ -97,3 +97,44 @@ public/tesseract/
 
 # 允许提交 prebuild 判分同步脚本（尽管上方规则忽略了 *.mjs，构建前端必需）
 !scripts/build-scoring.mjs
+
+# ===== 本地杂物 / 历史 WIP（2026-11-11 补，防误 git add -A 复发）=====
+# 以下仅存在于本地工作区，不属于项目源码；如需单独入库用 git add -f <文件>
+
+# 工具状态、临时构建产物、项目记忆
+.omc/
+.qa-build-tmp/
+.workbuddy/
+
+# 历史归档与一次性素材（900 张视频帧图、mp4、脚本）
+archive/
+lang-trends-video/
+
+# 根目录评测/调试临时文件
+case_0.expected
+case_0.stdin
+n_cases
+time_ms
+solution.c
+shelltest.txt
+shelltest2.txt
+
+# 历史 WIP：数据清洗与一次性检查脚本
+# 用精确路径而非整目录，避免误伤 scripts/ 与 server/ 下已跟踪的正式脚本
+scripts/backup/
+scripts/config/
+scripts/data/
+scripts/utils/
+scripts/db/fix/
+scripts/db/audit_questions.js
+scripts/db/check-subjects.js
+scripts/db/query-admin-subjects.js
+scripts/deploy/build-apk.bat
+server/migrations/archive/
+server/scripts/check-fk.js
+server/scripts/check-fk2.js
+server/scripts/check-subjects.js
+server/scripts/check-users.js
+
+# 注意：server/scripts/check-users.cjs 被上方第 88 行白名单 ! 明确保留「可提交」，
+# 故此处不忽略，由使用者决定是提交还是单独处理。
