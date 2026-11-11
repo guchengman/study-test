@@ -85,7 +85,6 @@ server/exports/
 # 运维脚本（密钥已外置到环境变量，允许提交）
 !scripts/db/set-reset-flag.cjs
 !server/scripts/verify-data.cjs
-!server/scripts/check-users.cjs
 !server/scripts/reconcile-role-authority.cjs
 !server/scripts/reconcile-org-isolation.cjs
 
@@ -136,5 +135,7 @@ server/scripts/check-fk2.js
 server/scripts/check-subjects.js
 server/scripts/check-users.js
 
-# 注意：server/scripts/check-users.cjs 被上方第 88 行白名单 ! 明确保留「可提交」，
-# 故此处不忽略，由使用者决定是提交还是单独处理。
+# server/scripts/check-users.cjs：一次性运维排查脚本（SSH 查生产库 users 表并打印 password_hash）。
+# 含硬编码生产 IP / 本机私钥路径作 fallback、DB 密码拼进命令行，不符合项目安全整改口径；
+# 且 package.json 与文档零引用，已有更严格的 verify-data.cjs 替代。
+# 2026-11-11 决定：撤销原第 88 行白名单，交由上方通用 *.cjs 规则忽略，文件仍保留在本地磁盘。
